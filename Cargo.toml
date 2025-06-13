@@ -33,6 +33,10 @@ path = "src/bin/lsh_benchmark.rs"
 name = "manifold_demo"
 path = "src/bin/manifold_demo.rs"
 
+[[bin]]
+name = "move_recommendation_demo"
+path = "src/bin/move_recommendation_demo.rs"
+
 [dependencies]
 # Chess game logic
 chess = "3.2"

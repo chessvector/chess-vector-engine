@@ -1,6 +1,6 @@
 use ndarray::{Array1, Array2};
 use candle_core::{Device, Result as CandleResult, Tensor, Module};
-use candle_nn::{linear, Linear, VarBuilder, VarMap};
+use candle_nn::{linear, Linear, VarBuilder, VarMap, Optimizer, AdamW, ParamsAdamW};
 
 /// Autoencoder for chess position manifold learning
 pub struct ManifoldLearner {
@@ -10,6 +10,7 @@ pub struct ManifoldLearner {
     encoder: Option<Encoder>,
     decoder: Option<Decoder>,
     var_map: VarMap,
+    optimizer: Option<AdamW>,
 }
 
 /// Encoder network (input -> manifold)
@@ -74,6 +75,7 @@ impl ManifoldLearner {
             encoder: None,
             decoder: None,
             var_map,
+            optimizer: None,
         }
     }
     
@@ -87,8 +89,17 @@ impl ManifoldLearner {
         let decoder = Decoder::new(vs, self.output_dim, hidden_dim, self.input_dim)
             .map_err(|e| format!("Failed to create decoder: {}", e))?;
         
+        // Initialize AdamW optimizer with learning rate 0.001
+        let adamw_params = ParamsAdamW {
+            lr: 0.001,
+            ..Default::default()
+        };
+        let optimizer = AdamW::new(self.var_map.all_vars(), adamw_params)
+            .map_err(|e| format!("Failed to create optimizer: {}", e))?;
+        
         self.encoder = Some(encoder);
         self.decoder = Some(decoder);
+        self.optimizer = Some(optimizer);
         
         Ok(())
     }
@@ -107,11 +118,13 @@ impl ManifoldLearner {
             &self.device
         ).map_err(|e| format!("Failed to create tensor: {}", e))?;
         
-        println!("Training autoencoder for {} epochs...", epochs);
+        println!("Training autoencoder for {} epochs with proper gradient descent...", epochs);
         
-        // Simple training loop (in practice, would use proper optimizer)
+        // Training loop with proper gradient descent
         for epoch in 0..epochs {
-            if let (Some(encoder), Some(decoder)) = (&self.encoder, &self.decoder) {
+            if let (Some(encoder), Some(decoder), Some(optimizer)) = 
+                (&self.encoder, &self.decoder, &mut self.optimizer) {
+                
                 // Forward pass
                 let encoded = encoder.forward(&data_tensor)
                     .map_err(|e| format!("Encoder forward failed: {}", e))?;
@@ -124,17 +137,23 @@ impl ManifoldLearner {
                     .and_then(|squared| squared.mean_all())
                     .map_err(|e| format!("Loss calculation failed: {}", e))?;
                 
+                // Compute gradients through backpropagation
+                let grads = loss.backward()
+                    .map_err(|e| format!("Backward pass failed: {}", e))?;
+                
+                // Update weights using the optimizer
+                optimizer.step(&grads)
+                    .map_err(|e| format!("Optimizer step failed: {}", e))?;
+                
                 if epoch % 10 == 0 {
                     let loss_val = loss.to_scalar::<f32>()
                         .map_err(|e| format!("Loss scalar conversion failed: {}", e))?;
                     println!("Epoch {}: Loss = {:.6}", epoch, loss_val);
                 }
-                
-                // Note: In a real implementation, we'd compute gradients and update weights
-                // This is a simplified version for demonstration
             }
         }
         
+        println!("Training completed with proper gradient descent!");
         Ok(())
     }
 
@@ -187,7 +206,7 @@ impl ManifoldLearner {
     
     /// Check if the network is trained
     pub fn is_trained(&self) -> bool {
-        self.encoder.is_some() && self.decoder.is_some()
+        self.encoder.is_some() && self.decoder.is_some() && self.optimizer.is_some()
     }
 }
 

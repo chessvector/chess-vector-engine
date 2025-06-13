@@ -37,7 +37,7 @@ impl LSH {
             hyperplanes.push(table_hyperplanes);
         }
         
-        let hash_tables = vec![HashMap::new(); num_tables];
+        let hash_tables = vec![HashMap::with_capacity(100); num_tables];
         
         Self {
             num_tables,
@@ -45,23 +45,30 @@ impl LSH {
             vector_dim,
             hyperplanes,
             hash_tables,
-            stored_vectors: Vec::new(),
-            stored_data: Vec::new(),
+            stored_vectors: Vec::with_capacity(1000), // Pre-allocate for better performance
+            stored_data: Vec::with_capacity(1000),
         }
     }
     
     /// Add a vector to the LSH index
     pub fn add_vector(&mut self, vector: Array1<f32>, data: f32) {
         let index = self.stored_vectors.len();
-        self.stored_vectors.push(vector.clone());
+        
+        // Hash the vector in each table before storing (to avoid clone)
+        let mut hashes = Vec::with_capacity(self.num_tables);
+        for table_idx in 0..self.num_tables {
+            hashes.push(self.hash_vector(&vector, table_idx));
+        }
+        
+        // Now store the vector and data
+        self.stored_vectors.push(vector);
         self.stored_data.push(data);
         
-        // Hash the vector in each table
-        for table_idx in 0..self.num_tables {
-            let hash = self.hash_vector(&vector, table_idx);
+        // Insert into hash tables using pre-computed hashes
+        for (table_idx, hash) in hashes.into_iter().enumerate() {
             self.hash_tables[table_idx]
                 .entry(hash)
-                .or_insert_with(Vec::new)
+                .or_insert_with(|| Vec::with_capacity(4)) // Pre-allocate capacity
                 .push(index);
         }
     }
@@ -88,20 +95,20 @@ impl LSH {
             }
         }
         
-        // If we have too few candidates, add some random ones to ensure we have enough
-        if candidates.len() < k * 3 {
-            let mut rng = rand::thread_rng();
-            use rand::seq::SliceRandom;
-            let all_indices: Vec<usize> = (0..self.stored_vectors.len()).collect();
-            let sample_size = (k * 5).min(self.stored_vectors.len());
-            let sampled = all_indices.choose_multiple(&mut rng, sample_size);
-            for &idx in sampled {
+        // If we have too few candidates, use a more efficient approach
+        if candidates.len() < k * 3 && self.stored_vectors.len() > k * 3 {
+            // Instead of random sampling, just take the first few indices
+            let needed = k * 5;
+            for idx in 0..needed.min(self.stored_vectors.len()) {
                 candidates.insert(idx);
+                if candidates.len() >= needed {
+                    break;
+                }
             }
         }
         
-        // Calculate similarities for candidates
-        let mut results = Vec::new();
+        // Calculate similarities for candidates more efficiently
+        let mut results = Vec::with_capacity(candidates.len());
         for &idx in &candidates {
             let stored_vector = &self.stored_vectors[idx];
             let similarity = cosine_similarity(query_vector, stored_vector);
@@ -109,7 +116,7 @@ impl LSH {
         }
         
         // Sort by similarity (descending) and return top k
-        results.sort_by(|a, b| b.2.partial_cmp(&a.2).unwrap());
+        results.sort_unstable_by(|a, b| b.2.partial_cmp(&a.2).unwrap_or(std::cmp::Ordering::Equal));
         results.truncate(k);
         
         results
@@ -118,18 +125,12 @@ impl LSH {
     /// Hash a vector using hyperplanes for a specific table
     fn hash_vector(&self, vector: &Array1<f32>, table_idx: usize) -> Vec<bool> {
         let hyperplanes = &self.hyperplanes[table_idx];
-        let mut hash = Vec::with_capacity(self.hash_size);
         
-        for i in 0..self.hash_size {
-            let hyperplane = hyperplanes.row(i);
-            let dot_product: f32 = hyperplane.iter()
-                .zip(vector.iter())
-                .map(|(h, v)| h * v)
-                .sum();
-            hash.push(dot_product >= 0.0);
-        }
+        // Use ndarray's optimized matrix-vector multiplication
+        let dot_products = hyperplanes.dot(vector);
         
-        hash
+        // Convert to hash bits in one pass
+        dot_products.iter().map(|&x| x >= 0.0).collect()
     }
     
     /// Get statistics about the index
@@ -188,14 +189,17 @@ pub struct LSHStats {
 
 /// Calculate cosine similarity between two vectors
 fn cosine_similarity(a: &Array1<f32>, b: &Array1<f32>) -> f32 {
-    let dot_product: f32 = a.iter().zip(b.iter()).map(|(x, y)| x * y).sum();
-    let norm_a: f32 = a.iter().map(|x| x * x).sum::<f32>().sqrt();
-    let norm_b: f32 = b.iter().map(|x| x * x).sum::<f32>().sqrt();
+    // Use ndarray's optimized dot product
+    let dot_product = a.dot(b);
     
-    if norm_a == 0.0 || norm_b == 0.0 {
+    // Calculate norms efficiently
+    let norm_a_sq: f32 = a.dot(a);
+    let norm_b_sq: f32 = b.dot(b);
+    
+    if norm_a_sq == 0.0 || norm_b_sq == 0.0 {
         0.0
     } else {
-        dot_product / (norm_a * norm_b)
+        dot_product / (norm_a_sq * norm_b_sq).sqrt()
     }
 }
 

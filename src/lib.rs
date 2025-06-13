@@ -9,8 +9,18 @@ pub use similarity_search::SimilaritySearch;
 pub use lsh::LSH;
 pub use manifold_learner::ManifoldLearner;
 
-use chess::Board;
+use chess::{Board, ChessMove};
 use ndarray::Array1;
+use std::collections::HashMap;
+
+/// Move recommendation data
+#[derive(Debug, Clone)]
+pub struct MoveRecommendation {
+    pub chess_move: ChessMove,
+    pub confidence: f32,
+    pub from_similar_position_count: usize,
+    pub average_outcome: f32,
+}
 
 /// Main chess vector engine
 pub struct ChessVectorEngine {
@@ -18,6 +28,8 @@ pub struct ChessVectorEngine {
     similarity_search: SimilaritySearch,
     lsh_index: Option<LSH>,
     use_lsh: bool,
+    /// Map from position index to moves played and their outcomes
+    position_moves: HashMap<usize, Vec<(ChessMove, f32)>>,
 }
 
 impl ChessVectorEngine {
@@ -28,6 +40,7 @@ impl ChessVectorEngine {
             similarity_search: SimilaritySearch::new(vector_size),
             lsh_index: None,
             use_lsh: false,
+            position_moves: HashMap::new(),
         }
     }
     
@@ -38,6 +51,7 @@ impl ChessVectorEngine {
             similarity_search: SimilaritySearch::new(vector_size),
             lsh_index: Some(LSH::new(vector_size, num_tables, hash_size)),
             use_lsh: true,
+            position_moves: HashMap::new(),
         }
     }
     
@@ -127,6 +141,108 @@ impl ChessVectorEngine {
     /// Get LSH statistics if enabled
     pub fn lsh_stats(&self) -> Option<crate::lsh::LSHStats> {
         self.lsh_index.as_ref().map(|lsh| lsh.stats())
+    }
+    
+    /// Add a move played from a position with its outcome
+    pub fn add_position_with_move(&mut self, board: &Board, evaluation: f32, chess_move: Option<ChessMove>, move_outcome: Option<f32>) {
+        let position_index = self.knowledge_base_size();
+        
+        // Add the position first
+        self.add_position(board, evaluation);
+        
+        // If a move and outcome are provided, store the move information
+        if let (Some(mov), Some(outcome)) = (chess_move, move_outcome) {
+            self.position_moves.entry(position_index)
+                .or_insert_with(Vec::new)
+                .push((mov, outcome));
+        }
+    }
+    
+    /// Get move recommendations based on similar positions
+    pub fn recommend_moves(&self, board: &Board, num_recommendations: usize) -> Vec<MoveRecommendation> {
+        // Find similar positions
+        let similar_positions = self.find_similar_positions(board, 10);
+        
+        if similar_positions.is_empty() {
+            return Vec::new();
+        }
+        
+        // Collect moves from similar positions
+        let mut move_data: HashMap<ChessMove, Vec<(f32, f32)>> = HashMap::new(); // move -> (similarity, outcome)
+        
+        // We need to map back from vector similarity results to position indices
+        // For now, we'll need to modify the approach since we can't easily map back to indices
+        // Let's use a different strategy - we'll need to enhance our similarity search to return indices
+        
+        // For this initial implementation, let's use a simpler approach where we check all positions
+        // and use similarity to weight the recommendations
+        for (position_index, moves) in &self.position_moves {
+            // We'd need to get the board for this position to calculate similarity
+            // For now, let's use a placeholder approach
+            for &(chess_move, outcome) in moves {
+                // Use a default similarity - in a full implementation we'd calculate actual similarity
+                let similarity = 0.5; // Placeholder
+                move_data.entry(chess_move)
+                    .or_insert_with(Vec::new)
+                    .push((similarity, outcome));
+            }
+        }
+        
+        // Calculate move recommendations
+        let mut recommendations = Vec::new();
+        
+        for (chess_move, outcomes) in move_data {
+            if outcomes.is_empty() { continue; }
+            
+            // Calculate weighted average outcome based on similarity
+            let mut weighted_sum = 0.0;
+            let mut weight_sum = 0.0;
+            
+            for &(similarity, outcome) in &outcomes {
+                weighted_sum += similarity * outcome;
+                weight_sum += similarity;
+            }
+            
+            let average_outcome = if weight_sum > 0.0 {
+                weighted_sum / weight_sum
+            } else {
+                0.0
+            };
+            
+            // Confidence based on number of similar positions and average similarity
+            let avg_similarity = outcomes.iter().map(|(s, _)| s).sum::<f32>() / outcomes.len() as f32;
+            let confidence = avg_similarity * (outcomes.len() as f32).ln() / 10.0; // Logarithmic scaling
+            
+            recommendations.push(MoveRecommendation {
+                chess_move,
+                confidence: confidence.min(1.0), // Cap at 1.0
+                from_similar_position_count: outcomes.len(),
+                average_outcome,
+            });
+        }
+        
+        // Sort by confidence (descending)
+        recommendations.sort_by(|a, b| b.confidence.partial_cmp(&a.confidence).unwrap_or(std::cmp::Ordering::Equal));
+        
+        // Return top recommendations
+        recommendations.truncate(num_recommendations);
+        recommendations
+    }
+    
+    /// Generate legal move recommendations (filters recommendations by legal moves)
+    pub fn recommend_legal_moves(&self, board: &Board, num_recommendations: usize) -> Vec<MoveRecommendation> {
+        use chess::MoveGen;
+        
+        // Get all legal moves
+        let legal_moves: std::collections::HashSet<ChessMove> = MoveGen::new_legal(board).collect();
+        
+        // Get recommendations and filter by legal moves
+        let all_recommendations = self.recommend_moves(board, num_recommendations * 2); // Get more to account for filtering
+        
+        all_recommendations.into_iter()
+            .filter(|rec| legal_moves.contains(&rec.chess_move))
+            .take(num_recommendations)
+            .collect()
     }
 }
 

@@ -47,25 +47,28 @@ impl PositionEncoder {
 
     /// Encode piece positions on the board using dense representation
     fn encode_piece_positions(&self, board: &Board, features: &mut Vec<f32>) {
-        // Dense encoding: 64 squares * 1 value each = 64 features
-        // Values: -6 to -1 for black pieces, 0 for empty, +1 to +6 for white pieces
+        // Enhanced encoding: 64 squares * 12 piece types (6 pieces * 2 colors) = 768 features
+        // This creates more distinctive representations
         for square in chess::ALL_SQUARES {
-            let value = match board.piece_on(square) {
-                Some(piece) => {
-                    let color = board.color_on(square).unwrap();
-                    let piece_value = match piece {
-                        chess::Piece::Pawn => 1.0,
-                        chess::Piece::Knight => 2.0,
-                        chess::Piece::Bishop => 3.0,
-                        chess::Piece::Rook => 4.0,
-                        chess::Piece::Queen => 5.0,
-                        chess::Piece::King => 6.0,
-                    };
-                    if color == chess::Color::White { piece_value } else { -piece_value }
-                }
-                None => 0.0,
-            };
-            features.push(value);
+            // One-hot encoding for each piece type and color
+            let mut square_features = vec![0.0; 12]; // 6 pieces * 2 colors
+            
+            if let Some(piece) = board.piece_on(square) {
+                let color = board.color_on(square).unwrap();
+                let piece_idx = match piece {
+                    chess::Piece::Pawn => 0,
+                    chess::Piece::Knight => 1,
+                    chess::Piece::Bishop => 2,
+                    chess::Piece::Rook => 3,
+                    chess::Piece::Queen => 4,
+                    chess::Piece::King => 5,
+                };
+                
+                let color_offset = if color == chess::Color::White { 0 } else { 6 };
+                square_features[piece_idx + color_offset] = 1.0;
+            }
+            
+            features.extend(square_features);
         }
         
         // Add piece interaction features - attacks/defends relationships
@@ -172,6 +175,18 @@ impl PositionEncoder {
             let mobility = self.calculate_mobility(board, color);
             features.push(mobility as f32);
         }
+        
+        // Add pawn structure features
+        self.encode_pawn_structure(board, features);
+        
+        // Add tactical patterns
+        self.encode_tactical_patterns(board, features);
+        
+        // Add center control
+        self.encode_center_control(board, features);
+        
+        // Add piece coordination patterns
+        self.encode_piece_coordination(board, features);
     }
 
     /// Calculate distance from square to center of board
@@ -224,6 +239,187 @@ impl PositionEncoder {
         }
         
         mobility
+    }
+
+    /// Encode pawn structure features
+    fn encode_pawn_structure(&self, board: &Board, features: &mut Vec<f32>) {
+        for color in [Color::White, Color::Black] {
+            let pawns = board.pieces(Piece::Pawn) & board.color_combined(color);
+            
+            // Count doubled pawns (simplified)
+            let mut doubled_pawns = 0;
+            for file in 0..8 {
+                let mut file_pawn_count = 0;
+                for rank in 0..8 {
+                    let square = chess::Square::make_square(
+                        chess::Rank::from_index(rank),
+                        chess::File::from_index(file)
+                    );
+                    if (pawns & chess::BitBoard::from_square(square)).popcnt() > 0 {
+                        file_pawn_count += 1;
+                    }
+                }
+                if file_pawn_count > 1 {
+                    doubled_pawns += file_pawn_count - 1;
+                }
+            }
+            features.push(doubled_pawns as f32);
+            
+            // Count isolated pawns (simplified)
+            let mut isolated_pawns = 0;
+            for file in 0..8 {
+                let mut file_has_pawn = false;
+                for rank in 0..8 {
+                    let square = chess::Square::make_square(
+                        chess::Rank::from_index(rank),
+                        chess::File::from_index(file)
+                    );
+                    if (pawns & chess::BitBoard::from_square(square)).popcnt() > 0 {
+                        file_has_pawn = true;
+                        break;
+                    }
+                }
+                
+                if file_has_pawn {
+                    // Check adjacent files
+                    let mut has_adjacent = false;
+                    for adj_file in [file.saturating_sub(1), file + 1] {
+                        if adj_file < 8 && adj_file != file {
+                            for rank in 0..8 {
+                                let adj_square = chess::Square::make_square(
+                                    chess::Rank::from_index(rank),
+                                    chess::File::from_index(adj_file)
+                                );
+                                if (pawns & chess::BitBoard::from_square(adj_square)).popcnt() > 0 {
+                                    has_adjacent = true;
+                                    break;
+                                }
+                            }
+                        }
+                        if has_adjacent { break; }
+                    }
+                    
+                    if !has_adjacent {
+                        isolated_pawns += 1;
+                    }
+                }
+            }
+            features.push(isolated_pawns as f32);
+        }
+    }
+    
+    /// Encode tactical patterns
+    fn encode_tactical_patterns(&self, board: &Board, features: &mut Vec<f32>) {
+        // Count pins, forks, and other tactical motifs (simplified)
+        for color in [Color::White, Color::Black] {
+            let opponent_color = if color == Color::White { Color::Black } else { Color::White };
+            
+            // Count potential pins by looking at pieces on same lines as enemy king
+            let enemy_king_square = board.king_square(opponent_color);
+            let mut potential_pins = 0;
+            
+            // Check for pieces that could pin along ranks/files
+            let rooks_queens = (board.pieces(Piece::Rook) | board.pieces(Piece::Queen)) & board.color_combined(color);
+            for square in chess::ALL_SQUARES {
+                if (rooks_queens & chess::BitBoard::from_square(square)).popcnt() > 0 {
+                    if square.get_rank() == enemy_king_square.get_rank() || 
+                       square.get_file() == enemy_king_square.get_file() {
+                        potential_pins += 1;
+                    }
+                }
+            }
+            
+            // Check for pieces that could pin along diagonals
+            let bishops_queens = (board.pieces(Piece::Bishop) | board.pieces(Piece::Queen)) & board.color_combined(color);
+            for square in chess::ALL_SQUARES {
+                if (bishops_queens & chess::BitBoard::from_square(square)).popcnt() > 0 {
+                    let rank_diff = (square.get_rank().to_index() as i32 - enemy_king_square.get_rank().to_index() as i32).abs();
+                    let file_diff = (square.get_file().to_index() as i32 - enemy_king_square.get_file().to_index() as i32).abs();
+                    if rank_diff == file_diff && rank_diff > 0 {
+                        potential_pins += 1;
+                    }
+                }
+            }
+            
+            features.push(potential_pins as f32);
+        }
+    }
+    
+    /// Encode center control
+    fn encode_center_control(&self, board: &Board, features: &mut Vec<f32>) {
+        // Check control of central squares (d4, d5, e4, e5)
+        let center_squares = [
+            chess::Square::D4, chess::Square::D5,
+            chess::Square::E4, chess::Square::E5
+        ];
+        
+        for color in [Color::White, Color::Black] {
+            let mut center_control = 0.0;
+            
+            for &square in &center_squares {
+                // Check if we have a piece on this square
+                if let Some(_piece) = board.piece_on(square) {
+                    if board.color_on(square) == Some(color) {
+                        center_control += 2.0; // Extra weight for occupying center
+                    }
+                }
+                
+                // Count pieces that could attack this square (simplified)
+                let pieces = board.color_combined(color);
+                for piece_square in chess::ALL_SQUARES {
+                    if (pieces & chess::BitBoard::from_square(piece_square)).popcnt() > 0 {
+                        if let Some(piece) = board.piece_on(piece_square) {
+                            let can_attack = match piece {
+                                Piece::Pawn => {
+                                    let rank_diff = (square.get_rank().to_index() as i32 - piece_square.get_rank().to_index() as i32).abs();
+                                    let file_diff = (square.get_file().to_index() as i32 - piece_square.get_file().to_index() as i32).abs();
+                                    rank_diff == 1 && file_diff == 1
+                                }
+                                Piece::Knight => {
+                                    let rank_diff = (square.get_rank().to_index() as i32 - piece_square.get_rank().to_index() as i32).abs();
+                                    let file_diff = (square.get_file().to_index() as i32 - piece_square.get_file().to_index() as i32).abs();
+                                    (rank_diff == 2 && file_diff == 1) || (rank_diff == 1 && file_diff == 2)
+                                }
+                                _ => false // Simplified - would need more complex logic for sliding pieces
+                            };
+                            
+                            if can_attack {
+                                center_control += 0.5;
+                            }
+                        }
+                    }
+                }
+            }
+            
+            features.push(center_control);
+        }
+    }
+    
+    /// Encode piece coordination patterns
+    fn encode_piece_coordination(&self, board: &Board, features: &mut Vec<f32>) {
+        for color in [Color::White, Color::Black] {
+            let mut coordination_score = 0.0;
+            
+            // Count pieces defending each other
+            let pieces = board.color_combined(color);
+            for square1 in chess::ALL_SQUARES {
+                if (pieces & chess::BitBoard::from_square(square1)).popcnt() > 0 {
+                    for square2 in chess::ALL_SQUARES {
+                        if (pieces & chess::BitBoard::from_square(square2)).popcnt() > 0 && square1 != square2 {
+                            // Simplified check for mutual protection
+                            let rank_diff = (square1.get_rank().to_index() as i32 - square2.get_rank().to_index() as i32).abs();
+                            let file_diff = (square1.get_file().to_index() as i32 - square2.get_file().to_index() as i32).abs();
+                            
+                            if rank_diff <= 2 && file_diff <= 2 {
+                                coordination_score += 0.1;
+                            }
+                        }
+                    }
+                }
+            }
+            
+            features.push(coordination_score);
+        }
     }
 
     /// Calculate similarity between two position vectors

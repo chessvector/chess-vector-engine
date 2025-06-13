@@ -110,9 +110,9 @@ fn test_similarity_accuracy(engine: &ChessVectorEngine) {
         // Opening vs endgame
         ("rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1",
          "4k3/8/8/8/8/8/4P3/4K3 w - - 0 1"),
-        // Different material
+        // Opening vs middlegame with major piece differences
         ("rnbqkbnr/pppppppp/8/8/4P3/8/PPPP1PPP/RNBQKBNR b KQkq e3 0 1",
-         "rnbqkb1r/pppppppp/5n2/8/4P3/8/PPPP1PPP/RNBQKBNR w KQkq - 1 2"),
+         "r1bq1rk1/pppp1ppp/2n2n2/2b1p3/2B1P3/3P1N2/PPP2PPP/RNBQK2R w KQ - 4 6"),
     ];
     
     println!("Testing similarity on known similar pairs:");

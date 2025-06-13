@@ -15,6 +15,8 @@ pub struct ANNIndex {
     projection_matrix: Option<Array2<f32>>,
     /// Projected dimension
     projected_dim: usize,
+    /// Original vector dimension
+    vector_dim: usize,
 }
 
 /// Search result with similarity score
@@ -56,13 +58,13 @@ impl ANNIndex {
             use_random_projections: false,
             projection_matrix: None,
             projected_dim: vector_dim / 4, // Default to 1/4 of original dimension
+            vector_dim,
         }
     }
     
     /// Enable LSH indexing
     pub fn with_lsh(mut self, num_tables: usize, hash_size: usize) -> Self {
-        let vector_dim = if self.vectors.is_empty() { 1024 } else { self.vectors[0].len() };
-        self.lsh = Some(crate::lsh::LSH::new(vector_dim, num_tables, hash_size));
+        self.lsh = Some(crate::lsh::LSH::new(self.vector_dim, num_tables, hash_size));
         self
     }
     
@@ -224,6 +226,9 @@ impl ANNIndex {
     fn init_random_projections(&mut self, input_dim: usize) {
         use rand::Rng;
         let mut rng = rand::thread_rng();
+        
+        // Use the provided input_dim (should match self.vector_dim)
+        assert_eq!(input_dim, self.vector_dim, "Input dimension should match vector dimension");
         
         let mut matrix_data = Vec::with_capacity(self.projected_dim * input_dim);
         for _ in 0..(self.projected_dim * input_dim) {
