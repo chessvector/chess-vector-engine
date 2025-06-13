@@ -37,6 +37,10 @@ path = "src/bin/manifold_demo.rs"
 name = "move_recommendation_demo"
 path = "src/bin/move_recommendation_demo.rs"
 
+[[bin]]
+name = "train"
+path = "src/bin/train.rs"
+
 [dependencies]
 # Chess game logic
 chess = "3.2"
@@ -61,6 +65,13 @@ tokio = { version = "1.0", features = ["full"] }
 
 # CLI and utilities
 clap = { version = "4.5", features = ["derive"] }
+
+# PGN parsing and Stockfish integration
+pgn-reader = "0.22"
+vampirc-uci = "0.11"
+
+# Progress bars and indicators
+indicatif = "0.17"
 
 [dev-dependencies]
 criterion = "0.5"

@@ -3,11 +3,13 @@ pub mod similarity_search;
 pub mod manifold_learner;
 pub mod lsh;
 pub mod ann;
+pub mod training;
 
 pub use position_encoder::PositionEncoder;
 pub use similarity_search::SimilaritySearch;
 pub use lsh::LSH;
 pub use manifold_learner::ManifoldLearner;
+pub use training::*;
 
 use chess::{Board, ChessMove};
 use ndarray::Array1;
@@ -176,7 +178,7 @@ impl ChessVectorEngine {
         
         // For this initial implementation, let's use a simpler approach where we check all positions
         // and use similarity to weight the recommendations
-        for (position_index, moves) in &self.position_moves {
+        for (_position_index, moves) in &self.position_moves {
             // We'd need to get the board for this position to calculate similarity
             // For now, let's use a placeholder approach
             for &(chess_move, outcome) in moves {
