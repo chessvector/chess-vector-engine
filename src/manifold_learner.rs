@@ -208,6 +208,11 @@ impl ManifoldLearner {
     pub fn is_trained(&self) -> bool {
         self.encoder.is_some() && self.decoder.is_some() && self.optimizer.is_some()
     }
+    
+    /// Get the output dimension (compressed size)
+    pub fn output_dim(&self) -> usize {
+        self.output_dim
+    }
 }
 
 #[cfg(test)]
