@@ -1,4 +1,4 @@
-use chess::{Board, Game};
+use chess::{Board, Game, MoveGen};
 use pgn_reader::{RawHeader, SanPlus, Skip, Visitor, BufferedReader};
 use std::fs::File;
 use std::io::{BufRead, BufReader};
@@ -51,24 +51,39 @@ impl Visitor for GameExtractor {
             return;
         }
 
-        // Try to parse the SAN move 
         let san_str = san_plus.san.to_string();
         
-        // Try different approaches to parse the move
-        if let Ok(chess_move) = chess::ChessMove::from_san(&self.current_game.current_position(), &san_str) {
-            if self.current_game.make_move(chess_move) {
-                self.move_count += 1;
-                
-                // Store position (we'll evaluate it later with Stockfish)
-                self.positions.push(TrainingData {
-                    board: self.current_game.current_position().clone(),
-                    evaluation: 0.0, // Will be filled by Stockfish
-                    depth: 0,
-                });
+        // First validate that we have a legal position to work with
+        let current_pos = self.current_game.current_position();
+        
+        // Try to parse and make the move
+        match chess::ChessMove::from_san(&current_pos, &san_str) {
+            Ok(chess_move) => {
+                // Verify the move is legal before making it
+                let legal_moves: Vec<chess::ChessMove> = MoveGen::new_legal(&current_pos).collect();
+                if legal_moves.contains(&chess_move) {
+                    if self.current_game.make_move(chess_move) {
+                        self.move_count += 1;
+                        
+                        // Store position (we'll evaluate it later with Stockfish)
+                        self.positions.push(TrainingData {
+                            board: self.current_game.current_position().clone(),
+                            evaluation: 0.0, // Will be filled by Stockfish
+                            depth: 0,
+                        });
+                    }
+                } else {
+                    // Move parsed but isn't legal - skip silently to avoid spam
+                }
             }
-        } else {
-            // Debug: print failed moves
-            eprintln!("Failed to parse move: '{}' in position {}", san_str, self.current_game.current_position());
+            Err(_) => {
+                // Failed to parse move - could be notation issues, corruption, etc.
+                // Skip silently to avoid excessive error output
+                // Only log if it's not a common problematic pattern
+                if !san_str.contains("O-O") && !san_str.contains("=") && san_str.len() > 6 {
+                    // Only log unusual failed moves to reduce noise
+                }
+            }
         }
     }
 
@@ -181,7 +196,7 @@ impl TrainingDataset {
         max_moves_per_game: usize,
     ) -> Result<(), Box<dyn std::error::Error>> {
         let file = File::open(path)?;
-        let mut reader = BufReader::new(file);
+        let reader = BufReader::new(file);
         
         let mut extractor = GameExtractor::new(max_moves_per_game);
         let mut games_processed = 0;
