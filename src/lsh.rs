@@ -140,7 +140,9 @@ impl LSH {
         let mut non_empty_buckets = 0;
         
         for table in &self.hash_tables {
-            total_buckets += 1 << self.hash_size; // 2^hash_size possible buckets
+            // Use checked_shl to avoid overflow - if hash_size is too large, use max value
+            let buckets_per_table = 1_usize.checked_shl(self.hash_size as u32).unwrap_or(usize::MAX);
+            total_buckets += buckets_per_table;
             non_empty_buckets += table.len();
             
             for bucket in table.values() {

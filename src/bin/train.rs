@@ -67,6 +67,12 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                 .help("Enable LSH indexing for faster similarity search")
                 .action(clap::ArgAction::SetTrue),
         )
+        .arg(
+            Arg::new("deduplicate")
+                .long("deduplicate")
+                .help("Remove near-duplicate positions (similarity > 0.95)")
+                .action(clap::ArgAction::SetTrue),
+        )
         .get_matches();
 
     let max_games: usize = matches.get_one::<String>("max-games").unwrap().parse()?;
@@ -109,6 +115,12 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         std::process::exit(1);
     }
 
+    // Deduplicate positions if requested
+    if matches.get_flag("deduplicate") {
+        println!("🔄 Removing near-duplicate positions...");
+        dataset.deduplicate(0.95);
+    }
+
     // Split into train/test sets
     println!("🔀 Splitting dataset (80% train, 20% test)...");
     let (train_dataset, test_dataset) = dataset.split(0.8);
@@ -119,7 +131,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     println!("🧠 Creating chess vector engine...");
     let mut engine = if enable_lsh {
         println!("🔍 LSH indexing enabled");
-        ChessVectorEngine::new_with_lsh(1024, 32, 64)
+        ChessVectorEngine::new_with_lsh(1024, 16, 16)
     } else {
         ChessVectorEngine::new(1024)
     };

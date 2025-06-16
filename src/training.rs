@@ -15,6 +15,7 @@ pub struct TrainingData {
     pub board: Board,
     pub evaluation: f32,
     pub depth: u8,
+    pub game_id: usize,
 }
 
 /// PGN game visitor for extracting positions
@@ -23,6 +24,7 @@ pub struct GameExtractor {
     pub current_game: Game,
     pub move_count: usize,
     pub max_moves_per_game: usize,
+    pub game_id: usize,
 }
 
 impl GameExtractor {
@@ -32,6 +34,7 @@ impl GameExtractor {
             current_game: Game::new(),
             move_count: 0,
             max_moves_per_game,
+            game_id: 0,
         }
     }
 }
@@ -42,6 +45,7 @@ impl Visitor for GameExtractor {
     fn begin_game(&mut self) {
         self.current_game = Game::new();
         self.move_count = 0;
+        self.game_id += 1;
     }
 
     fn header(&mut self, _key: &[u8], _value: RawHeader<'_>) {}
@@ -70,6 +74,7 @@ impl Visitor for GameExtractor {
                             board: self.current_game.current_position().clone(),
                             evaluation: 0.0, // Will be filled by Stockfish
                             depth: 0,
+                            game_id: self.game_id,
                         });
                     }
                 } else {
@@ -263,12 +268,37 @@ impl TrainingDataset {
         println!("Trained engine with {} positions", self.data.len());
     }
 
-    /// Split dataset into train/test sets
+    /// Split dataset into train/test sets by games to prevent data leakage
     pub fn split(&self, train_ratio: f32) -> (TrainingDataset, TrainingDataset) {
-        let split_point = (self.data.len() as f32 * train_ratio) as usize;
+        use std::collections::{HashMap, HashSet};
+        use rand::seq::SliceRandom;
+        use rand::thread_rng;
         
-        let mut train_data = self.data.clone();
-        let test_data = train_data.split_off(split_point);
+        // Group positions by game_id
+        let mut games: HashMap<usize, Vec<&TrainingData>> = HashMap::new();
+        for data in &self.data {
+            games.entry(data.game_id).or_insert_with(Vec::new).push(data);
+        }
+        
+        // Get unique game IDs and shuffle them
+        let mut game_ids: Vec<usize> = games.keys().cloned().collect();
+        game_ids.shuffle(&mut thread_rng());
+        
+        // Split games by ratio
+        let split_point = (game_ids.len() as f32 * train_ratio) as usize;
+        let train_game_ids: HashSet<usize> = game_ids[..split_point].iter().cloned().collect();
+        
+        // Separate positions based on game membership
+        let mut train_data = Vec::new();
+        let mut test_data = Vec::new();
+        
+        for data in &self.data {
+            if train_game_ids.contains(&data.game_id) {
+                train_data.push(data.clone());
+            } else {
+                test_data.push(data.clone());
+            }
+        }
         
         (
             TrainingDataset { data: train_data },
@@ -288,6 +318,67 @@ impl TrainingDataset {
         let content = std::fs::read_to_string(path)?;
         let data = serde_json::from_str(&content)?;
         Ok(Self { data })
+    }
+
+    /// Remove near-duplicate positions to reduce overfitting
+    pub fn deduplicate(&mut self, similarity_threshold: f32) {
+        use crate::PositionEncoder;
+        use ndarray::Array1;
+        
+        if self.data.is_empty() {
+            return;
+        }
+        
+        let encoder = PositionEncoder::new(1024);
+        let mut vectors: Vec<Array1<f32>> = Vec::new();
+        let mut keep_indices: Vec<bool> = vec![true; self.data.len()];
+        
+        // Encode all positions
+        for data in &self.data {
+            vectors.push(encoder.encode(&data.board));
+        }
+        
+        // Compare each position with all previous ones
+        for i in 1..self.data.len() {
+            if !keep_indices[i] {
+                continue;
+            }
+            
+            for j in 0..i {
+                if !keep_indices[j] {
+                    continue;
+                }
+                
+                let similarity = Self::cosine_similarity(&vectors[i], &vectors[j]);
+                if similarity > similarity_threshold {
+                    keep_indices[i] = false;
+                    break;
+                }
+            }
+        }
+        
+        // Filter data based on keep_indices
+        let original_len = self.data.len();
+        self.data = self.data.iter()
+            .enumerate()
+            .filter_map(|(i, data)| if keep_indices[i] { Some(data.clone()) } else { None })
+            .collect();
+        
+        println!("Deduplicated: {} -> {} positions (removed {} duplicates)", 
+                 original_len, self.data.len(), original_len - self.data.len());
+    }
+
+    /// Calculate cosine similarity between two vectors
+    fn cosine_similarity(a: &ndarray::Array1<f32>, b: &ndarray::Array1<f32>) -> f32 {
+        let dot_product = a.dot(b);
+        let norm_a = a.dot(a).sqrt();
+        let norm_b = b.dot(b).sqrt();
+        
+        if norm_a == 0.0 || norm_b == 0.0 {
+            0.0
+        } else {
+            dot_product / (norm_a * norm_b)
+        }
     }
 }
 
@@ -345,10 +436,11 @@ impl serde::Serialize for TrainingData {
         S: serde::Serializer,
     {
         use serde::ser::SerializeStruct;
-        let mut state = serializer.serialize_struct("TrainingData", 3)?;
+        let mut state = serializer.serialize_struct("TrainingData", 4)?;
         state.serialize_field("fen", &self.board.to_string())?;
         state.serialize_field("evaluation", &self.evaluation)?;
         state.serialize_field("depth", &self.depth)?;
+        state.serialize_field("game_id", &self.game_id)?;
         state.end()
     }
 }
@@ -377,6 +469,7 @@ impl<'de> serde::Deserialize<'de> for TrainingData {
                 let mut fen = None;
                 let mut evaluation = None;
                 let mut depth = None;
+                let mut game_id = None;
 
                 while let Some(key) = map.next_key()? {
                     match key {
@@ -398,6 +491,12 @@ impl<'de> serde::Deserialize<'de> for TrainingData {
                             }
                             depth = Some(map.next_value()?);
                         }
+                        "game_id" => {
+                            if game_id.is_some() {
+                                return Err(de::Error::duplicate_field("game_id"));
+                            }
+                            game_id = Some(map.next_value()?);
+                        }
                         _ => {
                             let _: serde_json::Value = map.next_value()?;
                         }
@@ -407,6 +506,7 @@ impl<'de> serde::Deserialize<'de> for TrainingData {
                 let fen: String = fen.ok_or_else(|| de::Error::missing_field("fen"))?;
                 let evaluation = evaluation.ok_or_else(|| de::Error::missing_field("evaluation"))?;
                 let depth = depth.ok_or_else(|| de::Error::missing_field("depth"))?;
+                let game_id = game_id.unwrap_or(0); // Default to 0 for backward compatibility
 
                 let board = Board::from_str(&fen)
                     .map_err(|e| de::Error::custom(format!("Invalid FEN: {}", e)))?;
@@ -415,11 +515,12 @@ impl<'de> serde::Deserialize<'de> for TrainingData {
                     board,
                     evaluation,
                     depth,
+                    game_id,
                 })
             }
         }
 
-        const FIELDS: &'static [&'static str] = &["fen", "evaluation", "depth"];
+        const FIELDS: &'static [&'static str] = &["fen", "evaluation", "depth", "game_id"];
         deserializer.deserialize_struct("TrainingData", FIELDS, TrainingDataVisitor)
     }
 }
