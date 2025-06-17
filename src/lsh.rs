@@ -1,6 +1,7 @@
 use ndarray::{Array1, Array2};
 use rand::Rng;
 use std::collections::HashMap;
+use rayon::prelude::*;
 
 /// Locality Sensitive Hashing for approximate nearest neighbor search
 pub struct LSH {
@@ -78,18 +79,47 @@ impl LSH {
         let mut candidates = std::collections::HashSet::new();
         let max_candidates = (self.stored_vectors.len() / 4).max(k * 10).min(self.stored_vectors.len());
         
-        // Collect candidates from hash tables, but limit the total
-        for table_idx in 0..self.num_tables {
-            if candidates.len() >= max_candidates {
-                break;
-            }
+        // Parallelize hash table queries when we have many tables
+        if self.num_tables > 4 {
+            // Collect candidates from hash tables in parallel
+            let candidate_sets: Vec<Vec<usize>> = (0..self.num_tables)
+                .into_par_iter()
+                .map(|table_idx| {
+                    let hash = self.hash_vector(query_vector, table_idx);
+                    if let Some(bucket) = self.hash_tables[table_idx].get(&hash) {
+                        bucket.clone()
+                    } else {
+                        Vec::new()
+                    }
+                })
+                .collect();
             
-            let hash = self.hash_vector(query_vector, table_idx);
-            if let Some(bucket) = self.hash_tables[table_idx].get(&hash) {
-                for &idx in bucket {
+            // Merge candidate sets sequentially (avoiding race conditions on HashSet)
+            for candidate_set in candidate_sets {
+                for idx in candidate_set {
                     candidates.insert(idx);
                     if candidates.len() >= max_candidates {
                         break;
+                    }
+                }
+                if candidates.len() >= max_candidates {
+                    break;
+                }
+            }
+        } else {
+            // Sequential collection for smaller numbers of tables
+            for table_idx in 0..self.num_tables {
+                if candidates.len() >= max_candidates {
+                    break;
+                }
+                
+                let hash = self.hash_vector(query_vector, table_idx);
+                if let Some(bucket) = self.hash_tables[table_idx].get(&hash) {
+                    for &idx in bucket {
+                        candidates.insert(idx);
+                        if candidates.len() >= max_candidates {
+                            break;
+                        }
                     }
                 }
             }
@@ -107,16 +137,33 @@ impl LSH {
             }
         }
         
-        // Calculate similarities for candidates more efficiently
-        let mut results = Vec::with_capacity(candidates.len());
-        for &idx in &candidates {
-            let stored_vector = &self.stored_vectors[idx];
-            let similarity = cosine_similarity(query_vector, stored_vector);
-            results.push((stored_vector.clone(), self.stored_data[idx], similarity));
-        }
+        // Calculate similarities for candidates in parallel for large candidate sets
+        let mut results = if candidates.len() > 50 {
+            candidates
+                .par_iter()
+                .map(|&idx| {
+                    let stored_vector = &self.stored_vectors[idx];
+                    let similarity = cosine_similarity(query_vector, stored_vector);
+                    (stored_vector.clone(), self.stored_data[idx], similarity)
+                })
+                .collect()
+        } else {
+            // Sequential for smaller candidate sets
+            let mut results = Vec::with_capacity(candidates.len());
+            for &idx in &candidates {
+                let stored_vector = &self.stored_vectors[idx];
+                let similarity = cosine_similarity(query_vector, stored_vector);
+                results.push((stored_vector.clone(), self.stored_data[idx], similarity));
+            }
+            results
+        };
         
         // Sort by similarity (descending) and return top k
-        results.sort_unstable_by(|a, b| b.2.partial_cmp(&a.2).unwrap_or(std::cmp::Ordering::Equal));
+        if results.len() > 100 {
+            results.par_sort_unstable_by(|a, b| b.2.partial_cmp(&a.2).unwrap_or(std::cmp::Ordering::Equal));
+        } else {
+            results.sort_unstable_by(|a, b| b.2.partial_cmp(&a.2).unwrap_or(std::cmp::Ordering::Equal));
+        }
         results.truncate(k);
         
         results

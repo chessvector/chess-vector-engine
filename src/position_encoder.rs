@@ -1,5 +1,6 @@
 use chess::{Board, Color, Piece, Square};
 use ndarray::Array1;
+use rayon::prelude::*;
 
 /// Basic position encoder that converts chess positions to vectors
 pub struct PositionEncoder {
@@ -439,6 +440,75 @@ impl PositionEncoder {
     /// Calculate Euclidean distance between two vectors
     pub fn distance(&self, vec1: &Array1<f32>, vec2: &Array1<f32>) -> f32 {
         (vec1 - vec2).mapv(|x| x * x).sum().sqrt()
+    }
+    
+    /// Encode multiple positions in parallel
+    pub fn encode_batch(&self, boards: &[Board]) -> Vec<Array1<f32>> {
+        if boards.len() > 10 {
+            // Use parallel processing for larger batches
+            boards.par_iter()
+                .map(|board| self.encode(board))
+                .collect()
+        } else {
+            // Use sequential processing for smaller batches
+            boards.iter()
+                .map(|board| self.encode(board))
+                .collect()
+        }
+    }
+    
+    /// Calculate similarities between a query vector and multiple position vectors in parallel
+    pub fn batch_similarity(&self, query: &Array1<f32>, vectors: &[Array1<f32>]) -> Vec<f32> {
+        if vectors.len() > 50 {
+            // Use parallel processing for larger batches
+            vectors.par_iter()
+                .map(|vec| self.similarity(query, vec))
+                .collect()
+        } else {
+            // Use sequential processing for smaller batches
+            vectors.iter()
+                .map(|vec| self.similarity(query, vec))
+                .collect()
+        }
+    }
+    
+    /// Calculate pairwise similarities between all vectors in parallel
+    pub fn pairwise_similarity_matrix(&self, vectors: &[Array1<f32>]) -> Vec<Vec<f32>> {
+        if vectors.len() > 20 {
+            // Use parallel processing for larger matrices
+            vectors.par_iter()
+                .enumerate()
+                .map(|(i, vec1)| {
+                    vectors.iter()
+                        .enumerate()
+                        .map(|(j, vec2)| {
+                            if i == j {
+                                1.0 // Self-similarity
+                            } else {
+                                self.similarity(vec1, vec2)
+                            }
+                        })
+                        .collect()
+                })
+                .collect()
+        } else {
+            // Use sequential processing for smaller matrices
+            vectors.iter()
+                .enumerate()
+                .map(|(i, vec1)| {
+                    vectors.iter()
+                        .enumerate()
+                        .map(|(j, vec2)| {
+                            if i == j {
+                                1.0 // Self-similarity
+                            } else {
+                                self.similarity(vec1, vec2)
+                            }
+                        })
+                        .collect()
+                })
+                .collect()
+        }
     }
 }
 

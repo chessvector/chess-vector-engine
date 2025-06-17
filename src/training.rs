@@ -6,6 +6,7 @@ use std::path::Path;
 use std::process::{Command, Stdio};
 use std::str::FromStr;
 use indicatif::{ProgressBar, ProgressStyle};
+use rayon::prelude::*;
 
 use crate::ChessVectorEngine;
 
@@ -181,6 +182,38 @@ impl StockfishEvaluator {
         pb.finish_with_message("Evaluation complete");
         Ok(())
     }
+    
+    /// Evaluate multiple positions in parallel using concurrent Stockfish instances
+    pub fn evaluate_batch_parallel(&self, positions: &mut [TrainingData], num_threads: usize) -> Result<(), Box<dyn std::error::Error>> {
+        let pb = ProgressBar::new(positions.len() as u64);
+        pb.set_style(ProgressStyle::default_bar()
+            .template("{spinner:.green} [{elapsed_precise}] [{bar:40.cyan/blue}] {pos}/{len} Parallel evaluation")
+            .unwrap()
+            .progress_chars("#>-"));
+
+        // Set the thread pool size
+        let pool = rayon::ThreadPoolBuilder::new().num_threads(num_threads).build()?;
+        
+        pool.install(|| {
+            // Use parallel iterator to evaluate positions
+            positions.par_iter_mut().for_each(|data| {
+                match self.evaluate_position(&data.board) {
+                    Ok(eval) => {
+                        data.evaluation = eval;
+                        data.depth = self.depth;
+                    }
+                    Err(_) => {
+                        // Silently fail individual positions to avoid spamming output
+                        data.evaluation = 0.0;
+                    }
+                }
+                pb.inc(1);
+            });
+        });
+        
+        pb.finish_with_message("Parallel evaluation complete");
+        Ok(())
+    }
 }
 
 /// Training dataset manager
@@ -249,6 +282,12 @@ impl TrainingDataset {
     pub fn evaluate_with_stockfish(&mut self, depth: u8) -> Result<(), Box<dyn std::error::Error>> {
         let evaluator = StockfishEvaluator::new(depth);
         evaluator.evaluate_batch(&mut self.data)
+    }
+    
+    /// Evaluate all positions using Stockfish in parallel
+    pub fn evaluate_with_stockfish_parallel(&mut self, depth: u8, num_threads: usize) -> Result<(), Box<dyn std::error::Error>> {
+        let evaluator = StockfishEvaluator::new(depth);
+        evaluator.evaluate_batch_parallel(&mut self.data, num_threads)
     }
 
     /// Train the vector engine with this dataset
@@ -330,13 +369,18 @@ impl TrainingDataset {
         }
         
         let encoder = PositionEncoder::new(1024);
-        let mut vectors: Vec<Array1<f32>> = Vec::new();
         let mut keep_indices: Vec<bool> = vec![true; self.data.len()];
         
-        // Encode all positions
-        for data in &self.data {
-            vectors.push(encoder.encode(&data.board));
-        }
+        // Encode all positions in parallel
+        let vectors: Vec<Array1<f32>> = if self.data.len() > 50 {
+            self.data.par_iter()
+                .map(|data| encoder.encode(&data.board))
+                .collect()
+        } else {
+            self.data.iter()
+                .map(|data| encoder.encode(&data.board))
+                .collect()
+        };
         
         // Compare each position with all previous ones
         for i in 1..self.data.len() {
@@ -365,6 +409,70 @@ impl TrainingDataset {
             .collect();
         
         println!("Deduplicated: {} -> {} positions (removed {} duplicates)", 
+                 original_len, self.data.len(), original_len - self.data.len());
+    }
+    
+    /// Remove near-duplicate positions using parallel comparison (faster for large datasets)
+    pub fn deduplicate_parallel(&mut self, similarity_threshold: f32, chunk_size: usize) {
+        use crate::PositionEncoder;
+        use ndarray::Array1;
+        use std::sync::{Arc, Mutex};
+        
+        if self.data.is_empty() {
+            return;
+        }
+        
+        let encoder = PositionEncoder::new(1024);
+        
+        // Encode all positions in parallel
+        let vectors: Vec<Array1<f32>> = self.data.par_iter()
+            .map(|data| encoder.encode(&data.board))
+            .collect();
+        
+        let keep_indices = Arc::new(Mutex::new(vec![true; self.data.len()]));
+        
+        // Process in chunks to balance parallelism and memory usage
+        (1..self.data.len())
+            .collect::<Vec<_>>()
+            .par_chunks(chunk_size)
+            .for_each(|chunk| {
+                for &i in chunk {
+                    // Check if this position is still being kept
+                    {
+                        let indices = keep_indices.lock().unwrap();
+                        if !indices[i] {
+                            continue;
+                        }
+                    }
+                    
+                    // Compare with all previous positions
+                    for j in 0..i {
+                        {
+                            let indices = keep_indices.lock().unwrap();
+                            if !indices[j] {
+                                continue;
+                            }
+                        }
+                        
+                        let similarity = Self::cosine_similarity(&vectors[i], &vectors[j]);
+                        if similarity > similarity_threshold {
+                            let mut indices = keep_indices.lock().unwrap();
+                            indices[i] = false;
+                            break;
+                        }
+                    }
+                }
+            });
+        
+        // Filter data based on keep_indices
+        let keep_indices = keep_indices.lock().unwrap();
+        let original_len = self.data.len();
+        self.data = self.data.iter()
+            .enumerate()
+            .filter_map(|(i, data)| if keep_indices[i] { Some(data.clone()) } else { None })
+            .collect();
+        
+        println!("Parallel deduplicated: {} -> {} positions (removed {} duplicates)", 
                  original_len, self.data.len(), original_len - self.data.len());
     }
 

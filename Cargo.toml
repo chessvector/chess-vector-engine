@@ -41,6 +41,10 @@ path = "src/bin/move_recommendation_demo.rs"
 name = "train"
 path = "src/bin/train.rs"
 
+[[bin]]
+name = "multithreading_demo"
+path = "src/bin/multithreading_demo.rs"
+
 [dependencies]
 # Chess game logic
 chess = "3.2"
@@ -59,6 +63,9 @@ serde_json = "1.0"
 
 # Random number generation
 rand = "0.8"
+
+# Parallel processing
+rayon = "1.8"
 
 # Async runtime (for future parallel processing)
 tokio = { version = "1.0", features = ["full"] }

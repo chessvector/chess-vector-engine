@@ -1,6 +1,7 @@
 use ndarray::Array1;
 use std::collections::BinaryHeap;
 use std::cmp::Ordering;
+use rayon::prelude::*;
 
 /// Entry in the similarity search index
 #[derive(Debug, Clone)]
@@ -65,8 +66,18 @@ impl SimilaritySearch {
         });
     }
 
-    /// Search for k most similar positions
+    /// Search for k most similar positions (automatically chooses parallel or sequential)
     pub fn search(&self, query: &Array1<f32>, k: usize) -> Vec<(Array1<f32>, f32, f32)> {
+        // Use parallel search for larger datasets
+        if self.positions.len() > 100 {
+            self.parallel_search(query, k)
+        } else {
+            self.sequential_search(query, k)
+        }
+    }
+    
+    /// Sequential search implementation (for small datasets)
+    pub fn sequential_search(&self, query: &Array1<f32>, k: usize) -> Vec<(Array1<f32>, f32, f32)> {
         assert_eq!(query.len(), self.vector_size, "Query vector size mismatch");
         
         if self.positions.is_empty() {
@@ -103,19 +114,59 @@ impl SimilaritySearch {
         results.reverse();
         results
     }
+    
+    /// Parallel search implementation (for larger datasets)
+    pub fn parallel_search(&self, query: &Array1<f32>, k: usize) -> Vec<(Array1<f32>, f32, f32)> {
+        assert_eq!(query.len(), self.vector_size, "Query vector size mismatch");
+        
+        if self.positions.is_empty() {
+            return Vec::new();
+        }
 
-    /// Brute force search (for small datasets or comparison)
-    pub fn brute_force_search(&self, query: &Array1<f32>, k: usize) -> Vec<(Array1<f32>, f32, f32)> {
+        // Calculate similarities in parallel
         let mut results: Vec<_> = self.positions
-            .iter()
+            .par_iter()
             .map(|entry| {
                 let similarity = self.cosine_similarity(query, &entry.vector);
                 (entry.vector.clone(), entry.evaluation, similarity)
             })
             .collect();
 
+        // Sort by similarity (descending) and take top k
+        results.par_sort_unstable_by(|a, b| b.2.partial_cmp(&a.2).unwrap_or(Ordering::Equal));
+        results.truncate(k);
+        
+        results
+    }
+
+    /// Brute force search (for small datasets or comparison)
+    pub fn brute_force_search(&self, query: &Array1<f32>, k: usize) -> Vec<(Array1<f32>, f32, f32)> {
+        let mut results: Vec<_> = if self.positions.len() > 100 {
+            // Use parallel processing for larger datasets
+            self.positions
+                .par_iter()
+                .map(|entry| {
+                    let similarity = self.cosine_similarity(query, &entry.vector);
+                    (entry.vector.clone(), entry.evaluation, similarity)
+                })
+                .collect()
+        } else {
+            // Use sequential processing for smaller datasets
+            self.positions
+                .iter()
+                .map(|entry| {
+                    let similarity = self.cosine_similarity(query, &entry.vector);
+                    (entry.vector.clone(), entry.evaluation, similarity)
+                })
+                .collect()
+        };
+
         // Sort by similarity (descending)
-        results.sort_by(|a, b| b.2.partial_cmp(&a.2).unwrap_or(Ordering::Equal));
+        if results.len() > 1000 {
+            results.par_sort_unstable_by(|a, b| b.2.partial_cmp(&a.2).unwrap_or(Ordering::Equal));
+        } else {
+            results.sort_unstable_by(|a, b| b.2.partial_cmp(&a.2).unwrap_or(Ordering::Equal));
+        }
         
         // Take top k
         results.truncate(k);

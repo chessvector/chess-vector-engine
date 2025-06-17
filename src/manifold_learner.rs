@@ -1,6 +1,7 @@
 use ndarray::{Array1, Array2};
 use candle_core::{Device, Result as CandleResult, Tensor, Module};
 use candle_nn::{linear, Linear, VarBuilder, VarMap, Optimizer, AdamW, ParamsAdamW};
+use rayon::prelude::*;
 
 /// Autoencoder for chess position manifold learning
 pub struct ManifoldLearner {
@@ -212,6 +213,118 @@ impl ManifoldLearner {
     /// Get the output dimension (compressed size)
     pub fn output_dim(&self) -> usize {
         self.output_dim
+    }
+    
+    /// Encode multiple vectors in parallel
+    pub fn encode_batch(&self, inputs: &[Array1<f32>]) -> Vec<Array1<f32>> {
+        if inputs.len() > 10 {
+            // Use parallel processing for larger batches
+            inputs.par_iter()
+                .map(|input| self.encode(input))
+                .collect()
+        } else {
+            // Use sequential processing for smaller batches
+            inputs.iter()
+                .map(|input| self.encode(input))
+                .collect()
+        }
+    }
+    
+    /// Decode multiple vectors in parallel
+    pub fn decode_batch(&self, manifold_vecs: &[Array1<f32>]) -> Vec<Array1<f32>> {
+        if manifold_vecs.len() > 10 {
+            // Use parallel processing for larger batches
+            manifold_vecs.par_iter()
+                .map(|vec| self.decode(vec))
+                .collect()
+        } else {
+            // Use sequential processing for smaller batches
+            manifold_vecs.iter()
+                .map(|vec| self.decode(vec))
+                .collect()
+        }
+    }
+    
+    /// Train with parallel data preparation (preprocessing batches in parallel)
+    pub fn train_parallel(&mut self, data: &Array2<f32>, epochs: usize, batch_size: usize) -> Result<(), String> {
+        // Initialize network if not done
+        if self.encoder.is_none() {
+            self.init_network()?;
+        }
+        
+        let num_samples = data.nrows();
+        let num_batches = (num_samples + batch_size - 1) / batch_size;
+        
+        println!("Training autoencoder for {} epochs with {} batches of size {}", epochs, num_batches, batch_size);
+        
+        // Create batches in parallel
+        let batches: Vec<_> = (0..num_batches)
+            .into_par_iter()
+            .map(|batch_idx| {
+                let start_idx = batch_idx * batch_size;
+                let end_idx = (start_idx + batch_size).min(num_samples);
+                
+                // Extract batch data
+                let batch_data = data.slice(ndarray::s![start_idx..end_idx, ..]);
+                
+                // Convert to tensor format
+                let rows = batch_data.nrows();
+                let cols = batch_data.ncols();
+                let batch_vec: Vec<f32> = batch_data.iter().copied().collect();
+                
+                (batch_vec, rows, cols)
+            })
+            .collect();
+        
+        // Training loop - epochs are sequential but batch preparation was parallel
+        for epoch in 0..epochs {
+            let mut total_loss = 0.0;
+            
+            for (batch_data, rows, cols) in &batches {
+                if let (Some(encoder), Some(decoder), Some(optimizer)) = 
+                    (&self.encoder, &self.decoder, &mut self.optimizer) {
+                    
+                    // Convert batch to tensor
+                    let data_tensor = Tensor::from_slice(
+                        batch_data.as_slice(),
+                        (*rows, *cols),
+                        &self.device
+                    ).map_err(|e| format!("Failed to create tensor: {}", e))?;
+                    
+                    // Forward pass
+                    let encoded = encoder.forward(&data_tensor)
+                        .map_err(|e| format!("Encoder forward failed: {}", e))?;
+                    let decoded = decoder.forward(&encoded)
+                        .map_err(|e| format!("Decoder forward failed: {}", e))?;
+                    
+                    // Calculate reconstruction loss (MSE)
+                    let loss = (&data_tensor - &decoded)
+                        .and_then(|diff| diff.powf(2.0))
+                        .and_then(|squared| squared.mean_all())
+                        .map_err(|e| format!("Loss calculation failed: {}", e))?;
+                    
+                    // Accumulate loss for reporting
+                    total_loss += loss.to_scalar::<f32>()
+                        .map_err(|e| format!("Loss scalar conversion failed: {}", e))?;
+                    
+                    // Compute gradients through backpropagation
+                    let grads = loss.backward()
+                        .map_err(|e| format!("Backward pass failed: {}", e))?;
+                    
+                    // Update weights using the optimizer
+                    optimizer.step(&grads)
+                        .map_err(|e| format!("Optimizer step failed: {}", e))?;
+                }
+            }
+            
+            if epoch % 10 == 0 {
+                let avg_loss = total_loss / batches.len() as f32;
+                println!("Epoch {}: Average Loss = {:.6}", epoch, avg_loss);
+            }
+        }
+        
+        println!("Parallel training completed!");
+        Ok(())
     }
 }
 
