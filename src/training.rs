@@ -527,23 +527,87 @@ impl TrainingDataset {
         let path = path.as_ref();
         
         if path.exists() {
-            // Load existing data, merge, and save
-            let mut existing = Self::load(path)?;
-            let original_len = existing.data.len();
-            existing.data.extend(self.data.iter().cloned());
+            // Try fast append-only save first
+            if let Ok(_) = self.save_append_only(path) {
+                return Ok(());
+            }
             
-            // Deduplicate to avoid storing the same positions
-            existing.deduplicate(0.999); // Very high threshold to only remove exact duplicates
-            
-            let json = serde_json::to_string_pretty(&existing.data)?;
-            std::fs::write(path, json)?;
-            
-            println!("Incremental save: added {} new positions (total: {})", 
-                    existing.data.len() - original_len, existing.data.len());
+            // Fall back to full merge if append-only fails
+            self.save_incremental_full_merge(path)
         } else {
             // File doesn't exist, just save normally
-            self.save(path)?;
+            self.save(path)
         }
+    }
+    
+    /// Fast append-only save (no deduplication, just append new positions)
+    pub fn save_append_only<P: AsRef<Path>>(&self, path: P) -> Result<(), Box<dyn std::error::Error>> {
+        use std::fs::OpenOptions;
+        use std::io::{BufRead, BufReader, Seek, SeekFrom, Write};
+        
+        if self.data.is_empty() {
+            return Ok(());
+        }
+        
+        let path = path.as_ref();
+        let mut file = OpenOptions::new()
+            .read(true)
+            .write(true)
+            .open(path)?;
+        
+        // Check if file is valid JSON array by reading last few bytes
+        file.seek(SeekFrom::End(-10))?;
+        let mut buffer = String::new();
+        BufReader::new(&file).read_line(&mut buffer)?;
+        
+        if !buffer.trim().ends_with(']') {
+            return Err("File doesn't end with JSON array bracket".into());
+        }
+        
+        // Seek back to overwrite the closing bracket
+        file.seek(SeekFrom::End(-2))?; // Go back 2 chars to overwrite "]\n"
+        
+        // Append comma and new positions
+        write!(file, ",")?;
+        
+        // Serialize and append new positions (without array brackets)
+        for (i, data) in self.data.iter().enumerate() {
+            if i > 0 {
+                write!(file, ",")?;
+            }
+            let json = serde_json::to_string(data)?;
+            write!(file, "\n  {}", json)?;
+        }
+        
+        // Close the JSON array
+        write!(file, "\n]")?;
+        
+        println!("Fast append: added {} new positions", self.data.len());
+        Ok(())
+    }
+    
+    /// Full merge save with deduplication (slower but thorough)
+    fn save_incremental_full_merge<P: AsRef<Path>>(&self, path: P) -> Result<(), Box<dyn std::error::Error>> {
+        let path = path.as_ref();
+        
+        println!("📂 Loading existing training data...");
+        let mut existing = Self::load(path)?;
+        let original_len = existing.data.len();
+        
+        println!("🔄 Merging {} new positions with {} existing...", self.data.len(), original_len);
+        existing.data.extend(self.data.iter().cloned());
+        
+        println!("🔍 Removing exact duplicates...");
+        existing.deduplicate(0.999);
+        
+        println!("💾 Serializing {} positions to JSON...", existing.data.len());
+        let json = serde_json::to_string_pretty(&existing.data)?;
+        
+        println!("✍️  Writing to disk...");
+        std::fs::write(path, json)?;
+        
+        println!("✅ Full merge save: added {} new positions (total: {})", 
+                existing.data.len() - original_len, existing.data.len());
         Ok(())
     }
 
@@ -567,6 +631,38 @@ impl TrainingDataset {
 
     /// Remove near-duplicate positions to reduce overfitting
     pub fn deduplicate(&mut self, similarity_threshold: f32) {
+        if similarity_threshold > 0.999 {
+            // Use fast hash-based deduplication for exact duplicates
+            self.deduplicate_fast();
+        } else {
+            // Use slower similarity-based deduplication for near-duplicates
+            self.deduplicate_similarity_based(similarity_threshold);
+        }
+    }
+    
+    /// Fast hash-based deduplication for exact duplicates (O(n))
+    pub fn deduplicate_fast(&mut self) {
+        use std::collections::HashSet;
+        
+        if self.data.is_empty() {
+            return;
+        }
+        
+        let mut seen_positions = HashSet::new();
+        let original_len = self.data.len();
+        
+        // Keep positions with unique FEN strings
+        self.data.retain(|data| {
+            let fen = data.board.to_string();
+            seen_positions.insert(fen)
+        });
+        
+        println!("Fast deduplicated: {} -> {} positions (removed {} exact duplicates)", 
+                 original_len, self.data.len(), original_len - self.data.len());
+    }
+    
+    /// Similarity-based deduplication for near-duplicates (O(n²) but optimized)
+    fn deduplicate_similarity_based(&mut self, similarity_threshold: f32) {
         use crate::PositionEncoder;
         use ndarray::Array1;
         
@@ -614,7 +710,7 @@ impl TrainingDataset {
             .filter_map(|(i, data)| if keep_indices[i] { Some(data.clone()) } else { None })
             .collect();
         
-        println!("Deduplicated: {} -> {} positions (removed {} duplicates)", 
+        println!("Similarity deduplicated: {} -> {} positions (removed {} near-duplicates)", 
                  original_len, self.data.len(), original_len - self.data.len());
     }
     
