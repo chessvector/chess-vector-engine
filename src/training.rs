@@ -844,8 +844,26 @@ impl<'de> serde::Deserialize<'de> for TrainingData {
 pub struct TacticalPuzzleParser;
 
 impl TacticalPuzzleParser {
-    /// Parse Lichess puzzle CSV file
+    /// Parse Lichess puzzle CSV file with parallel processing
     pub fn parse_csv<P: AsRef<Path>>(
+        file_path: P,
+        max_puzzles: Option<usize>,
+        min_rating: Option<u32>,
+        max_rating: Option<u32>,
+    ) -> Result<Vec<TacticalTrainingData>, Box<dyn std::error::Error>> {
+        let file = File::open(&file_path)?;
+        let file_size = file.metadata()?.len();
+        
+        // For large files (>100MB), use parallel processing
+        if file_size > 100_000_000 {
+            Self::parse_csv_parallel(file_path, max_puzzles, min_rating, max_rating)
+        } else {
+            Self::parse_csv_sequential(file_path, max_puzzles, min_rating, max_rating)
+        }
+    }
+    
+    /// Sequential CSV parsing for smaller files
+    fn parse_csv_sequential<P: AsRef<Path>>(
         file_path: P,
         max_puzzles: Option<usize>,
         min_rating: Option<u32>,
@@ -880,101 +898,165 @@ impl TacticalPuzzleParser {
                 }
             };
             
-            // Parse record manually since we don't have headers
-            // Need at least 8 fields (PuzzleId, FEN, Moves, Rating, RatingDeviation, Popularity, NbPlays, Themes)
-            if record.len() < 8 {
-                skipped += 1;
-                continue;
-            }
-            
-            let puzzle_id = record[0].to_string();
-            let fen = record[1].to_string();
-            let moves = record[2].to_string();
-            let rating: u32 = match record[3].parse() {
-                Ok(r) => r,
-                Err(_) => {
+            if let Some(puzzle_data) = Self::parse_csv_record(&record, min_rating, max_rating) {
+                if let Some(tactical_data_item) = Self::convert_puzzle_to_training_data(&puzzle_data) {
+                    tactical_data.push(tactical_data_item);
+                    processed += 1;
+                    
+                    if let Some(max) = max_puzzles {
+                        if processed >= max {
+                            break;
+                        }
+                    }
+                } else {
                     skipped += 1;
-                    continue;
-                }
-            };
-            let rating_deviation: u32 = match record[4].parse() {
-                Ok(r) => r,
-                Err(_) => {
-                    skipped += 1;
-                    continue;
-                }
-            };
-            let popularity: i32 = match record[5].parse() {
-                Ok(p) => p,
-                Err(_) => {
-                    skipped += 1;
-                    continue;
-                }
-            };
-            let nb_plays: u32 = match record[6].parse() {
-                Ok(n) => n,
-                Err(_) => {
-                    skipped += 1;
-                    continue;
-                }
-            };
-            let themes = record[7].to_string();
-            let game_url = if record.len() > 8 { Some(record[8].to_string()) } else { None };
-            let opening_tags = if record.len() > 9 { Some(record[9].to_string()) } else { None };
-            
-            let puzzle = TacticalPuzzle {
-                puzzle_id,
-                fen,
-                moves,
-                rating,
-                rating_deviation,
-                popularity,
-                nb_plays,
-                themes,
-                game_url,
-                opening_tags,
-            };
-            
-            // Apply rating filters
-            if let Some(min) = min_rating {
-                if puzzle.rating < min { 
-                    skipped += 1;
-                    continue; 
-                }
-            }
-            if let Some(max) = max_rating {
-                if puzzle.rating > max { 
-                    skipped += 1;
-                    continue; 
-                }
-            }
-            
-            // Parse and process puzzle
-            if let Some(training_data) = Self::process_puzzle(puzzle) {
-                tactical_data.push(training_data);
-                processed += 1;
-                pb.set_position(processed as u64);
-                
-                // Check max limit
-                if let Some(max) = max_puzzles {
-                    if processed >= max { break; }
                 }
             } else {
                 skipped += 1;
             }
             
-            // Update progress message with skip count
-            if (processed + skipped) % 1000 == 0 {
-                pb.set_message(format!("Parsing tactical puzzles: {} (skipped: {})", processed, skipped));
-            }
+            pb.set_message(format!("Parsing tactical puzzles: {} (skipped: {})", processed, skipped));
         }
         
-        pb.finish_with_message(format!("Parsed {} tactical puzzles (skipped {})", tactical_data.len(), skipped));
+        pb.finish_with_message(format!("Parsed {} puzzles (skipped: {})", processed, skipped));
+        
         Ok(tactical_data)
     }
     
-    /// Process individual puzzle into training data
-    fn process_puzzle(puzzle: TacticalPuzzle) -> Option<TacticalTrainingData> {
+    /// Parallel CSV parsing for large files
+    fn parse_csv_parallel<P: AsRef<Path>>(
+        file_path: P,
+        max_puzzles: Option<usize>,
+        min_rating: Option<u32>,
+        max_rating: Option<u32>,
+    ) -> Result<Vec<TacticalTrainingData>, Box<dyn std::error::Error>> {
+        use std::io::Read;
+        
+        let mut file = File::open(&file_path)?;
+        
+        // Read entire file into memory for parallel processing
+        let mut contents = String::new();
+        file.read_to_string(&mut contents)?;
+        
+        // Split into lines for parallel processing
+        let lines: Vec<&str> = contents.lines().collect();
+        
+        let pb = ProgressBar::new(lines.len() as u64);
+        pb.set_style(ProgressStyle::default_bar()
+            .template("{spinner:.green} [{elapsed_precise}] [{bar:40.cyan/blue}] {pos}/{len} Parallel CSV parsing")
+            .unwrap()
+            .progress_chars("#>-"));
+        
+        // Process lines in parallel
+        let tactical_data: Vec<TacticalTrainingData> = lines
+            .par_iter()
+            .take(max_puzzles.unwrap_or(usize::MAX))
+            .filter_map(|line| {
+                // Parse CSV line manually
+                let fields: Vec<&str> = line.split(',').collect();
+                if fields.len() < 8 {
+                    return None;
+                }
+                
+                // Build puzzle from fields
+                if let Some(puzzle_data) = Self::parse_csv_fields(&fields, min_rating, max_rating) {
+                    Self::convert_puzzle_to_training_data(&puzzle_data)
+                } else {
+                    None
+                }
+            })
+            .collect();
+        
+        pb.finish_with_message(format!("Parallel parsing complete: {} puzzles", tactical_data.len()));
+        
+        Ok(tactical_data)
+    }
+    
+    /// Parse CSV record into TacticalPuzzle
+    fn parse_csv_record(
+        record: &csv::StringRecord,
+        min_rating: Option<u32>,
+        max_rating: Option<u32>,
+    ) -> Option<TacticalPuzzle> {
+        // Need at least 8 fields (PuzzleId, FEN, Moves, Rating, RatingDeviation, Popularity, NbPlays, Themes)
+        if record.len() < 8 {
+            return None;
+        }
+        
+        let rating: u32 = record[3].parse().ok()?;
+        let rating_deviation: u32 = record[4].parse().ok()?;
+        let popularity: i32 = record[5].parse().ok()?;
+        let nb_plays: u32 = record[6].parse().ok()?;
+        
+        // Apply rating filters
+        if let Some(min) = min_rating {
+            if rating < min { 
+                return None;
+            }
+        }
+        if let Some(max) = max_rating {
+            if rating > max { 
+                return None;
+            }
+        }
+        
+        Some(TacticalPuzzle {
+            puzzle_id: record[0].to_string(),
+            fen: record[1].to_string(),
+            moves: record[2].to_string(),
+            rating,
+            rating_deviation,
+            popularity,
+            nb_plays,
+            themes: record[7].to_string(),
+            game_url: if record.len() > 8 { Some(record[8].to_string()) } else { None },
+            opening_tags: if record.len() > 9 { Some(record[9].to_string()) } else { None },
+        })
+    }
+    
+    /// Parse CSV fields into TacticalPuzzle (for parallel processing)
+    fn parse_csv_fields(
+        fields: &[&str],
+        min_rating: Option<u32>,
+        max_rating: Option<u32>,
+    ) -> Option<TacticalPuzzle> {
+        if fields.len() < 8 {
+            return None;
+        }
+        
+        let rating: u32 = fields[3].parse().ok()?;
+        let rating_deviation: u32 = fields[4].parse().ok()?;
+        let popularity: i32 = fields[5].parse().ok()?;
+        let nb_plays: u32 = fields[6].parse().ok()?;
+        
+        // Apply rating filters
+        if let Some(min) = min_rating {
+            if rating < min { 
+                return None;
+            }
+        }
+        if let Some(max) = max_rating {
+            if rating > max { 
+                return None;
+            }
+        }
+        
+        Some(TacticalPuzzle {
+            puzzle_id: fields[0].to_string(),
+            fen: fields[1].to_string(),
+            moves: fields[2].to_string(),
+            rating,
+            rating_deviation,
+            popularity,
+            nb_plays,
+            themes: fields[7].to_string(),
+            game_url: if fields.len() > 8 { Some(fields[8].to_string()) } else { None },
+            opening_tags: if fields.len() > 9 { Some(fields[9].to_string()) } else { None },
+        })
+    }
+    
+    /// Convert puzzle to training data
+    fn convert_puzzle_to_training_data(puzzle: &TacticalPuzzle) -> Option<TacticalTrainingData> {
         // Parse FEN position
         let position = match Board::from_str(&puzzle.fen) {
             Ok(board) => board,
@@ -1056,6 +1138,21 @@ impl TacticalPuzzleParser {
         let initial_size = engine.knowledge_base_size();
         let initial_moves = engine.position_moves.len();
         
+        // For large datasets, use parallel batch processing
+        if tactical_data.len() > 1000 {
+            Self::load_into_engine_incremental_parallel(tactical_data, engine, initial_size, initial_moves);
+        } else {
+            Self::load_into_engine_incremental_sequential(tactical_data, engine, initial_size, initial_moves);
+        }
+    }
+    
+    /// Sequential loading for smaller datasets
+    fn load_into_engine_incremental_sequential(
+        tactical_data: &[TacticalTrainingData],
+        engine: &mut ChessVectorEngine,
+        initial_size: usize,
+        initial_moves: usize,
+    ) {
         let pb = ProgressBar::new(tactical_data.len() as u64);
         pb.set_style(ProgressStyle::default_bar()
             .template("{spinner:.green} [{elapsed_precise}] [{bar:40.cyan/blue}] {pos}/{len} Loading tactical patterns (incremental)")
@@ -1089,6 +1186,68 @@ impl TacticalPuzzleParser {
         println!("Incremental tactical training:");
         println!("  - Positions: {} → {} (+{})", initial_size, engine.knowledge_base_size(), engine.knowledge_base_size() - initial_size);
         println!("  - Move entries: {} → {} (+{})", initial_moves, engine.position_moves.len(), engine.position_moves.len() - initial_moves);
+    }
+    
+    /// Parallel batch loading for large datasets
+    fn load_into_engine_incremental_parallel(
+        tactical_data: &[TacticalTrainingData],
+        engine: &mut ChessVectorEngine,
+        initial_size: usize,
+        initial_moves: usize,
+    ) {
+        let pb = ProgressBar::new(tactical_data.len() as u64);
+        pb.set_style(ProgressStyle::default_bar()
+            .template("{spinner:.green} [{elapsed_precise}] [{bar:40.cyan/blue}] {pos}/{len} Optimized batch loading tactical patterns")
+            .unwrap()
+            .progress_chars("#>-"));
+        
+        // Parallel pre-filtering to avoid duplicates (this is thread-safe for read operations)
+        let filtered_data: Vec<&TacticalTrainingData> = tactical_data
+            .par_iter()
+            .filter(|data| !engine.position_boards.contains(&data.position))
+            .collect();
+        
+        let batch_size = 1000; // Larger batches for better performance
+        let mut added = 0;
+        
+        println!("Pre-filtered: {} → {} positions (removed {} duplicates)", 
+                 tactical_data.len(), filtered_data.len(), tactical_data.len() - filtered_data.len());
+        
+        // Process in sequential batches (engine operations aren't thread-safe)
+        // But use optimized batch processing
+        for batch in filtered_data.chunks(batch_size) {
+            let batch_start = added;
+            
+            for data in batch {
+                // Final duplicate check (should be minimal after pre-filtering)
+                if !engine.position_boards.contains(&data.position) {
+                    engine.add_position_with_move(
+                        &data.position,
+                        0.0, // Position evaluation (neutral for puzzles) 
+                        Some(data.solution_move),
+                        Some(data.tactical_value), // High tactical value
+                    );
+                    added += 1;
+                }
+                pb.inc(1);
+            }
+            
+            // Update progress message every batch
+            pb.set_message(format!("Loaded batch: {} positions", added - batch_start));
+        }
+        
+        let skipped = tactical_data.len() - added;
+        
+        pb.finish_with_message(format!(
+            "Optimized loaded {} new tactical patterns (skipped {} duplicates, total: {})", 
+            added, skipped, engine.knowledge_base_size()
+        ));
+        
+        println!("Incremental tactical training (optimized):");
+        println!("  - Positions: {} → {} (+{})", initial_size, engine.knowledge_base_size(), engine.knowledge_base_size() - initial_size);
+        println!("  - Move entries: {} → {} (+{})", initial_moves, engine.position_moves.len(), engine.position_moves.len() - initial_moves);
+        println!("  - Batch size: {}, Pre-filtered efficiency: {:.1}%", 
+                 batch_size, (filtered_data.len() as f32 / tactical_data.len() as f32) * 100.0);
     }
 
     /// Save tactical puzzles to file for incremental loading later
@@ -1286,7 +1445,7 @@ mod tests {
             opening_tags: None,
         };
         
-        let tactical_data = TacticalPuzzleParser::process_puzzle(puzzle);
+        let tactical_data = TacticalPuzzleParser::convert_puzzle_to_training_data(&puzzle);
         assert!(tactical_data.is_some());
         
         let data = tactical_data.unwrap();
@@ -1310,7 +1469,7 @@ mod tests {
             opening_tags: None,
         };
         
-        let tactical_data = TacticalPuzzleParser::process_puzzle(puzzle);
+        let tactical_data = TacticalPuzzleParser::convert_puzzle_to_training_data(&puzzle);
         assert!(tactical_data.is_none());
     }
 

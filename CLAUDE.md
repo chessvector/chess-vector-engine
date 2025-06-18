@@ -16,6 +16,8 @@ This is a **Rust library** (`chess-vector-engine`) that provides vector-based ch
 - `cargo run --bin lsh_benchmark` - Compare LSH vs linear search performance
 - `cargo run --bin manifold_demo` - Demonstrate neural network compression
 - `cargo run --bin analyze <FEN>` - Position analysis tool with opening book
+- `cargo run --bin training_benchmark` - Test training performance optimizations
+- `cargo run --bin tactical_training -- --puzzles <CSV_FILE>` - Train with Lichess puzzles
 
 ### Publishing
 - `cargo publish` - Publish library to crates.io (when ready)
