@@ -6,6 +6,8 @@ pub mod ann;
 pub mod training;
 pub mod opening_book;
 pub mod persistence;
+pub mod gpu_acceleration;
+pub mod tactical_search;
 
 pub use position_encoder::PositionEncoder;
 pub use similarity_search::SimilaritySearch;
@@ -14,6 +16,8 @@ pub use manifold_learner::ManifoldLearner;
 pub use opening_book::{OpeningBook, OpeningEntry, OpeningBookStats};
 pub use training::{TrainingData, TrainingDataset, GameExtractor, EngineEvaluator, TacticalPuzzle, TacticalTrainingData, TacticalPuzzleParser};
 pub use persistence::{Database, PositionData, LSHTableData};
+pub use gpu_acceleration::{GPUAccelerator, DeviceType};
+pub use tactical_search::{TacticalSearch, TacticalConfig, TacticalResult};
 
 use chess::{Board, ChessMove};
 use ndarray::Array1;
@@ -42,6 +46,33 @@ pub struct TrainingStats {
     pub opening_book_enabled: bool,
 }
 
+/// Hybrid evaluation configuration
+#[derive(Debug, Clone)]
+pub struct HybridConfig {
+    /// Confidence threshold for pattern-only evaluation (0.0-1.0)
+    pub pattern_confidence_threshold: f32,
+    /// Enable tactical refinement for uncertain positions
+    pub enable_tactical_refinement: bool,
+    /// Tactical search configuration
+    pub tactical_config: TacticalConfig,
+    /// Weight for pattern evaluation vs tactical evaluation (0.0-1.0)
+    pub pattern_weight: f32,
+    /// Minimum number of similar positions to trust pattern evaluation
+    pub min_similar_positions: usize,
+}
+
+impl Default for HybridConfig {
+    fn default() -> Self {
+        Self {
+            pattern_confidence_threshold: 0.8,
+            enable_tactical_refinement: true,
+            tactical_config: TacticalConfig::default(),
+            pattern_weight: 0.7, // Favor patterns but include tactical refinement
+            min_similar_positions: 3,
+        }
+    }
+}
+
 /// Main chess vector engine
 pub struct ChessVectorEngine {
     encoder: PositionEncoder,
@@ -66,6 +97,10 @@ pub struct ChessVectorEngine {
     opening_book: Option<OpeningBook>,
     /// Database for persistence
     database: Option<Database>,
+    /// Tactical search engine for position refinement
+    tactical_search: Option<TacticalSearch>,
+    /// Hybrid evaluation configuration
+    hybrid_config: HybridConfig,
 }
 
 impl ChessVectorEngine {
@@ -86,6 +121,8 @@ impl ChessVectorEngine {
             position_evaluations: Vec::new(),
             opening_book: None,
             database: None,
+            tactical_search: None,
+            hybrid_config: HybridConfig::default(),
         }
     }
 
@@ -138,6 +175,8 @@ impl ChessVectorEngine {
             position_evaluations: Vec::new(),
             opening_book: None,
             database: None,
+            tactical_search: None,
+            hybrid_config: HybridConfig::default(),
         }
     }
     
@@ -233,35 +272,66 @@ impl ChessVectorEngine {
         results
     }
 
-    /// Get evaluation for a position based on similar positions and opening book
+    /// Get evaluation for a position using hybrid approach (opening book + pattern evaluation + tactical search)
     pub fn evaluate_position(&self, board: &Board) -> Option<f32> {
-        // First check opening book
+        // First check opening book - highest priority
         if let Some(entry) = self.get_opening_entry(board) {
             return Some(entry.evaluation);
         }
         
-        // Fall back to similarity search
+        // Get pattern evaluation from similarity search
         let similar_positions = self.find_similar_positions(board, 5);
         
         if similar_positions.is_empty() {
+            // No similar positions found - use tactical search if available
+            if let Some(ref tactical_search) = self.tactical_search {
+                let mut tactical_engine = tactical_search.clone();
+                let result = tactical_engine.search(board);
+                return Some(result.evaluation);
+            }
             return None;
         }
 
-        // Weighted average based on similarity
+        // Calculate pattern evaluation and confidence
         let mut weighted_sum = 0.0;
         let mut weight_sum = 0.0;
+        let mut similarity_scores = Vec::new();
 
-        for (_, evaluation, similarity) in similar_positions {
-            // Use similarity as weight (closer positions have more influence)
-            let weight = similarity;
+        for (_, evaluation, similarity) in &similar_positions {
+            let weight = *similarity;
             weighted_sum += evaluation * weight;
             weight_sum += weight;
+            similarity_scores.push(*similarity);
         }
 
-        if weight_sum > 0.0 {
-            Some(weighted_sum / weight_sum)
+        let pattern_evaluation = weighted_sum / weight_sum;
+        
+        // Calculate pattern confidence based on similarity scores and count
+        let avg_similarity = similarity_scores.iter().sum::<f32>() / similarity_scores.len() as f32;
+        let count_factor = (similar_positions.len() as f32 / self.hybrid_config.min_similar_positions as f32).min(1.0);
+        let pattern_confidence = avg_similarity * count_factor;
+
+        // Decide whether to use tactical refinement
+        let use_tactical = self.hybrid_config.enable_tactical_refinement 
+            && pattern_confidence < self.hybrid_config.pattern_confidence_threshold
+            && self.tactical_search.is_some();
+
+        if use_tactical {
+            // Get tactical evaluation
+            let mut tactical_engine = self.tactical_search.as_ref().unwrap().clone();
+            let tactical_result = tactical_engine.search(board);
+            
+            // Blend pattern and tactical evaluations
+            let pattern_weight = self.hybrid_config.pattern_weight * pattern_confidence;
+            let tactical_weight = 1.0 - pattern_weight;
+            
+            let hybrid_evaluation = (pattern_evaluation * pattern_weight) + 
+                                  (tactical_result.evaluation * tactical_weight);
+            
+            Some(hybrid_evaluation)
         } else {
-            None
+            // Use pattern evaluation only
+            Some(pattern_evaluation)
         }
     }
 
@@ -853,6 +923,36 @@ impl ChessVectorEngine {
             .ok_or("Database not enabled")?;
         Ok(db.get_position_count()?)
     }
+
+    /// Enable tactical search with the given configuration
+    pub fn enable_tactical_search(&mut self, config: TacticalConfig) {
+        self.tactical_search = Some(TacticalSearch::new(config));
+    }
+
+    /// Enable tactical search with default configuration
+    pub fn enable_tactical_search_default(&mut self) {
+        self.tactical_search = Some(TacticalSearch::new_default());
+    }
+
+    /// Configure hybrid evaluation settings
+    pub fn configure_hybrid_evaluation(&mut self, config: HybridConfig) {
+        self.hybrid_config = config;
+    }
+
+    /// Check if tactical search is enabled
+    pub fn is_tactical_search_enabled(&self) -> bool {
+        self.tactical_search.is_some()
+    }
+
+    /// Get current hybrid configuration
+    pub fn hybrid_config(&self) -> &HybridConfig {
+        &self.hybrid_config
+    }
+
+    /// Check if opening book is enabled
+    pub fn is_opening_book_enabled(&self) -> bool {
+        self.opening_book.is_some()
+    }
 }
 
 #[cfg(test)]
@@ -1218,5 +1318,64 @@ mod tests {
         assert!(stats.move_data_entries > 0);
         assert!(stats.lsh_enabled);
         assert!(stats.opening_book_enabled);
+    }
+
+    #[test]
+    fn test_tactical_search_integration() {
+        let mut engine = ChessVectorEngine::new(1024);
+        let board = Board::default();
+        
+        // Test that tactical search is initially disabled
+        assert!(!engine.is_tactical_search_enabled());
+        
+        // Enable tactical search with default configuration
+        engine.enable_tactical_search_default();
+        assert!(engine.is_tactical_search_enabled());
+        
+        // Test evaluation without any similar positions (should use tactical search)
+        let evaluation = engine.evaluate_position(&board);
+        assert!(evaluation.is_some());
+        
+        // Test evaluation with similar positions (should use hybrid approach)
+        engine.add_position(&board, 0.5);
+        let hybrid_evaluation = engine.evaluate_position(&board);
+        assert!(hybrid_evaluation.is_some());
+    }
+
+    #[test]
+    fn test_hybrid_evaluation_configuration() {
+        let mut engine = ChessVectorEngine::new(1024);
+        let board = Board::default();
+        
+        // Enable tactical search
+        engine.enable_tactical_search_default();
+        
+        // Test custom hybrid configuration
+        let custom_config = HybridConfig {
+            pattern_confidence_threshold: 0.9, // High threshold
+            enable_tactical_refinement: true,
+            tactical_config: TacticalConfig::default(),
+            pattern_weight: 0.8,
+            min_similar_positions: 5,
+        };
+        
+        engine.configure_hybrid_evaluation(custom_config);
+        
+        // Add some positions with low similarity to trigger tactical refinement
+        engine.add_position(&board, 0.3);
+        
+        let evaluation = engine.evaluate_position(&board);
+        assert!(evaluation.is_some());
+        
+        // Test with tactical refinement disabled
+        let no_tactical_config = HybridConfig {
+            enable_tactical_refinement: false,
+            ..HybridConfig::default()
+        };
+        
+        engine.configure_hybrid_evaluation(no_tactical_config);
+        
+        let pattern_only_evaluation = engine.evaluate_position(&board);
+        assert!(pattern_only_evaluation.is_some());
     }
 }

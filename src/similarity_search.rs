@@ -1,7 +1,8 @@
-use ndarray::Array1;
+use ndarray::{Array1, Array2};
 use std::collections::BinaryHeap;
 use std::cmp::Ordering;
 use rayon::prelude::*;
+use crate::gpu_acceleration::GPUAccelerator;
 
 /// Entry in the similarity search index
 #[derive(Debug, Clone)]
@@ -66,14 +67,67 @@ impl SimilaritySearch {
         });
     }
 
-    /// Search for k most similar positions (automatically chooses parallel or sequential)
+    /// Search for k most similar positions (automatically chooses best method: GPU > parallel > sequential)
     pub fn search(&self, query: &Array1<f32>, k: usize) -> Vec<(Array1<f32>, f32, f32)> {
-        // Use parallel search for larger datasets
+        let gpu_accelerator = GPUAccelerator::global();
+        
+        // Use GPU acceleration for large datasets if available
+        if gpu_accelerator.is_gpu_enabled() && self.positions.len() > 500 {
+            match self.gpu_accelerated_search(query, k) {
+                Ok(results) => return results,
+                Err(e) => {
+                    println!("GPU search failed ({}), falling back to CPU", e);
+                }
+            }
+        }
+        
+        // Fall back to parallel CPU search for medium datasets
         if self.positions.len() > 100 {
             self.parallel_search(query, k)
         } else {
             self.sequential_search(query, k)
         }
+    }
+
+    /// GPU-accelerated similarity search for large datasets
+    pub fn gpu_accelerated_search(&self, query: &Array1<f32>, k: usize) -> Result<Vec<(Array1<f32>, f32, f32)>, Box<dyn std::error::Error>> {
+        assert_eq!(query.len(), self.vector_size, "Query vector size mismatch");
+        
+        if self.positions.is_empty() {
+            return Ok(Vec::new());
+        }
+
+        let gpu_accelerator = GPUAccelerator::global();
+        
+        // Prepare vectors matrix for GPU computation
+        let mut vectors_data = Vec::with_capacity(self.positions.len() * self.vector_size);
+        for entry in &self.positions {
+            vectors_data.extend_from_slice(entry.vector.as_slice().unwrap());
+        }
+        
+        let vectors_matrix = Array2::from_shape_vec((self.positions.len(), self.vector_size), vectors_data)?;
+        
+        // Compute similarities on GPU
+        let similarities = gpu_accelerator.cosine_similarity_batch(query, &vectors_matrix)?;
+        
+        // Find top-k results
+        let mut indexed_similarities: Vec<(usize, f32)> = similarities
+            .iter()
+            .enumerate()
+            .map(|(i, &sim)| (i, sim))
+            .collect();
+        
+        // Sort by similarity (descending)
+        indexed_similarities.sort_by(|a, b| b.1.partial_cmp(&a.1).unwrap_or(std::cmp::Ordering::Equal));
+        
+        // Take top-k and prepare results
+        let mut results = Vec::new();
+        for (idx, similarity) in indexed_similarities.into_iter().take(k) {
+            let entry = &self.positions[idx];
+            results.push((entry.vector.clone(), entry.evaluation, similarity));
+        }
+        
+        Ok(results)
     }
     
     /// Sequential search implementation (for small datasets)

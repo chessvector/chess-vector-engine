@@ -65,6 +65,14 @@ path = "src/bin/persistence_demo.rs"
 name = "persistence_test"
 path = "src/bin/persistence_test.rs"
 
+[[bin]]
+name = "hybrid_evaluation_demo"
+path = "src/bin/hybrid_evaluation_demo.rs"
+
+[[bin]]
+name = "tactical_hybrid_demo"
+path = "tactical_hybrid_demo.rs"
+
 [dependencies]
 # Chess game logic
 chess = "3.2"
@@ -76,6 +84,8 @@ ndarray-rand = "0.15"
 # Machine learning framework
 candle-core = "0.9"
 candle-nn = "0.9"
+# candle-cuda = { version = "0.9", optional = true }
+# candle-metal = { version = "0.9", optional = true }
 
 # Serialization for saving/loading models
 serde = { version = "1.0", features = ["derive"] }
@@ -109,6 +119,12 @@ chrono = "0.4"
 # Database persistence
 rusqlite = { version = "0.32", features = ["bundled", "blob"] }
 bincode = "1.3"
+
+[features]
+default = []
+# cuda = ["candle-cuda"]
+# metal = ["candle-metal"]
+# gpu = ["cuda"]  # Default GPU feature to CUDA
 
 [dev-dependencies]
 criterion = "0.5"
