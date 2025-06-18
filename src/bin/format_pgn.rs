@@ -1,4 +1,4 @@
-use chess::{Board, ChessMove, Color, Game, Square};
+use chess::{Board, ChessMove, Game, Square};
 use std::str::FromStr;
 
 fn main() {
@@ -44,7 +44,7 @@ fn main() {
     println!("");
     
     let mut line = String::new();
-    for (i, mv) in pgn_moves.iter().enumerate() {
+    for (_i, mv) in pgn_moves.iter().enumerate() {
         if line.len() + mv.len() > 80 {
             println!("{}", line);
             line = String::new();

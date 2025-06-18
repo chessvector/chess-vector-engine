@@ -755,4 +755,157 @@ mod tests {
         assert!(stats.total_positions > 0);
         assert!(stats.avg_moves_per_position > 0.0);
     }
+
+    #[test]
+    fn test_invalid_fen_handling() {
+        let mut book = OpeningBook::new();
+        
+        // Test adding entry with invalid FEN
+        let moves = vec![(ChessMove::from_str("e2e4").unwrap(), 1.0)];
+        let result = book.add_opening(
+            "invalid_fen_string",
+            0.0,
+            moves,
+            "Invalid Opening".to_string(),
+            None,
+        );
+        
+        assert!(result.is_err());
+        assert_eq!(book.entries.len(), 0);
+    }
+
+    #[test]
+    fn test_eco_code_filtering() {
+        let book = OpeningBook::with_standard_openings();
+        let stats = book.stats();
+        
+        // Should have multiple ECO classifications
+        assert!(stats.eco_classifications > 0);
+        
+        // Count entries with ECO codes
+        let eco_entries: Vec<_> = book.entries.values()
+            .filter(|entry| entry.eco_code.is_some())
+            .collect();
+        
+        assert!(!eco_entries.is_empty());
+        
+        // Check for some specific ECO codes
+        let has_e4_openings = book.entries.values()
+            .any(|entry| entry.eco_code.as_deref() == Some("C20") || 
+                        entry.eco_code.as_deref() == Some("C44"));
+        assert!(has_e4_openings);
+    }
+
+    #[test]
+    fn test_opening_move_strengths() {
+        let book = OpeningBook::with_standard_openings();
+        let board = Board::default();
+        
+        if let Some(entry) = book.lookup(&board) {
+            // All move strengths should be between 0.0 and 1.0
+            for (_, strength) in &entry.best_moves {
+                assert!(*strength >= 0.0 && *strength <= 1.0);
+            }
+            
+            // Should have at least one strong move
+            let max_strength = entry.best_moves.iter()
+                .map(|(_, strength)| *strength)
+                .fold(0.0, f32::max);
+            assert!(max_strength > 0.5);
+        }
+    }
+
+    #[test]
+    fn test_non_starting_position_openings() {
+        let book = OpeningBook::with_standard_openings();
+        
+        // Test a well-known opening position (Italian Game)
+        if let Ok(board) = Board::from_str("r1bqkbnr/pppp1ppp/2n5/4p3/2B1P3/5N2/PPPP1PPP/RNBQK2R b KQkq - 3 3") {
+            let entry = book.lookup(&board);
+            if entry.is_some() {
+                let opening = entry.unwrap();
+                assert!(!opening.best_moves.is_empty());
+                assert!(opening.name.contains("Italian") || 
+                       opening.name.contains("Game") ||
+                       opening.evaluation.abs() <= 1.0);
+            }
+        }
+    }
+
+    #[test]
+    fn test_opening_book_consistency() {
+        let book = OpeningBook::with_standard_openings();
+        
+        // Test that all entries have valid board positions
+        for (fen, entry) in &book.entries {
+            assert!(Board::from_str(fen).is_ok(), "Invalid FEN in opening book: {}", fen);
+            assert!(!entry.name.is_empty(), "Empty opening name");
+            assert!(!entry.best_moves.is_empty(), "No moves for opening: {}", entry.name);
+            
+            // Evaluation should be reasonable
+            assert!(entry.evaluation >= -10.0 && entry.evaluation <= 10.0, 
+                   "Unreasonable evaluation: {}", entry.evaluation);
+        }
+    }
+
+    #[test] 
+    fn test_duplicate_position_handling() {
+        let mut book = OpeningBook::new();
+        let board = Board::default();
+        let fen = board.to_string();
+        
+        let moves1 = vec![(ChessMove::from_str("e2e4").unwrap(), 1.0)];
+        let moves2 = vec![(ChessMove::from_str("d2d4").unwrap(), 0.9)];
+        
+        // Add first entry
+        let result1 = book.add_opening(
+            &fen,
+            0.0,
+            moves1,
+            "First Entry".to_string(),
+            Some("E00".to_string()),
+        );
+        assert!(result1.is_ok());
+        assert_eq!(book.entries.len(), 1);
+        
+        // Add second entry for same position (should replace)
+        let result2 = book.add_opening(
+            &fen,
+            0.1,
+            moves2,
+            "Second Entry".to_string(),
+            Some("D00".to_string()),
+        );
+        assert!(result2.is_ok());
+        assert_eq!(book.entries.len(), 1);
+        
+        // Should have the second entry
+        let entry = book.lookup(&board).unwrap();
+        assert_eq!(entry.name, "Second Entry");
+        assert_eq!(entry.evaluation, 0.1);
+        assert_eq!(entry.eco_code, Some("D00".to_string()));
+    }
+
+    #[test]
+    fn test_advanced_opening_coverage() {
+        let book = OpeningBook::with_standard_openings();
+        let stats = book.stats();
+        
+        // Should have substantial opening coverage (at least 40 positions)
+        assert!(stats.total_positions >= 40, 
+               "Opening book should have substantial coverage, got {}", stats.total_positions);
+        
+        // Should cover major opening families
+        let opening_names: Vec<_> = book.entries.values()
+            .map(|entry| &entry.name)
+            .collect();
+        
+        let has_sicilian = opening_names.iter().any(|name| name.contains("Sicilian"));
+        let has_french = opening_names.iter().any(|name| name.contains("French"));
+        let has_caro_kann = opening_names.iter().any(|name| name.contains("Caro"));
+        let has_queens_gambit = opening_names.iter().any(|name| name.contains("Queen"));
+        
+        assert!(has_sicilian || has_french || has_caro_kann || has_queens_gambit,
+               "Opening book should cover major opening families");
+    }
 }

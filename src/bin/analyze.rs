@@ -32,60 +32,42 @@ fn main() {
 
 /// Initialize analysis engine with advanced features based on available data
 fn initialize_analysis_engine() -> ChessVectorEngine {
-    // Check available training data to determine optimal architecture
-    let mut total_positions = 0;
+    println!("🔍 Initializing analysis engine with auto-loading...");
     
-    // Count positions in training data
-    if let Ok(dataset) = chess_vector_engine::TrainingDataset::load("training_data.json") {
-        total_positions += dataset.data.len();
-    }
-    
-    // Estimate positions from opening book
-    total_positions += 100; // Approximate opening book size
-    
-    println!("🔍 Initializing analysis engine for {} estimated positions...", total_positions);
-    
-    let mut engine = if total_positions > 10000 {
-        println!("📊 Large dataset detected, using LSH for fast analysis");
-        // LSH optimized for analysis: more hash tables for better recall
-        ChessVectorEngine::new_with_lsh(1024, 14, 22)
-    } else {
-        println!("📊 Standard dataset, using linear search");
-        ChessVectorEngine::new(1024)
-    };
-    
-    // Enable opening book
-    engine.enable_opening_book();
-    
-    // Load training data if available
-    match chess_vector_engine::TrainingDataset::load("training_data.json") {
-        Ok(dataset) => {
-            println!("📚 Loading {} positions from training_data.json", dataset.data.len());
-            total_positions = dataset.data.len();
-            for training_data in dataset.data {
-                engine.add_position(&training_data.board, training_data.evaluation);
+    // Use auto-loading to automatically discover and load all training data
+    match ChessVectorEngine::new_with_auto_load(1024) {
+        Ok(engine) => {
+            let stats = engine.training_stats();
+            println!("🎯 Engine initialized with {} total positions", stats.total_positions);
+            
+            if stats.has_move_data {
+                println!("📊 Includes tactical training data with {} move entries", stats.move_data_entries);
             }
+            
+            // Enable manifold learning for large analysis datasets
+            let mut engine = engine;
+            if stats.total_positions > 15000 {
+                println!("🧠 Large analysis dataset detected, enabling manifold learning...");
+                let _ = engine.enable_manifold_learning(4.0); // 4:1 compression for analysis depth
+                
+                println!("🏋️  Training manifold compression for analysis optimization...");
+                let _ = engine.train_manifold_learning(12); // More epochs for better analysis quality
+                
+                println!("✅ Manifold learning enabled - optimized for position analysis");
+            }
+            
+            engine
         }
-        Err(_) => {
-            println!("📖 No training data found, using opening book only");
+        Err(e) => {
+            println!("⚠️  Auto-loading failed: {}", e);
+            println!("🔄 Falling back to manual initialization...");
+            
+            let mut engine = ChessVectorEngine::new(1024);
+            engine.enable_opening_book();
+            load_opening_book(&mut engine);
+            engine
         }
     }
-    
-    // Load basic opening positions
-    load_opening_book(&mut engine);
-    
-    // Enable manifold learning for large analysis datasets
-    if total_positions > 15000 {
-        println!("🧠 Large analysis dataset, enabling manifold learning for deeper pattern recognition...");
-        let _ = engine.enable_manifold_learning(4.0); // 4:1 compression for analysis depth (1024d -> 256d)
-        
-        println!("🏋️  Training manifold compression for analysis optimization...");
-        let _ = engine.train_manifold_learning(12); // More epochs for better analysis quality
-        
-        println!("✅ Manifold learning enabled - optimized for position analysis");
-    }
-    
-    engine
 }
 
 /// Load a basic opening book with evaluations

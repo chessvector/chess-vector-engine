@@ -15,6 +15,7 @@ A **Rust library** for vector-based chess position analysis using similarity sea
 - **⚔️ Tactical Training** - Advanced tactical puzzle integration from Lichess database with 3M+ puzzles
 - **⚡ Performance Optimized** - LSH indexing provides 3.3x speedup, opening book gives 7.7x speedup over linear search
 - **🔄 Multithreading Support** - Parallel processing for training, similarity search, LSH operations, and data preprocessing using Rayon
+- **💾 SQLite Persistence** - Save/load engine state, LSH indices, and trained neural networks with instant startup
 
 ## 🏗️ Architecture
 
@@ -26,6 +27,8 @@ Chess Position → Position Encoder → Vector (1024d)
          ┌─ Opening Book (50+ openings, fast lookup)
          │       ↓
          ├─ Tactical Patterns (3M+ puzzles, high-value moves)
+         │       ↓
+         ├─ SQLite Database (persistent storage)
          │       ↓
          └─ Manifold Learner → Compressed Vector (128d)
                                      ↓
@@ -48,9 +51,8 @@ Basic usage:
 use chess_vector_engine::ChessVectorEngine;
 use chess::Board;
 
-// Create engine with opening book
-let mut engine = ChessVectorEngine::new(1024);
-engine.enable_opening_book();
+// Create engine with persistence and auto-loading
+let mut engine = ChessVectorEngine::new_with_persistence(1024, "chess_engine.db")?;
 
 // Add positions to knowledge base
 let board = Board::default();
@@ -67,6 +69,9 @@ for (i, rec) in recommendations.iter().enumerate() {
     println!("{}. {} (confidence: {:.2})", 
              i + 1, rec.chess_move, rec.confidence);
 }
+
+// Save state for next run
+engine.save_to_database()?;
 ```
 
 ### Advanced Features
@@ -81,6 +86,13 @@ engine.enable_lsh(8, 16); // 8 tables, 16-bit hashes
 
 // Enable LSH in compressed manifold space
 engine.enable_manifold_lsh(8, 16)?;
+
+// All training and configuration is automatically saved to database
+engine.save_to_database()?;
+
+// Next run will load everything instantly
+let engine2 = ChessVectorEngine::new_with_persistence(1024, "chess_engine.db")?;
+// ↑ Loads all positions, LSH indices, and trained neural networks
 
 // Check compression ratio
 if let Some(ratio) = engine.manifold_compression_ratio() {
@@ -125,6 +137,122 @@ cargo run --bin play_stockfish
 
 # Format PGN files for training
 cargo run --bin format_pgn
+
+# Incremental training example (preserve progress)
+cargo run --bin incremental_training_example
+
+# Incremental puzzle training example (tactical puzzles)
+cargo run --bin incremental_puzzle_example
+
+# SQLite persistence demonstration
+cargo run --bin persistence_demo
+```
+
+## 💾 Persistence & State Management
+
+The engine includes comprehensive SQLite-based persistence that eliminates recomputation overhead and provides instant startup with pre-trained models.
+
+### Quick Persistence Setup
+
+```rust
+use chess_vector_engine::ChessVectorEngine;
+
+// Create engine with automatic persistence
+let mut engine = ChessVectorEngine::new_with_persistence(1024, "my_engine.db")?;
+
+// All operations are automatically persistent:
+engine.add_position(&board, 0.5);           // → Saved to database
+engine.enable_lsh(8, 16);                   // → LSH config saved
+engine.enable_manifold_learning(8.0)?;      // → Model architecture saved
+engine.train_manifold_learning(50)?;        // → Trained weights saved
+
+// Explicit save (also happens automatically)
+engine.save_to_database()?;
+
+// Next run loads everything instantly
+let engine2 = ChessVectorEngine::new_with_persistence(1024, "my_engine.db")?;
+// ↑ Loads: all positions, LSH indices, trained neural networks
+```
+
+### What Gets Persisted
+
+- **🎯 Position Database**: All chess positions, vectors, and evaluations
+- **🔍 LSH Indices**: Hash functions, tables, and bucket assignments for instant search
+- **🧠 Trained Models**: Neural network weights and manifold learning state
+- **⚙️ Configuration**: Engine settings, compression ratios, and optimization parameters
+
+### Persistence Benefits
+
+```bash
+# First run: Train everything from scratch
+cargo run --bin persistence_demo
+# Training autoencoder for 10 epochs... ⏱️ 30 seconds
+# Building LSH indices... ⏱️ 5 seconds
+
+# Subsequent runs: Instant startup
+cargo run --bin persistence_demo  
+# Loading engine state from database... ⏱️ 0.1 seconds
+# ✅ Ready to go!
+```
+
+### Manual State Management
+
+```rust
+// Enable persistence on existing engine
+engine.enable_persistence("chess_data.db")?;
+
+// Check if persistence is active
+if engine.is_persistence_enabled() {
+    println!("Database contains {} positions", engine.database_position_count()?);
+}
+
+// Load from existing database
+engine.load_from_database()?;
+
+// Save current state
+engine.save_to_database()?;
+
+// Auto-save (saves only if persistence enabled)
+engine.auto_save()?;
+```
+
+### Database Schema
+
+The engine uses optimized SQLite tables:
+
+```sql
+-- Position vectors and evaluations
+CREATE TABLE positions (
+    id INTEGER PRIMARY KEY,
+    fen TEXT UNIQUE,
+    vector BLOB,           -- Compressed binary vector data
+    evaluation REAL,
+    compressed_vector BLOB, -- Manifold-compressed vectors
+    created_at INTEGER
+);
+
+-- LSH configuration and hash functions  
+CREATE TABLE lsh_config (
+    id INTEGER PRIMARY KEY,
+    num_tables INTEGER,
+    hash_functions BLOB    -- Serialized hyperplane parameters
+);
+
+-- LSH bucket assignments for fast search
+CREATE TABLE lsh_buckets (
+    table_id INTEGER,
+    bucket_hash TEXT,
+    position_id INTEGER
+);
+
+-- Trained neural network models
+CREATE TABLE manifold_models (
+    id INTEGER PRIMARY KEY,
+    input_dim INTEGER,
+    compressed_dim INTEGER,
+    model_weights BLOB,    -- Serialized neural network weights
+    training_metadata BLOB
+);
 ```
 
 ## 🎓 Training the Engine
@@ -178,7 +306,55 @@ engine.enable_lsh(8, 16);
 engine.enable_manifold_lsh(8, 16)?;
 ```
 
-### 4. Add Custom Training Data
+### 4. Incremental Training (Preserve Progress)
+
+The engine supports incremental training so you never lose progress:
+
+```rust
+// Train incrementally from datasets without losing existing data
+let new_dataset = TrainingDataset::load("new_games.json")?;
+engine.train_from_dataset_incremental(&new_dataset); // Preserves existing positions
+
+// Save training progress (appends to existing file)
+engine.save_training_data("my_training_progress.json")?;
+
+// Load progress incrementally (adds to existing engine state)
+engine.load_training_data_incremental("my_training_progress.json")?;
+
+// Check training statistics
+let stats = engine.training_stats();
+println!("Total positions: {}", stats.total_positions);
+println!("Has move data: {}", stats.has_move_data);
+
+### 6. Auto-Loading Training Data 🚀
+
+The engine now supports automatic discovery and loading of training data files:
+
+```rust
+// Automatically loads training data from common file names if they exist
+let engine = ChessVectorEngine::new_with_auto_load(1024)?;
+
+// Files automatically searched and loaded:
+// - training_data.json
+// - tactical_training_data.json (created by puzzle imports!)  
+// - engine_training.json
+// - chess_training.json
+// - my_training.json
+// - tactical_puzzles.json
+// - lichess_puzzles.json
+// - my_puzzles.json
+
+// Check what was loaded
+let stats = engine.training_stats();
+println!("Auto-loaded {} positions", stats.total_positions);
+if stats.has_move_data {
+    println!("Includes tactical training with {} move entries", stats.move_data_entries);
+}
+```
+
+**This directly answers your question**: When you run tactical training with `cargo run --bin tactical_training`, it creates `tactical_training_data.json`. The engine with auto-loading will automatically discover and include this file for evaluations!
+
+### 7. Add Custom Training Data
 
 ```rust
 // From PGN files using the training module
@@ -188,21 +364,18 @@ let mut dataset = TrainingDataset::new();
 dataset.load_from_pgn("games.pgn", Some(100), 30)?; // 100 games, 30 moves each
 dataset.evaluate_with_stockfish(15)?; // Evaluate with Stockfish depth 15
 
-// Add to engine
-for data in &dataset.data {
-    engine.add_position(&data.board, data.evaluation);
-    
-    // Optionally add move information
-    engine.add_position_with_move(
-        &data.board,
-        data.evaluation,
-        Some(best_move),
-        Some(outcome)
-    );
-}
+// Save incrementally (appends to existing training data)
+dataset.save_incremental("training_data.json")?;
+
+// Merge with existing datasets
+let mut existing = TrainingDataset::load("training_data.json")?;
+existing.merge(dataset); // Combines datasets
+
+// Add to engine incrementally
+existing.train_engine(&mut engine);
 ```
 
-### 5. Training with the CLI
+### 8. Training with the CLI
 
 Use the built-in training binary:
 
@@ -231,57 +404,62 @@ wget https://database.lichess.org/lichess_db_puzzle.csv.bz2
 bunzip2 lichess_db_puzzle.csv.bz2
 ```
 
-### Tactical Training with CLI
+### Incremental Tactical Training 🎯
+
+**All tactical training now supports incremental loading - never lose your puzzle progress!**
 
 ```bash
-# Basic tactical training (10,000 puzzles, rating 1000-2500)
+# Basic tactical training (automatically preserves existing progress)
 cargo run --bin tactical_training -- --puzzles lichess_db_puzzle.csv
 
-# Advanced configuration with custom parameters
+# Add more puzzles incrementally (won't duplicate existing ones)
 cargo run --bin tactical_training -- \
   --puzzles lichess_db_puzzle.csv \
   --max-puzzles 25000 \
   --min-rating 1200 \
   --max-rating 2200 \
-  --output tactical_engine.json \
-  --test
+  --existing tactical_engine.json \
+  --output tactical_engine.json
 
-# Merge with existing training data
-cargo run --bin tactical_training -- \
-  --puzzles lichess_db_puzzle.csv \
-  --existing training_data.json \
-  --max-puzzles 15000 \
-  --output combined_training.json
+# Test incremental puzzle training workflow
+cargo run --bin incremental_puzzle_example
 ```
 
-### Tactical Training with API
+### Incremental Tactical Training with API
 
 ```rust
 use chess_vector_engine::{ChessVectorEngine, TacticalPuzzleParser};
 
-// Parse tactical puzzles with filtering
-let tactical_data = TacticalPuzzleParser::parse_csv(
+// Create engine and load existing progress incrementally
+let mut engine = ChessVectorEngine::new(1024);
+engine.enable_opening_book();
+
+// Load existing training data (preserves progress)
+engine.load_training_data_incremental("my_progress.json")?;
+
+// Parse new tactical puzzles incrementally
+TacticalPuzzleParser::parse_and_load_incremental(
     "lichess_db_puzzle.csv",
-    Some(10000),        // Max puzzles
+    &mut engine,
+    Some(10000),        // Max new puzzles
     Some(1000),         // Min rating
     Some(2500),         // Max rating
 )?;
 
-// Create engine and load existing data
-let mut engine = ChessVectorEngine::new(1024);
-engine.enable_opening_book();
+// Save progress incrementally (won't lose existing data)
+engine.save_training_data("my_progress.json")?;
 
-// Load positional training data
-if let Ok(dataset) = TrainingDataset::load("training_data.json") {
-    for data in dataset.data {
-        engine.add_position(&data.board, data.evaluation);
-    }
-}
+// Work with individual puzzle collections
+let puzzles = TacticalPuzzleParser::parse_csv("puzzles.csv", Some(1000), None, None)?;
 
-// Load tactical patterns (high-value moves)
-TacticalPuzzleParser::load_into_engine(&tactical_data, &mut engine);
+// Save puzzles for later use
+TacticalPuzzleParser::save_tactical_puzzles(&puzzles, "my_puzzles.json")?;
 
-println!("Engine loaded with tactical knowledge!");
+// Load puzzles incrementally later
+let saved_puzzles = TacticalPuzzleParser::load_tactical_puzzles("my_puzzles.json")?;
+TacticalPuzzleParser::load_into_engine_incremental(&saved_puzzles, &mut engine);
+
+println!("Engine updated with tactical knowledge!");
 ```
 
 ### How Tactical Training Works
@@ -458,6 +636,12 @@ engine.enable_manifold_learning(compression_ratio)?;
 engine.train_manifold_learning(epochs)?;
 engine.enable_manifold_lsh(num_tables, hash_size)?;
 
+// Persistence
+engine.enable_persistence("database.db")?;
+engine.save_to_database()?;
+engine.load_from_database()?;
+engine.auto_save()?;
+
 // Information
 let is_opening = engine.is_opening_position(&board);
 let entry = engine.get_opening_entry(&board);
@@ -497,6 +681,7 @@ src/
 ├── ann.rs                   # Approximate Nearest Neighbors
 ├── opening_book.rs          # Opening book integration
 ├── training.rs              # Training utilities
+├── persistence.rs           # SQLite database persistence
 └── bin/
     ├── demo.rs              # Basic demonstration
     ├── analyze.rs           # Position analysis tool
@@ -511,6 +696,7 @@ src/
     ├── play_stockfish.rs    # Play against Stockfish
     ├── format_pgn.rs        # PGN formatting utility
     ├── debug_similarity.rs  # Similarity debugging tool
+    ├── persistence_demo.rs  # Persistence demonstration
     └── train.rs             # Training CLI
 ```
 
@@ -595,6 +781,7 @@ This library is designed for extension and contribution:
 - **Stockfish integration** for gameplay and training data evaluation
 - **PGN processing utilities** for training data preparation
 - **Multithreading support** with Rayon for parallel processing
+- **SQLite persistence layer** for instant startup with saved LSH indices and trained models
 - **Comprehensive testing** (26 tests) and documentation
 - **Performance optimization** with manifold learning threshold tuning
 

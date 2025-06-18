@@ -49,6 +49,22 @@ path = "src/bin/multithreading_demo.rs"
 name = "tactical_training"
 path = "src/bin/tactical_training.rs"
 
+[[bin]]
+name = "incremental_training_example"
+path = "src/bin/incremental_training_example.rs"
+
+[[bin]]
+name = "incremental_puzzle_example"
+path = "src/bin/incremental_puzzle_example.rs"
+
+[[bin]]
+name = "persistence_demo"
+path = "src/bin/persistence_demo.rs"
+
+[[bin]]
+name = "persistence_test"
+path = "src/bin/persistence_test.rs"
+
 [dependencies]
 # Chess game logic
 chess = "3.2"
@@ -90,5 +106,10 @@ csv = "1.3"
 # Date/time formatting
 chrono = "0.4"
 
+# Database persistence
+rusqlite = { version = "0.32", features = ["bundled", "blob"] }
+bincode = "1.3"
+
 [dev-dependencies]
 criterion = "0.5"
+tempfile = "3.8"

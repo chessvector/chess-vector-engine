@@ -5,6 +5,7 @@ pub mod lsh;
 pub mod ann;
 pub mod training;
 pub mod opening_book;
+pub mod persistence;
 
 pub use position_encoder::PositionEncoder;
 pub use similarity_search::SimilaritySearch;
@@ -12,10 +13,13 @@ pub use lsh::LSH;
 pub use manifold_learner::ManifoldLearner;
 pub use opening_book::{OpeningBook, OpeningEntry, OpeningBookStats};
 pub use training::{TrainingData, TrainingDataset, GameExtractor, EngineEvaluator, TacticalPuzzle, TacticalTrainingData, TacticalPuzzleParser};
+pub use persistence::{Database, PositionData, LSHTableData};
 
 use chess::{Board, ChessMove};
 use ndarray::Array1;
 use std::collections::HashMap;
+use std::path::Path;
+use std::str::FromStr;
 
 /// Move recommendation data
 #[derive(Debug, Clone)]
@@ -24,6 +28,18 @@ pub struct MoveRecommendation {
     pub confidence: f32,
     pub from_similar_position_count: usize,
     pub average_outcome: f32,
+}
+
+/// Training statistics for the engine
+#[derive(Debug, Clone)]
+pub struct TrainingStats {
+    pub total_positions: usize,
+    pub unique_positions: usize,
+    pub has_move_data: bool,
+    pub move_data_entries: usize,
+    pub lsh_enabled: bool,
+    pub manifold_enabled: bool,
+    pub opening_book_enabled: bool,
 }
 
 /// Main chess vector engine
@@ -48,6 +64,8 @@ pub struct ChessVectorEngine {
     position_evaluations: Vec<f32>,
     /// Opening book for position evaluation and move suggestions
     opening_book: Option<OpeningBook>,
+    /// Database for persistence
+    database: Option<Database>,
 }
 
 impl ChessVectorEngine {
@@ -67,6 +85,7 @@ impl ChessVectorEngine {
             position_boards: Vec::new(),
             position_evaluations: Vec::new(),
             opening_book: None,
+            database: None,
         }
     }
 
@@ -118,6 +137,7 @@ impl ChessVectorEngine {
             position_boards: Vec::new(),
             position_evaluations: Vec::new(),
             opening_book: None,
+            database: None,
         }
     }
     
@@ -260,6 +280,149 @@ impl ChessVectorEngine {
     /// Get the size of the knowledge base
     pub fn knowledge_base_size(&self) -> usize {
         self.similarity_search.size()
+    }
+
+    /// Save engine state (positions and evaluations) to file for incremental training
+    pub fn save_training_data<P: AsRef<std::path::Path>>(&self, path: P) -> Result<(), Box<dyn std::error::Error>> {
+        use crate::training::{TrainingDataset, TrainingData};
+        
+        let mut dataset = TrainingDataset::new();
+        
+        // Convert engine positions back to training data
+        for (i, board) in self.position_boards.iter().enumerate() {
+            if i < self.position_evaluations.len() {
+                dataset.data.push(TrainingData {
+                    board: *board,
+                    evaluation: self.position_evaluations[i],
+                    depth: 15, // Default depth
+                    game_id: i, // Use index as game_id
+                });
+            }
+        }
+        
+        dataset.save_incremental(path)?;
+        println!("Saved {} positions to training data", dataset.data.len());
+        Ok(())
+    }
+
+    /// Load training data incrementally (append to existing engine state)
+    pub fn load_training_data_incremental<P: AsRef<std::path::Path>>(&mut self, path: P) -> Result<(), Box<dyn std::error::Error>> {
+        use crate::training::TrainingDataset;
+        
+        let existing_size = self.knowledge_base_size();
+        let dataset = TrainingDataset::load(path)?;
+        
+        for data in dataset.data {
+            // Skip if we already have this position to avoid exact duplicates
+            if !self.position_boards.contains(&data.board) {
+                self.add_position(&data.board, data.evaluation);
+            }
+        }
+        
+        println!("Loaded {} new positions (total: {})", 
+                self.knowledge_base_size() - existing_size, 
+                self.knowledge_base_size());
+        Ok(())
+    }
+
+    /// Train from dataset incrementally (preserves existing engine state)
+    pub fn train_from_dataset_incremental(&mut self, dataset: &crate::training::TrainingDataset) {
+        let _existing_size = self.knowledge_base_size();
+        let mut added = 0;
+        
+        for data in &dataset.data {
+            // Skip if we already have this position to avoid exact duplicates
+            if !self.position_boards.contains(&data.board) {
+                self.add_position(&data.board, data.evaluation);
+                added += 1;
+            }
+        }
+        
+        println!("Added {} new positions from dataset (total: {})", added, self.knowledge_base_size());
+    }
+
+    /// Get current training statistics
+    pub fn training_stats(&self) -> TrainingStats {
+        TrainingStats {
+            total_positions: self.knowledge_base_size(),
+            unique_positions: self.position_boards.len(),
+            has_move_data: !self.position_moves.is_empty(),
+            move_data_entries: self.position_moves.len(),
+            lsh_enabled: self.use_lsh,
+            manifold_enabled: self.use_manifold,
+            opening_book_enabled: self.opening_book.is_some(),
+        }
+    }
+
+    /// Auto-load training data from common file names if they exist
+    pub fn auto_load_training_data(&mut self) -> Result<Vec<String>, Box<dyn std::error::Error>> {
+        let common_files = vec![
+            "training_data.json",
+            "tactical_training_data.json", 
+            "engine_training.json",
+            "chess_training.json",
+            "my_training.json",
+        ];
+        
+        let mut loaded_files = Vec::new();
+        
+        for file_path in &common_files {
+            if std::path::Path::new(file_path).exists() {
+                match self.load_training_data_incremental(file_path) {
+                    Ok(_) => {
+                        loaded_files.push(file_path.to_string());
+                        println!("📚 Auto-loaded training data from {}", file_path);
+                    }
+                    Err(e) => {
+                        println!("⚠️  Could not load {}: {}", file_path, e);
+                    }
+                }
+            }
+        }
+        
+        // Also look for tactical puzzle files
+        let tactical_files = vec![
+            "tactical_puzzles.json",
+            "lichess_puzzles.json",
+            "my_puzzles.json",
+        ];
+        
+        for file_path in &tactical_files {
+            if std::path::Path::new(file_path).exists() {
+                match crate::training::TacticalPuzzleParser::load_tactical_puzzles(file_path) {
+                    Ok(puzzles) => {
+                        crate::training::TacticalPuzzleParser::load_into_engine_incremental(&puzzles, self);
+                        loaded_files.push(file_path.to_string());
+                        println!("🎯 Auto-loaded tactical puzzles from {}", file_path);
+                    }
+                    Err(e) => {
+                        println!("⚠️  Could not load tactical puzzles from {}: {}", file_path, e);
+                    }
+                }
+            }
+        }
+        
+        Ok(loaded_files)
+    }
+
+    /// Create a new chess vector engine with automatic training data loading
+    pub fn new_with_auto_load(vector_size: usize) -> Result<Self, Box<dyn std::error::Error>> {
+        let mut engine = Self::new(vector_size);
+        engine.enable_opening_book();
+        
+        // Auto-load any available training data
+        let loaded_files = engine.auto_load_training_data()?;
+        
+        if loaded_files.is_empty() {
+            println!("🤖 Created fresh engine (no training data found)");
+        } else {
+            println!("🚀 Created engine with auto-loaded training data from {} files", loaded_files.len());
+            let stats = engine.training_stats();
+            println!("   - Total positions: {}", stats.total_positions);
+            println!("   - Move data entries: {}", stats.move_data_entries);
+        }
+        
+        Ok(engine)
     }
     
     /// Check if LSH is enabled
@@ -541,6 +704,155 @@ impl ChessVectorEngine {
             .take(num_recommendations)
             .collect()
     }
+
+    /// Enable persistence with database
+    pub fn enable_persistence<P: AsRef<Path>>(&mut self, db_path: P) -> Result<(), Box<dyn std::error::Error>> {
+        let database = Database::new(db_path)?;
+        self.database = Some(database);
+        println!("Persistence enabled");
+        Ok(())
+    }
+
+    /// Save engine state to database
+    pub fn save_to_database(&self) -> Result<(), Box<dyn std::error::Error>> {
+        let db = self.database.as_ref()
+            .ok_or("Database not enabled. Call enable_persistence() first.")?;
+
+        println!("Saving engine state to database...");
+
+        // Save all positions
+        let current_time = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)?
+            .as_secs() as i64;
+
+        for (i, board) in self.position_boards.iter().enumerate() {
+            if i < self.position_vectors.len() && i < self.position_evaluations.len() {
+                let vector = self.position_vectors[i].as_slice().unwrap();
+                let position_data = PositionData {
+                    fen: board.to_string(),
+                    vector: vector.iter().map(|&x| x as f64).collect(),
+                    evaluation: Some(self.position_evaluations[i] as f64),
+                    compressed_vector: None, // Will be filled if manifold is enabled
+                    created_at: current_time,
+                };
+                db.save_position(&position_data)?;
+            }
+        }
+
+        // Save LSH configuration if enabled
+        if let Some(ref lsh) = self.lsh_index {
+            lsh.save_to_database(db)?;
+        }
+
+        // Save manifold learner if trained
+        if let Some(ref learner) = self.manifold_learner {
+            if learner.is_trained() {
+                learner.save_to_database(db)?;
+            }
+        }
+
+        println!("Engine state saved successfully");
+        Ok(())
+    }
+
+    /// Load engine state from database
+    pub fn load_from_database(&mut self) -> Result<(), Box<dyn std::error::Error>> {
+        let db = self.database.as_ref()
+            .ok_or("Database not enabled. Call enable_persistence() first.")?;
+
+        println!("Loading engine state from database...");
+
+        // Load all positions
+        let positions = db.load_all_positions()?;
+        for position_data in positions {
+            if let Ok(board) = Board::from_str(&position_data.fen) {
+                let vector: Vec<f32> = position_data.vector.iter().map(|&x| x as f32).collect();
+                let vector_array = Array1::from(vector);
+                let evaluation = position_data.evaluation.unwrap_or(0.0) as f32;
+
+                // Add to similarity search
+                self.similarity_search.add_position(vector_array.clone(), evaluation);
+                
+                // Store for reverse lookup
+                self.position_vectors.push(vector_array);
+                self.position_boards.push(board);
+                self.position_evaluations.push(evaluation);
+            }
+        }
+
+        // Load LSH configuration if available and LSH is enabled
+        if self.use_lsh {
+            let positions_for_lsh: Vec<(Array1<f32>, f32)> = self.position_vectors.iter()
+                .zip(self.position_evaluations.iter())
+                .map(|(v, &e)| (v.clone(), e))
+                .collect();
+
+            match LSH::load_from_database(db, &positions_for_lsh)? {
+                Some(lsh) => {
+                    self.lsh_index = Some(lsh);
+                    println!("Loaded LSH configuration from database");
+                }
+                None => {
+                    println!("No LSH configuration found in database");
+                }
+            }
+        }
+
+        // Load manifold learner if available
+        match ManifoldLearner::load_from_database(db)? {
+            Some(learner) => {
+                self.manifold_learner = Some(learner);
+                if self.use_manifold {
+                    self.rebuild_manifold_indices()?;
+                }
+                println!("Loaded manifold learner from database");
+            }
+            None => {
+                println!("No manifold learner found in database");
+            }
+        }
+
+        println!("Engine state loaded successfully ({} positions)", self.knowledge_base_size());
+        Ok(())
+    }
+
+    /// Create engine with persistence enabled and auto-load from database
+    pub fn new_with_persistence<P: AsRef<Path>>(vector_size: usize, db_path: P) -> Result<Self, Box<dyn std::error::Error>> {
+        let mut engine = Self::new(vector_size);
+        engine.enable_persistence(db_path)?;
+        
+        // Try to load existing data
+        match engine.load_from_database() {
+            Ok(_) => {
+                println!("Loaded existing engine from database");
+            }
+            Err(e) => {
+                println!("Starting fresh engine (load failed: {})", e);
+            }
+        }
+        
+        Ok(engine)
+    }
+
+    /// Auto-save to database (if persistence is enabled)
+    pub fn auto_save(&self) -> Result<(), Box<dyn std::error::Error>> {
+        if self.database.is_some() {
+            self.save_to_database()?;
+        }
+        Ok(())
+    }
+
+    /// Check if persistence is enabled
+    pub fn is_persistence_enabled(&self) -> bool {
+        self.database.is_some()
+    }
+
+    /// Get database position count
+    pub fn database_position_count(&self) -> Result<i64, Box<dyn std::error::Error>> {
+        let db = self.database.as_ref()
+            .ok_or("Database not enabled")?;
+        Ok(db.get_position_count()?)
+    }
 }
 
 #[cfg(test)]
@@ -577,5 +889,333 @@ mod tests {
         let evaluation = engine.evaluate_position(&board);
         assert!(evaluation.is_some());
         assert!((evaluation.unwrap() - 0.5).abs() < 1e-6);
+    }
+
+    #[test]
+    fn test_move_recommendations() {
+        let mut engine = ChessVectorEngine::new(1024);
+        let board = Board::default();
+        
+        // Add a position with moves
+        use chess::ChessMove;
+        use std::str::FromStr;
+        let mov = ChessMove::from_str("e2e4").unwrap();
+        engine.add_position_with_move(&board, 0.0, Some(mov), Some(0.8));
+        
+        let recommendations = engine.recommend_moves(&board, 3);
+        assert!(!recommendations.is_empty());
+        
+        // Test legal move filtering
+        let legal_recommendations = engine.recommend_legal_moves(&board, 3);
+        assert!(!legal_recommendations.is_empty());
+    }
+
+    #[test]
+    fn test_opening_book_integration() {
+        let mut engine = ChessVectorEngine::new(1024);
+        
+        // Enable opening book
+        engine.enable_opening_book();
+        assert!(engine.opening_book.is_some());
+        
+        // Test starting position
+        let board = Board::default();
+        assert!(engine.is_opening_position(&board));
+        
+        let entry = engine.get_opening_entry(&board);
+        assert!(entry.is_some());
+        
+        let stats = engine.opening_book_stats();
+        assert!(stats.is_some());
+        assert!(stats.unwrap().total_positions > 0);
+        
+        // Test opening book move recommendations
+        let recommendations = engine.recommend_moves(&board, 3);
+        assert!(!recommendations.is_empty());
+        assert!(recommendations[0].confidence > 0.7); // Opening book should have high confidence
+    }
+
+    #[test]
+    fn test_manifold_learning_integration() {
+        let mut engine = ChessVectorEngine::new(1024);
+        
+        // Add some training data
+        let board = Board::default();
+        for i in 0..10 {
+            engine.add_position(&board, i as f32 * 0.1);
+        }
+        
+        // Enable manifold learning
+        assert!(engine.enable_manifold_learning(8.0).is_ok());
+        
+        // Test compression ratio
+        let ratio = engine.manifold_compression_ratio();
+        assert!(ratio.is_some());
+        assert!((ratio.unwrap() - 8.0).abs() < 0.1);
+        
+        // Train with minimal epochs for testing
+        assert!(engine.train_manifold_learning(5).is_ok());
+        
+        // Test that compression is working
+        let original_similar = engine.find_similar_positions(&board, 3);
+        assert!(!original_similar.is_empty());
+    }
+
+    #[test]
+    fn test_lsh_integration() {
+        let mut engine = ChessVectorEngine::new(1024);
+        
+        // Add training data
+        let board = Board::default();
+        for i in 0..50 {
+            engine.add_position(&board, i as f32 * 0.02);
+        }
+        
+        // Enable LSH
+        engine.enable_lsh(4, 8);
+        
+        // Test search works with LSH
+        let similar = engine.find_similar_positions(&board, 5);
+        assert!(!similar.is_empty());
+        assert!(similar.len() <= 5);
+        
+        // Test evaluation still works
+        let eval = engine.evaluate_position(&board);
+        assert!(eval.is_some());
+    }
+
+    #[test]
+    fn test_manifold_lsh_integration() {
+        let mut engine = ChessVectorEngine::new(1024);
+        
+        // Add training data
+        let board = Board::default();
+        for i in 0..20 {
+            engine.add_position(&board, i as f32 * 0.05);
+        }
+        
+        // Enable manifold learning
+        assert!(engine.enable_manifold_learning(8.0).is_ok());
+        assert!(engine.train_manifold_learning(3).is_ok());
+        
+        // Enable LSH in manifold space
+        assert!(engine.enable_manifold_lsh(4, 8).is_ok());
+        
+        // Test search works in compressed space
+        let similar = engine.find_similar_positions(&board, 3);
+        assert!(!similar.is_empty());
+        
+        // Test move recommendations work
+        let _recommendations = engine.recommend_moves(&board, 2);
+        // May be empty if no moves were stored, but shouldn't crash
+    }
+
+    #[test]
+    fn test_multithreading_safe() {
+        use std::sync::Arc;
+        use std::thread;
+        
+        let engine = Arc::new(ChessVectorEngine::new(1024));
+        let board = Arc::new(Board::default());
+        
+        // Test that read operations are thread-safe
+        let handles: Vec<_> = (0..4).map(|_| {
+            let engine = Arc::clone(&engine);
+            let board = Arc::clone(&board);
+            thread::spawn(move || {
+                engine.evaluate_position(&board);
+                engine.find_similar_positions(&board, 3);
+            })
+        }).collect();
+        
+        for handle in handles {
+            handle.join().unwrap();
+        }
+    }
+
+    #[test]
+    fn test_position_with_move_storage() {
+        let mut engine = ChessVectorEngine::new(1024);
+        let board = Board::default();
+        
+        use chess::ChessMove;
+        use std::str::FromStr;
+        let move1 = ChessMove::from_str("e2e4").unwrap();
+        let move2 = ChessMove::from_str("d2d4").unwrap();
+        
+        // Add positions with moves
+        engine.add_position_with_move(&board, 0.0, Some(move1), Some(0.7));
+        engine.add_position_with_move(&board, 0.1, Some(move2), Some(0.6));
+        
+        // Test that move data is stored
+        assert_eq!(engine.position_moves.len(), 2);
+        
+        // Test move recommendations include stored moves
+        let recommendations = engine.recommend_moves(&board, 5);
+        let _move_strings: Vec<String> = recommendations.iter()
+            .map(|r| r.chess_move.to_string())
+            .collect();
+        
+        // Should contain either the stored moves or legal alternatives
+        assert!(!recommendations.is_empty());
+    }
+
+    #[test]
+    fn test_performance_regression_basic() {
+        use std::time::Instant;
+        
+        let mut engine = ChessVectorEngine::new(1024);
+        let board = Board::default();
+        
+        // Add a reasonable amount of data
+        for i in 0..100 {
+            engine.add_position(&board, i as f32 * 0.01);
+        }
+        
+        // Measure basic operations
+        let start = Instant::now();
+        
+        // Position encoding should be fast
+        for _ in 0..100 {
+            engine.add_position(&board, 0.0);
+        }
+        
+        let encoding_time = start.elapsed();
+        
+        // Search should be reasonable
+        let start = Instant::now();
+        for _ in 0..10 {
+            engine.find_similar_positions(&board, 5);
+        }
+        let search_time = start.elapsed();
+        
+        // Basic performance bounds (these should be generous)
+        assert!(encoding_time.as_millis() < 5000, "Position encoding too slow: {}ms", encoding_time.as_millis());
+        assert!(search_time.as_millis() < 1000, "Search too slow: {}ms", search_time.as_millis());
+    }
+
+    #[test]
+    fn test_memory_usage_reasonable() {
+        let mut engine = ChessVectorEngine::new(1024);
+        let board = Board::default();
+        
+        // Add data and ensure it doesn't explode memory usage
+        let initial_size = engine.knowledge_base_size();
+        
+        for i in 0..1000 {
+            engine.add_position(&board, i as f32 * 0.001);
+        }
+        
+        let final_size = engine.knowledge_base_size();
+        assert_eq!(final_size, initial_size + 1000);
+        
+        // Memory growth should be linear
+        assert!(final_size > initial_size);
+    }
+
+    #[test]
+    fn test_incremental_training() {
+        use std::str::FromStr;
+        
+        let mut engine = ChessVectorEngine::new(1024);
+        let board1 = Board::default();
+        let board2 = Board::from_str("rnbqkbnr/pppppppp/8/8/4P3/8/PPPP1PPP/RNBQKBNR b KQkq - 0 1").unwrap();
+        
+        // Add initial positions
+        engine.add_position(&board1, 0.0);
+        engine.add_position(&board2, 0.2);
+        assert_eq!(engine.knowledge_base_size(), 2);
+        
+        // Create a dataset for incremental training
+        let mut dataset = crate::training::TrainingDataset::new();
+        dataset.add_position(board1, 0.1, 15, 1); // Duplicate position (should be skipped)
+        dataset.add_position(
+            Board::from_str("rnbqkbnr/pppp1ppp/8/4p3/4P3/8/PPPP1PPP/RNBQKBNR w KQkq - 0 2").unwrap(),
+            0.3, 
+            15, 
+            2
+        ); // New position
+        
+        // Train incrementally
+        engine.train_from_dataset_incremental(&dataset);
+        
+        // Should only add the new position
+        assert_eq!(engine.knowledge_base_size(), 3);
+        
+        // Check training stats
+        let stats = engine.training_stats();
+        assert_eq!(stats.total_positions, 3);
+        assert_eq!(stats.unique_positions, 3);
+        assert!(!stats.has_move_data); // No moves added in this test
+    }
+
+    #[test]
+    fn test_save_load_incremental() {
+        use tempfile::tempdir;
+        use std::str::FromStr;
+        
+        let temp_dir = tempdir().unwrap();
+        let file_path = temp_dir.path().join("test_training.json");
+        
+        // Create first engine with some data
+        let mut engine1 = ChessVectorEngine::new(1024);
+        engine1.add_position(&Board::default(), 0.0);
+        engine1.add_position(
+            &Board::from_str("rnbqkbnr/pppppppp/8/8/4P3/8/PPPP1PPP/RNBQKBNR b KQkq - 0 1").unwrap(),
+            0.2
+        );
+        
+        // Save training data
+        engine1.save_training_data(&file_path).unwrap();
+        
+        // Create second engine and load incrementally
+        let mut engine2 = ChessVectorEngine::new(1024);
+        engine2.add_position(
+            &Board::from_str("rnbqkbnr/pppp1ppp/8/4p3/4P3/8/PPPP1PPP/RNBQKBNR w KQkq - 0 2").unwrap(),
+            0.3
+        );
+        assert_eq!(engine2.knowledge_base_size(), 1);
+        
+        // Load additional data incrementally
+        engine2.load_training_data_incremental(&file_path).unwrap();
+        
+        // Should now have 3 positions total
+        assert_eq!(engine2.knowledge_base_size(), 3);
+    }
+
+    #[test]
+    fn test_training_stats() {
+        use std::str::FromStr;
+        
+        let mut engine = ChessVectorEngine::new(1024);
+        
+        // Initial stats
+        let stats = engine.training_stats();
+        assert_eq!(stats.total_positions, 0);
+        assert_eq!(stats.unique_positions, 0);
+        assert!(!stats.has_move_data);
+        assert!(!stats.lsh_enabled);
+        assert!(!stats.manifold_enabled);
+        assert!(!stats.opening_book_enabled);
+        
+        // Add some data
+        engine.add_position(&Board::default(), 0.0);
+        engine.add_position_with_move(
+            &Board::default(), 
+            0.1, 
+            Some(ChessMove::from_str("e2e4").unwrap()), 
+            Some(0.8)
+        );
+        
+        // Enable features
+        engine.enable_opening_book();
+        engine.enable_lsh(4, 8);
+        
+        let stats = engine.training_stats();
+        assert_eq!(stats.total_positions, 2);
+        assert!(stats.has_move_data);
+        assert!(stats.move_data_entries > 0);
+        assert!(stats.lsh_enabled);
+        assert!(stats.opening_book_enabled);
     }
 }

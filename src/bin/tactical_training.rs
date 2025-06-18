@@ -1,4 +1,4 @@
-use chess_vector_engine::{ChessVectorEngine, TacticalPuzzleParser, TrainingDataset};
+use chess_vector_engine::{ChessVectorEngine, TacticalPuzzleParser};
 use clap::{Arg, Command};
 use std::path::Path;
 
@@ -117,16 +117,13 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     
     engine.enable_opening_book();
 
-    // Load existing training data
+    // Load existing training data incrementally
     let mut total_positions = 0;
     if Path::new(existing_file).exists() {
-        match TrainingDataset::load(existing_file) {
-            Ok(dataset) => {
-                println!("📚 Loading {} existing positions from {}", dataset.data.len(), existing_file);
-                for training_data in dataset.data {
-                    engine.add_position(&training_data.board, training_data.evaluation);
-                    total_positions += 1;
-                }
+        match engine.load_training_data_incremental(existing_file) {
+            Ok(_) => {
+                total_positions = engine.knowledge_base_size();
+                println!("📚 Loaded existing training data (total positions: {})", total_positions);
             }
             Err(e) => {
                 println!("⚠️  Warning: Could not load existing data from {}: {}", existing_file, e);
@@ -134,12 +131,14 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         }
     }
 
-    // Load tactical patterns
-    println!("🎯 Loading tactical patterns into engine...");
-    TacticalPuzzleParser::load_into_engine(&tactical_data, &mut engine);
-    total_positions += tactical_data.len();
-
-    println!("✅ Engine loaded with {} total positions", total_positions);
+    // Load tactical patterns incrementally (preserves existing data)
+    println!("🎯 Loading tactical patterns into engine (incremental)...");
+    TacticalPuzzleParser::load_into_engine_incremental(&tactical_data, &mut engine);
+    let final_stats = engine.training_stats();
+    
+    println!("✅ Engine loaded with {} total positions", final_stats.total_positions);
+    println!("   - Unique positions: {}", final_stats.unique_positions);
+    println!("   - Move data entries: {}", final_stats.move_data_entries);
     if let Some(stats) = engine.opening_book_stats() {
         println!("📖 Opening book: {} positions with {} ECO classifications", 
                  stats.total_positions, stats.eco_classifications);
@@ -163,9 +162,13 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         test_tactical_performance(&engine, &tactical_data.iter().take(100).cloned().collect::<Vec<_>>());
     }
 
-    // Save combined training data for future use
+    // Save combined training data for future use (incremental save)
     println!("\n💾 Saving combined training data to {}...", output_file);
-    // For now, just report success - full serialization would require more complex data structure
+    match engine.save_training_data(output_file) {
+        Ok(_) => println!("✅ Successfully saved training data incrementally!"),
+        Err(e) => println!("⚠️  Warning: Could not save training data: {}", e),
+    }
+    
     println!("✅ Training complete! Engine now has tactical knowledge.");
     println!("\n🎮 You can now test the engine with:");
     println!("cargo run --bin play_stockfish");

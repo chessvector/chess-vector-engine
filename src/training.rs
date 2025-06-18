@@ -55,6 +55,115 @@ pub struct TacticalTrainingData {
     pub tactical_value: f32,     // High value for move outcome
 }
 
+// Make TacticalTrainingData serializable
+impl serde::Serialize for TacticalTrainingData {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: serde::Serializer,
+    {
+        use serde::ser::SerializeStruct;
+        let mut state = serializer.serialize_struct("TacticalTrainingData", 5)?;
+        state.serialize_field("fen", &self.position.to_string())?;
+        state.serialize_field("solution_move", &self.solution_move.to_string())?;
+        state.serialize_field("move_theme", &self.move_theme)?;
+        state.serialize_field("difficulty", &self.difficulty)?;
+        state.serialize_field("tactical_value", &self.tactical_value)?;
+        state.end()
+    }
+}
+
+impl<'de> serde::Deserialize<'de> for TacticalTrainingData {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: serde::Deserializer<'de>,
+    {
+        use serde::de::{self, MapAccess, Visitor};
+        use std::fmt;
+
+        struct TacticalTrainingDataVisitor;
+
+        impl<'de> Visitor<'de> for TacticalTrainingDataVisitor {
+            type Value = TacticalTrainingData;
+
+            fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
+                formatter.write_str("struct TacticalTrainingData")
+            }
+
+            fn visit_map<V>(self, mut map: V) -> Result<TacticalTrainingData, V::Error>
+            where
+                V: MapAccess<'de>,
+            {
+                let mut fen = None;
+                let mut solution_move = None;
+                let mut move_theme = None;
+                let mut difficulty = None;
+                let mut tactical_value = None;
+
+                while let Some(key) = map.next_key()? {
+                    match key {
+                        "fen" => {
+                            if fen.is_some() {
+                                return Err(de::Error::duplicate_field("fen"));
+                            }
+                            fen = Some(map.next_value()?);
+                        }
+                        "solution_move" => {
+                            if solution_move.is_some() {
+                                return Err(de::Error::duplicate_field("solution_move"));
+                            }
+                            solution_move = Some(map.next_value()?);
+                        }
+                        "move_theme" => {
+                            if move_theme.is_some() {
+                                return Err(de::Error::duplicate_field("move_theme"));
+                            }
+                            move_theme = Some(map.next_value()?);
+                        }
+                        "difficulty" => {
+                            if difficulty.is_some() {
+                                return Err(de::Error::duplicate_field("difficulty"));
+                            }
+                            difficulty = Some(map.next_value()?);
+                        }
+                        "tactical_value" => {
+                            if tactical_value.is_some() {
+                                return Err(de::Error::duplicate_field("tactical_value"));
+                            }
+                            tactical_value = Some(map.next_value()?);
+                        }
+                        _ => {
+                            let _: serde_json::Value = map.next_value()?;
+                        }
+                    }
+                }
+
+                let fen: String = fen.ok_or_else(|| de::Error::missing_field("fen"))?;
+                let solution_move_str: String = solution_move.ok_or_else(|| de::Error::missing_field("solution_move"))?;
+                let move_theme = move_theme.ok_or_else(|| de::Error::missing_field("move_theme"))?;
+                let difficulty = difficulty.ok_or_else(|| de::Error::missing_field("difficulty"))?;
+                let tactical_value = tactical_value.ok_or_else(|| de::Error::missing_field("tactical_value"))?;
+
+                let position = Board::from_str(&fen)
+                    .map_err(|e| de::Error::custom(format!("Invalid FEN: {}", e)))?;
+                
+                let solution_move = ChessMove::from_str(&solution_move_str)
+                    .map_err(|e| de::Error::custom(format!("Invalid move: {}", e)))?;
+
+                Ok(TacticalTrainingData {
+                    position,
+                    solution_move,
+                    move_theme,
+                    difficulty,
+                    tactical_value,
+                })
+            }
+        }
+
+        const FIELDS: &'static [&'static str] = &["fen", "solution_move", "move_theme", "difficulty", "tactical_value"];
+        deserializer.deserialize_struct("TacticalTrainingData", FIELDS, TacticalTrainingDataVisitor)
+    }
+}
+
 /// PGN game visitor for extracting positions
 pub struct GameExtractor {
     pub positions: Vec<TrainingData>,
@@ -395,6 +504,67 @@ impl TrainingDataset {
         Ok(Self { data })
     }
 
+    /// Load and append data from file to existing dataset (incremental training)
+    pub fn load_and_append<P: AsRef<Path>>(&mut self, path: P) -> Result<(), Box<dyn std::error::Error>> {
+        let existing_len = self.data.len();
+        let additional_data = Self::load(path)?;
+        self.data.extend(additional_data.data);
+        println!("Loaded {} additional positions (total: {})", 
+                self.data.len() - existing_len, self.data.len());
+        Ok(())
+    }
+
+    /// Merge another dataset into this one
+    pub fn merge(&mut self, other: TrainingDataset) {
+        let existing_len = self.data.len();
+        self.data.extend(other.data);
+        println!("Merged {} positions (total: {})", 
+                self.data.len() - existing_len, self.data.len());
+    }
+
+    /// Save incrementally (append to existing file if it exists)
+    pub fn save_incremental<P: AsRef<Path>>(&self, path: P) -> Result<(), Box<dyn std::error::Error>> {
+        let path = path.as_ref();
+        
+        if path.exists() {
+            // Load existing data, merge, and save
+            let mut existing = Self::load(path)?;
+            let original_len = existing.data.len();
+            existing.data.extend(self.data.iter().cloned());
+            
+            // Deduplicate to avoid storing the same positions
+            existing.deduplicate(0.999); // Very high threshold to only remove exact duplicates
+            
+            let json = serde_json::to_string_pretty(&existing.data)?;
+            std::fs::write(path, json)?;
+            
+            println!("Incremental save: added {} new positions (total: {})", 
+                    existing.data.len() - original_len, existing.data.len());
+        } else {
+            // File doesn't exist, just save normally
+            self.save(path)?;
+        }
+        Ok(())
+    }
+
+    /// Add a single training data point
+    pub fn add_position(&mut self, board: Board, evaluation: f32, depth: u8, game_id: usize) {
+        self.data.push(TrainingData {
+            board,
+            evaluation,
+            depth,
+            game_id,
+        });
+    }
+
+    /// Get the next available game ID for incremental training
+    pub fn next_game_id(&self) -> usize {
+        self.data.iter()
+            .map(|data| data.game_id)
+            .max()
+            .unwrap_or(0) + 1
+    }
+
     /// Remove near-duplicate positions to reduce overfitting
     pub fn deduplicate(&mut self, similarity_threshold: f32) {
         use crate::PositionEncoder;
@@ -528,6 +698,7 @@ impl TrainingDataset {
 
 /// Engine performance evaluator
 pub struct EngineEvaluator {
+    #[allow(dead_code)]
     stockfish_depth: u8,
 }
 
@@ -875,5 +1046,570 @@ impl TacticalPuzzleParser {
         }
         
         pb.finish_with_message(format!("Loaded {} tactical patterns", tactical_data.len()));
+    }
+
+    /// Load tactical training data into chess engine incrementally (preserves existing data)
+    pub fn load_into_engine_incremental(
+        tactical_data: &[TacticalTrainingData],
+        engine: &mut ChessVectorEngine,
+    ) {
+        let initial_size = engine.knowledge_base_size();
+        let initial_moves = engine.position_moves.len();
+        
+        let pb = ProgressBar::new(tactical_data.len() as u64);
+        pb.set_style(ProgressStyle::default_bar()
+            .template("{spinner:.green} [{elapsed_precise}] [{bar:40.cyan/blue}] {pos}/{len} Loading tactical patterns (incremental)")
+            .unwrap()
+            .progress_chars("#>-"));
+        
+        let mut added = 0;
+        let mut skipped = 0;
+        
+        for data in tactical_data {
+            // Check if this position already exists to avoid duplicates
+            if !engine.position_boards.contains(&data.position) {
+                engine.add_position_with_move(
+                    &data.position,
+                    0.0, // Position evaluation (neutral for puzzles)
+                    Some(data.solution_move),
+                    Some(data.tactical_value), // High tactical value
+                );
+                added += 1;
+            } else {
+                skipped += 1;
+            }
+            pb.inc(1);
+        }
+        
+        pb.finish_with_message(format!(
+            "Loaded {} new tactical patterns (skipped {} duplicates, total: {})", 
+            added, skipped, engine.knowledge_base_size()
+        ));
+        
+        println!("Incremental tactical training:");
+        println!("  - Positions: {} → {} (+{})", initial_size, engine.knowledge_base_size(), engine.knowledge_base_size() - initial_size);
+        println!("  - Move entries: {} → {} (+{})", initial_moves, engine.position_moves.len(), engine.position_moves.len() - initial_moves);
+    }
+
+    /// Save tactical puzzles to file for incremental loading later
+    pub fn save_tactical_puzzles<P: AsRef<std::path::Path>>(
+        tactical_data: &[TacticalTrainingData],
+        path: P,
+    ) -> Result<(), Box<dyn std::error::Error>> {
+        let json = serde_json::to_string_pretty(tactical_data)?;
+        std::fs::write(path, json)?;
+        println!("Saved {} tactical puzzles", tactical_data.len());
+        Ok(())
+    }
+
+    /// Load tactical puzzles from file
+    pub fn load_tactical_puzzles<P: AsRef<std::path::Path>>(
+        path: P,
+    ) -> Result<Vec<TacticalTrainingData>, Box<dyn std::error::Error>> {
+        let content = std::fs::read_to_string(path)?;
+        let tactical_data: Vec<TacticalTrainingData> = serde_json::from_str(&content)?;
+        println!("Loaded {} tactical puzzles from file", tactical_data.len());
+        Ok(tactical_data)
+    }
+
+    /// Save tactical puzzles incrementally (appends to existing file)
+    pub fn save_tactical_puzzles_incremental<P: AsRef<std::path::Path>>(
+        tactical_data: &[TacticalTrainingData],
+        path: P,
+    ) -> Result<(), Box<dyn std::error::Error>> {
+        let path = path.as_ref();
+        
+        if path.exists() {
+            // Load existing puzzles
+            let mut existing = Self::load_tactical_puzzles(path)?;
+            let original_len = existing.len();
+            
+            // Add new puzzles, checking for duplicates by puzzle ID if available
+            for new_puzzle in tactical_data {
+                // Check if this puzzle already exists (by position)
+                let exists = existing.iter().any(|existing_puzzle| {
+                    existing_puzzle.position == new_puzzle.position &&
+                    existing_puzzle.solution_move == new_puzzle.solution_move
+                });
+                
+                if !exists {
+                    existing.push(new_puzzle.clone());
+                }
+            }
+            
+            // Save merged data
+            let json = serde_json::to_string_pretty(&existing)?;
+            std::fs::write(path, json)?;
+            
+            println!("Incremental save: added {} new puzzles (total: {})", 
+                    existing.len() - original_len, existing.len());
+        } else {
+            // File doesn't exist, just save normally
+            Self::save_tactical_puzzles(tactical_data, path)?;
+        }
+        Ok(())
+    }
+
+    /// Parse Lichess puzzles incrementally (preserves existing engine state)
+    pub fn parse_and_load_incremental<P: AsRef<std::path::Path>>(
+        file_path: P,
+        engine: &mut ChessVectorEngine,
+        max_puzzles: Option<usize>,
+        min_rating: Option<u32>,
+        max_rating: Option<u32>,
+    ) -> Result<(), Box<dyn std::error::Error>> {
+        println!("Parsing Lichess puzzles incrementally...");
+        
+        // Parse puzzles
+        let tactical_data = Self::parse_csv(file_path, max_puzzles, min_rating, max_rating)?;
+        
+        // Load into engine incrementally
+        Self::load_into_engine_incremental(&tactical_data, engine);
+        
+        Ok(())
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use chess::Board;
+    use std::str::FromStr;
+
+    #[test]
+    fn test_training_dataset_creation() {
+        let dataset = TrainingDataset::new();
+        assert_eq!(dataset.data.len(), 0);
+    }
+
+    #[test]
+    fn test_add_training_data() {
+        let mut dataset = TrainingDataset::new();
+        let board = Board::default();
+        
+        let training_data = TrainingData {
+            board,
+            evaluation: 0.5,
+            depth: 15,
+            game_id: 1,
+        };
+        
+        dataset.data.push(training_data);
+        assert_eq!(dataset.data.len(), 1);
+        assert_eq!(dataset.data[0].evaluation, 0.5);
+    }
+
+    #[test]
+    fn test_chess_engine_integration() {
+        let mut dataset = TrainingDataset::new();
+        let board = Board::default();
+        
+        let training_data = TrainingData {
+            board,
+            evaluation: 0.3,
+            depth: 15,
+            game_id: 1,
+        };
+        
+        dataset.data.push(training_data);
+        
+        let mut engine = ChessVectorEngine::new(1024);
+        dataset.train_engine(&mut engine);
+        
+        assert_eq!(engine.knowledge_base_size(), 1);
+        
+        let eval = engine.evaluate_position(&board);
+        assert!(eval.is_some());
+        assert!((eval.unwrap() - 0.3).abs() < 1e-6);
+    }
+
+    #[test]
+    fn test_deduplication() {
+        let mut dataset = TrainingDataset::new();
+        let board = Board::default();
+        
+        // Add duplicate positions
+        for i in 0..5 {
+            let training_data = TrainingData {
+                board,
+                evaluation: i as f32 * 0.1,
+                depth: 15,
+                game_id: i,
+            };
+            dataset.data.push(training_data);
+        }
+        
+        assert_eq!(dataset.data.len(), 5);
+        
+        // Deduplicate with high threshold (should keep only 1)
+        dataset.deduplicate(0.999);
+        assert_eq!(dataset.data.len(), 1);
+    }
+
+    #[test]
+    fn test_dataset_serialization() {
+        let mut dataset = TrainingDataset::new();
+        let board = Board::from_str("rnbqkbnr/pppppppp/8/8/4P3/8/PPPP1PPP/RNBQKBNR b KQkq - 0 1").unwrap();
+        
+        let training_data = TrainingData {
+            board,
+            evaluation: 0.2,
+            depth: 10,
+            game_id: 42,
+        };
+        
+        dataset.data.push(training_data);
+        
+        // Test serialization/deserialization
+        let json = serde_json::to_string(&dataset.data).unwrap();
+        let loaded_data: Vec<TrainingData> = serde_json::from_str(&json).unwrap();
+        let loaded_dataset = TrainingDataset { data: loaded_data };
+        
+        assert_eq!(loaded_dataset.data.len(), 1);
+        assert_eq!(loaded_dataset.data[0].evaluation, 0.2);
+        assert_eq!(loaded_dataset.data[0].depth, 10);
+        assert_eq!(loaded_dataset.data[0].game_id, 42);
+    }
+
+    #[test]
+    fn test_tactical_puzzle_processing() {
+        let puzzle = TacticalPuzzle {
+            puzzle_id: "test123".to_string(),
+            fen: "r1bqkbnr/pppp1ppp/2n5/4p3/2B1P3/5N2/PPPP1PPP/RNBQK2R w KQkq - 4 4".to_string(),
+            moves: "Bxf7+ Ke7".to_string(),
+            rating: 1500,
+            rating_deviation: 100,
+            popularity: 150,
+            nb_plays: 1000,
+            themes: "fork pin".to_string(),
+            game_url: None,
+            opening_tags: None,
+        };
+        
+        let tactical_data = TacticalPuzzleParser::process_puzzle(puzzle);
+        assert!(tactical_data.is_some());
+        
+        let data = tactical_data.unwrap();
+        assert_eq!(data.move_theme, "fork");
+        assert!(data.tactical_value > 1.0); // Should have high tactical value
+        assert!(data.difficulty > 0.0);
+    }
+
+    #[test]
+    fn test_tactical_puzzle_invalid_fen() {
+        let puzzle = TacticalPuzzle {
+            puzzle_id: "test123".to_string(),
+            fen: "invalid_fen".to_string(),
+            moves: "e2e4".to_string(),
+            rating: 1500,
+            rating_deviation: 100,
+            popularity: 150,
+            nb_plays: 1000,
+            themes: "tactics".to_string(),
+            game_url: None,
+            opening_tags: None,
+        };
+        
+        let tactical_data = TacticalPuzzleParser::process_puzzle(puzzle);
+        assert!(tactical_data.is_none());
+    }
+
+    #[test]
+    fn test_engine_evaluator() {
+        let evaluator = EngineEvaluator::new(15);
+        
+        // Create test dataset
+        let mut dataset = TrainingDataset::new();
+        let board = Board::default();
+        
+        let training_data = TrainingData {
+            board,
+            evaluation: 0.0,
+            depth: 15,
+            game_id: 1,
+        };
+        
+        dataset.data.push(training_data);
+        
+        // Create engine with some data
+        let mut engine = ChessVectorEngine::new(1024);
+        engine.add_position(&board, 0.1);
+        
+        // Test accuracy evaluation
+        let accuracy = evaluator.evaluate_accuracy(&engine, &dataset);
+        assert!(accuracy.is_ok());
+        assert!(accuracy.unwrap() < 1.0); // Should have some accuracy
+    }
+
+    #[test] 
+    fn test_tactical_training_integration() {
+        let tactical_data = vec![
+            TacticalTrainingData {
+                position: Board::default(),
+                solution_move: ChessMove::from_str("e2e4").unwrap(),
+                move_theme: "opening".to_string(),
+                difficulty: 1.2,
+                tactical_value: 2.5,
+            }
+        ];
+        
+        let mut engine = ChessVectorEngine::new(1024);
+        TacticalPuzzleParser::load_into_engine(&tactical_data, &mut engine);
+        
+        assert_eq!(engine.knowledge_base_size(), 1);
+        assert_eq!(engine.position_moves.len(), 1);
+        
+        // Test that tactical move is available in recommendations
+        let recommendations = engine.recommend_moves(&Board::default(), 5);
+        assert!(!recommendations.is_empty());
+    }
+
+    #[test]
+    fn test_multithreading_operations() {
+        let mut dataset = TrainingDataset::new();
+        let board = Board::default();
+        
+        // Add test data
+        for i in 0..10 {
+            let training_data = TrainingData {
+                board,
+                evaluation: i as f32 * 0.1,
+                depth: 15,
+                game_id: i,
+            };
+            dataset.data.push(training_data);
+        }
+        
+        // Test parallel deduplication doesn't crash
+        dataset.deduplicate_parallel(0.95, 5);
+        assert!(dataset.data.len() <= 10);
+    }
+
+    #[test]
+    fn test_incremental_dataset_operations() {
+        let mut dataset1 = TrainingDataset::new();
+        let board1 = Board::default();
+        let board2 = Board::from_str("rnbqkbnr/pppppppp/8/8/4P3/8/PPPP1PPP/RNBQKBNR b KQkq - 0 1").unwrap();
+        
+        // Add initial data
+        dataset1.add_position(board1, 0.0, 15, 1);
+        dataset1.add_position(board2, 0.2, 15, 2);
+        assert_eq!(dataset1.data.len(), 2);
+        
+        // Create second dataset
+        let mut dataset2 = TrainingDataset::new();
+        dataset2.add_position(
+            Board::from_str("rnbqkbnr/pppp1ppp/8/4p3/4P3/8/PPPP1PPP/RNBQKBNR w KQkq - 0 2").unwrap(),
+            0.3,
+            15,
+            3
+        );
+        
+        // Merge datasets
+        dataset1.merge(dataset2);
+        assert_eq!(dataset1.data.len(), 3);
+        
+        // Test next_game_id
+        let next_id = dataset1.next_game_id();
+        assert_eq!(next_id, 4); // Should be max(1,2,3) + 1
+    }
+
+    #[test]
+    fn test_save_load_incremental() {
+        use tempfile::tempdir;
+        
+        let temp_dir = tempdir().unwrap();
+        let file_path = temp_dir.path().join("incremental_test.json");
+        
+        // Create and save first dataset
+        let mut dataset1 = TrainingDataset::new();
+        dataset1.add_position(Board::default(), 0.0, 15, 1);
+        dataset1.save(&file_path).unwrap();
+        
+        // Create second dataset and save incrementally
+        let mut dataset2 = TrainingDataset::new();
+        dataset2.add_position(
+            Board::from_str("rnbqkbnr/pppppppp/8/8/4P3/8/PPPP1PPP/RNBQKBNR b KQkq - 0 1").unwrap(),
+            0.2,
+            15,
+            2
+        );
+        dataset2.save_incremental(&file_path).unwrap();
+        
+        // Load and verify merged data
+        let loaded = TrainingDataset::load(&file_path).unwrap();
+        assert_eq!(loaded.data.len(), 2);
+        
+        // Test load_and_append
+        let mut dataset3 = TrainingDataset::new();
+        dataset3.add_position(
+            Board::from_str("rnbqkbnr/pppp1ppp/8/4p3/4P3/8/PPPP1PPP/RNBQKBNR w KQkq - 0 2").unwrap(),
+            0.3,
+            15,
+            3
+        );
+        dataset3.load_and_append(&file_path).unwrap();
+        assert_eq!(dataset3.data.len(), 3); // 1 original + 2 from file
+    }
+
+    #[test]
+    fn test_add_position_method() {
+        let mut dataset = TrainingDataset::new();
+        let board = Board::default();
+        
+        // Test add_position method
+        dataset.add_position(board, 0.5, 20, 42);
+        assert_eq!(dataset.data.len(), 1);
+        assert_eq!(dataset.data[0].evaluation, 0.5);
+        assert_eq!(dataset.data[0].depth, 20);
+        assert_eq!(dataset.data[0].game_id, 42);
+    }
+
+    #[test]
+    fn test_incremental_save_deduplication() {
+        use tempfile::tempdir;
+        
+        let temp_dir = tempdir().unwrap();
+        let file_path = temp_dir.path().join("dedup_test.json");
+        
+        // Create and save first dataset
+        let mut dataset1 = TrainingDataset::new();
+        dataset1.add_position(Board::default(), 0.0, 15, 1);
+        dataset1.save(&file_path).unwrap();
+        
+        // Create second dataset with duplicate position
+        let mut dataset2 = TrainingDataset::new();
+        dataset2.add_position(Board::default(), 0.1, 15, 2); // Same position, different eval
+        dataset2.save_incremental(&file_path).unwrap();
+        
+        // Should deduplicate and keep only one
+        let loaded = TrainingDataset::load(&file_path).unwrap();
+        assert_eq!(loaded.data.len(), 1);
+    }
+
+    #[test]
+    fn test_tactical_puzzle_incremental_loading() {
+        let tactical_data = vec![
+            TacticalTrainingData {
+                position: Board::default(),
+                solution_move: ChessMove::from_str("e2e4").unwrap(),
+                move_theme: "opening".to_string(),
+                difficulty: 1.2,
+                tactical_value: 2.5,
+            },
+            TacticalTrainingData {
+                position: Board::from_str("rnbqkbnr/pppppppp/8/8/4P3/8/PPPP1PPP/RNBQKBNR b KQkq - 0 1").unwrap(),
+                solution_move: ChessMove::from_str("e7e5").unwrap(),
+                move_theme: "opening".to_string(),
+                difficulty: 1.0,
+                tactical_value: 2.0,
+            }
+        ];
+        
+        let mut engine = ChessVectorEngine::new(1024);
+        
+        // Add some existing data
+        engine.add_position(&Board::default(), 0.1);
+        assert_eq!(engine.knowledge_base_size(), 1);
+        
+        // Load tactical puzzles incrementally
+        TacticalPuzzleParser::load_into_engine_incremental(&tactical_data, &mut engine);
+        
+        // Should have added the new position but skipped the duplicate
+        assert_eq!(engine.knowledge_base_size(), 2);
+        
+        // Should have move data for both puzzles
+        assert!(engine.training_stats().has_move_data);
+        assert!(engine.training_stats().move_data_entries > 0);
+    }
+
+    #[test]
+    fn test_tactical_puzzle_serialization() {
+        use tempfile::tempdir;
+        
+        let temp_dir = tempdir().unwrap();
+        let file_path = temp_dir.path().join("tactical_test.json");
+        
+        let tactical_data = vec![
+            TacticalTrainingData {
+                position: Board::default(),
+                solution_move: ChessMove::from_str("e2e4").unwrap(),
+                move_theme: "fork".to_string(),
+                difficulty: 1.5,
+                tactical_value: 3.0,
+            }
+        ];
+        
+        // Save tactical puzzles
+        TacticalPuzzleParser::save_tactical_puzzles(&tactical_data, &file_path).unwrap();
+        
+        // Load them back
+        let loaded = TacticalPuzzleParser::load_tactical_puzzles(&file_path).unwrap();
+        assert_eq!(loaded.len(), 1);
+        assert_eq!(loaded[0].move_theme, "fork");
+        assert_eq!(loaded[0].difficulty, 1.5);
+        assert_eq!(loaded[0].tactical_value, 3.0);
+    }
+
+    #[test]
+    fn test_tactical_puzzle_incremental_save() {
+        use tempfile::tempdir;
+        
+        let temp_dir = tempdir().unwrap();
+        let file_path = temp_dir.path().join("incremental_tactical.json");
+        
+        // Save first batch
+        let batch1 = vec![
+            TacticalTrainingData {
+                position: Board::default(),
+                solution_move: ChessMove::from_str("e2e4").unwrap(),
+                move_theme: "opening".to_string(),
+                difficulty: 1.0,
+                tactical_value: 2.0,
+            }
+        ];
+        TacticalPuzzleParser::save_tactical_puzzles(&batch1, &file_path).unwrap();
+        
+        // Save second batch incrementally
+        let batch2 = vec![
+            TacticalTrainingData {
+                position: Board::from_str("rnbqkbnr/pppppppp/8/8/4P3/8/PPPP1PPP/RNBQKBNR b KQkq - 0 1").unwrap(),
+                solution_move: ChessMove::from_str("e7e5").unwrap(),
+                move_theme: "counter".to_string(),
+                difficulty: 1.2,
+                tactical_value: 2.2,
+            }
+        ];
+        TacticalPuzzleParser::save_tactical_puzzles_incremental(&batch2, &file_path).unwrap();
+        
+        // Load and verify merged data
+        let loaded = TacticalPuzzleParser::load_tactical_puzzles(&file_path).unwrap();
+        assert_eq!(loaded.len(), 2);
+    }
+
+    #[test]
+    fn test_tactical_puzzle_incremental_deduplication() {
+        use tempfile::tempdir;
+        
+        let temp_dir = tempdir().unwrap();
+        let file_path = temp_dir.path().join("dedup_tactical.json");
+        
+        let tactical_data = TacticalTrainingData {
+            position: Board::default(),
+            solution_move: ChessMove::from_str("e2e4").unwrap(),
+            move_theme: "opening".to_string(),
+            difficulty: 1.0,
+            tactical_value: 2.0,
+        };
+        
+        // Save first time
+        TacticalPuzzleParser::save_tactical_puzzles(&[tactical_data.clone()], &file_path).unwrap();
+        
+        // Try to save the same puzzle again
+        TacticalPuzzleParser::save_tactical_puzzles_incremental(&[tactical_data], &file_path).unwrap();
+        
+        // Should still have only one puzzle (deduplicated)
+        let loaded = TacticalPuzzleParser::load_tactical_puzzles(&file_path).unwrap();
+        assert_eq!(loaded.len(), 1);
     }
 }

@@ -6,7 +6,22 @@ fn main() {
     println!("Chess Vector Engine - Move Recommendation Demo");
     println!("==============================================");
     
-    let mut engine = ChessVectorEngine::new(1024);
+    // Try to use auto-loading to get all available training data including tactical patterns
+    let mut engine = match ChessVectorEngine::new_with_auto_load(1024) {
+        Ok(engine) => {
+            let stats = engine.training_stats();
+            println!("🚀 Auto-loaded engine with {} positions!", stats.total_positions);
+            if stats.has_move_data {
+                println!("🎯 Includes tactical training data with {} move entries", stats.move_data_entries);
+                println!("   This will enhance move recommendations with tactical patterns!");
+            }
+            engine
+        }
+        Err(_) => {
+            println!("🤖 Creating fresh engine (no training data found)");
+            ChessVectorEngine::new(1024)
+        }
+    };
     
     // Load some example positions with moves and outcomes
     load_example_games(&mut engine);

@@ -100,61 +100,54 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 }
 
 fn create_engine_with_knowledge() -> ChessVectorEngine {
-    // Initialize with intelligent architecture selection based on dataset size
-    let mut initial_positions = 0;
+    println!("🚀 Initializing Chess Vector Engine with auto-loading for gameplay...");
     
-    // Check training data size first to determine architecture
-    if let Ok(dataset) = chess_vector_engine::TrainingDataset::load("training_data.json") {
-        initial_positions = dataset.data.len();
-    }
-    
-    let mut engine = if initial_positions > 15000 {
-        println!("🚀 Large knowledge base detected ({} positions), using LSH for optimal performance", initial_positions);
-        // Optimized LSH parameters for gameplay (faster search, good recall)
-        ChessVectorEngine::new_with_lsh(1024, 10, 18)
-    } else {
-        println!("🚀 Standard knowledge base size ({} positions), using linear search", initial_positions);
-        ChessVectorEngine::new(1024)
-    };
-    
-    // Enable opening book with expanded openings
-    engine.enable_opening_book();
-    
-    // Load training data if available
-    match chess_vector_engine::TrainingDataset::load("training_data.json") {
-        Ok(dataset) => {
-            println!("Loading {} positions from training_data.json", dataset.data.len());
-            for training_data in dataset.data {
-                engine.add_position(&training_data.board, training_data.evaluation);
+    // Use auto-loading to automatically discover and load ALL training data
+    match ChessVectorEngine::new_with_auto_load(1024) {
+        Ok(engine) => {
+            let stats = engine.training_stats();
+            println!("🎯 Engine initialized with {} total positions", stats.total_positions);
+            
+            if stats.has_move_data {
+                println!("⚔️  Includes tactical training data with {} move entries", stats.move_data_entries);
+                println!("   This gives the engine tactical awareness for aggressive play!");
             }
+            
+            if let Some(book_stats) = engine.opening_book_stats() {
+                println!("📖 Opening book: {} positions with {} ECO classifications", 
+                         book_stats.total_positions, book_stats.eco_classifications);
+            }
+            
+            // Enable LSH for large datasets to maintain game speed
+            let mut engine = engine;
+            if stats.total_positions > 15000 {
+                println!("📊 Large knowledge base detected, enabling LSH for optimal gameplay performance");
+                engine.enable_lsh(10, 18); // Optimized for speed vs accuracy balance
+            }
+            
+            // Enable manifold learning for very large datasets during gameplay
+            if stats.total_positions > 30000 {
+                println!("🧠 Very large knowledge base, enabling manifold learning for faster similarity search...");
+                let _ = engine.enable_manifold_learning(6.0); // 6:1 compression for speed (1024d -> ~170d)
+                
+                println!("🏋️  Training manifold compression for gameplay optimization...");
+                let _ = engine.train_manifold_learning(8); // Fewer epochs for faster startup
+                
+                println!("✅ Manifold learning enabled - optimized for real-time gameplay");
+            }
+            
+            engine
         }
         Err(e) => {
-            println!("Failed to load training_data.json: {}", e);
+            println!("⚠️  Auto-loading failed: {}", e);
+            println!("🔄 Falling back to basic engine with opening book...");
+            
+            let mut engine = ChessVectorEngine::new(1024);
+            engine.enable_opening_book();
+            add_position_knowledge(&mut engine);
+            engine
         }
     }
-    
-    // Let the engine rely purely on opening book and vector similarity
-    add_position_knowledge(&mut engine);
-    
-    let total_positions = engine.knowledge_base_size();
-    println!("Engine initialized with {} positions in knowledge base", total_positions);
-    if let Some(stats) = engine.opening_book_stats() {
-        println!("Opening book contains {} positions with {} ECO classifications", 
-                 stats.total_positions, stats.eco_classifications);
-    }
-    
-    // Enable manifold learning for very large datasets during gameplay
-    if total_positions > 30000 {
-        println!("🧠 Very large knowledge base, enabling manifold learning for faster similarity search...");
-        let _ = engine.enable_manifold_learning(6.0); // 6:1 compression for speed (1024d -> ~170d)
-        
-        println!("🏋️  Training manifold compression for gameplay optimization...");
-        let _ = engine.train_manifold_learning(8); // Fewer epochs for faster startup
-        
-        println!("✅ Manifold learning enabled - optimized for real-time gameplay");
-    }
-    
-    engine
 }
 
 fn add_position_knowledge(_engine: &mut ChessVectorEngine) {

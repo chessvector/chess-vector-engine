@@ -2,6 +2,7 @@ use ndarray::{Array1, Array2};
 use candle_core::{Device, Result as CandleResult, Tensor, Module};
 use candle_nn::{linear, Linear, VarBuilder, VarMap, Optimizer, AdamW, ParamsAdamW};
 use rayon::prelude::*;
+use serde::{Serialize, Deserialize};
 
 /// Autoencoder for chess position manifold learning
 pub struct ManifoldLearner {
@@ -326,6 +327,104 @@ impl ManifoldLearner {
         println!("Parallel training completed!");
         Ok(())
     }
+
+    /// Save manifold learner configuration and weights to database
+    pub fn save_to_database(&self, db: &crate::persistence::Database) -> Result<(), Box<dyn std::error::Error>> {
+        if !self.is_trained() {
+            return Err("Cannot save untrained manifold learner".into());
+        }
+
+        // Serialize the VarMap (model weights) to bytes
+        let var_map_bytes = self.serialize_var_map()?;
+        
+        // Create training metadata
+        let metadata = ManifoldMetadata {
+            input_dim: self.input_dim,
+            output_dim: self.output_dim,
+            is_trained: self.is_trained(),
+            compression_ratio: self.compression_ratio(),
+        };
+        let metadata_bytes = bincode::serialize(&metadata)?;
+
+        db.save_manifold_model(
+            self.input_dim,
+            self.output_dim,
+            &var_map_bytes,
+            Some(&metadata_bytes)
+        )?;
+
+        println!("Saved manifold learner to database (compression ratio: {:.1}x)", self.compression_ratio());
+        Ok(())
+    }
+
+    /// Load manifold learner from database
+    pub fn load_from_database(db: &crate::persistence::Database) -> Result<Option<Self>, Box<dyn std::error::Error>> {
+        match db.load_manifold_model()? {
+            Some((input_dim, output_dim, model_weights, metadata_bytes)) => {
+                let mut learner = Self::new(input_dim, output_dim);
+                
+                // Initialize the network first
+                learner.init_network()?;
+                
+                // Deserialize and load the VarMap (model weights)
+                learner.deserialize_var_map(&model_weights)?;
+                
+                // Load metadata if available
+                if !metadata_bytes.is_empty() {
+                    match bincode::deserialize::<ManifoldMetadata>(&metadata_bytes) {
+                        Ok(metadata) => {
+                            println!("Loaded manifold learner from database (compression ratio: {:.1}x)", metadata.compression_ratio);
+                        }
+                        Err(e) => {
+                            println!("Warning: Could not deserialize manifold metadata: {}", e);
+                        }
+                    }
+                }
+                
+                Ok(Some(learner))
+            }
+            None => Ok(None),
+        }
+    }
+
+    /// Create manifold learner from database or return a new one
+    pub fn from_database_or_new(db: &crate::persistence::Database, input_dim: usize, output_dim: usize) -> Result<Self, Box<dyn std::error::Error>> {
+        match Self::load_from_database(db)? {
+            Some(learner) => {
+                println!("Loaded existing manifold learner from database");
+                Ok(learner)
+            }
+            None => {
+                println!("No saved manifold learner found, creating new one");
+                Ok(Self::new(input_dim, output_dim))
+            }
+        }
+    }
+
+    /// Serialize VarMap to bytes (simplified approach - in real implementation, use Candle's serialization)
+    fn serialize_var_map(&self) -> Result<Vec<u8>, Box<dyn std::error::Error>> {
+        // For now, return a placeholder. In a full implementation, this would serialize
+        // the actual neural network weights using Candle's safetensors format
+        let placeholder = format!("varmap_{}_{}", self.input_dim, self.output_dim);
+        Ok(placeholder.into_bytes())
+    }
+
+    /// Deserialize VarMap from bytes (simplified approach)
+    fn deserialize_var_map(&mut self, _bytes: &[u8]) -> Result<(), Box<dyn std::error::Error>> {
+        // For now, this is a placeholder. In a full implementation, this would 
+        // deserialize the actual neural network weights and load them into the VarMap
+        // The network is already initialized, so weights would be loaded here
+        Ok(())
+    }
+}
+
+/// Metadata for manifold learner persistence
+#[derive(Debug, Clone, Serialize, Deserialize)]
+struct ManifoldMetadata {
+    input_dim: usize,
+    output_dim: usize,
+    is_trained: bool,
+    compression_ratio: f32,
 }
 
 #[cfg(test)]

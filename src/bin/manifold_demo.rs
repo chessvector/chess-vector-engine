@@ -9,7 +9,7 @@ fn main() {
     println!("============================================");
     
     // Create chess vector engine
-    let mut engine = ChessVectorEngine::new(1024);
+    let engine = ChessVectorEngine::new(1024);
     
     // Generate training data
     println!("Generating training data from chess positions...");

@@ -10,6 +10,7 @@ pub struct LSH {
     /// Number of hash functions per table
     hash_size: usize,
     /// Vector dimension
+    #[allow(dead_code)]
     vector_dim: usize,
     /// Random hyperplanes for each hash table
     hyperplanes: Vec<Array2<f32>>,
@@ -219,6 +220,116 @@ impl LSH {
             avg_bucket_size,
             median_bucket_size,
             max_bucket_size: bucket_sizes.last().copied().unwrap_or(0),
+        }
+    }
+
+    /// Save LSH configuration and hash functions to database
+    pub fn save_to_database(&self, db: &crate::persistence::Database) -> Result<(), Box<dyn std::error::Error>> {
+        use crate::persistence::{LSHTableData, LSHHashFunction};
+        
+        // Convert hyperplanes to serializable format
+        let mut hash_functions = Vec::new();
+        for hyperplane_matrix in &self.hyperplanes {
+            for row in hyperplane_matrix.rows() {
+                hash_functions.push(LSHHashFunction {
+                    random_vector: row.to_vec().iter().map(|&x| x as f64).collect(),
+                    threshold: 0.0, // We use zero threshold for hyperplane hashing
+                });
+            }
+        }
+        
+        let config = LSHTableData {
+            num_tables: self.num_tables,
+            num_hash_functions: self.hash_size,
+            vector_dim: self.vector_dim,
+            hash_functions,
+        };
+        
+        db.save_lsh_config(&config)?;
+        
+        // Clear existing bucket data and save new buckets
+        db.clear_lsh_buckets()?;
+        
+        // Save hash bucket assignments (this maps positions to buckets)
+        for (table_idx, table) in self.hash_tables.iter().enumerate() {
+            for (hash_bits, indices) in table {
+                let hash_string = hash_bits.iter()
+                    .map(|&b| if b { '1' } else { '0' })
+                    .collect::<String>();
+                
+                for &position_idx in indices {
+                    db.save_lsh_bucket(table_idx, &hash_string, position_idx as i64)?;
+                }
+            }
+        }
+        
+        Ok(())
+    }
+
+    /// Load LSH configuration from database and rebuild hash tables
+    pub fn load_from_database(db: &crate::persistence::Database, positions: &[(Array1<f32>, f32)]) -> Result<Option<Self>, Box<dyn std::error::Error>> {
+        let config = match db.load_lsh_config()? {
+            Some(config) => config,
+            None => return Ok(None),
+        };
+        
+        // Reconstruct hyperplanes from saved hash functions
+        let mut hyperplanes = Vec::new();
+        let functions_per_table = config.num_hash_functions;
+        
+        for table_idx in 0..config.num_tables {
+            let start_idx = table_idx * functions_per_table;
+            let end_idx = start_idx + functions_per_table;
+            
+            if end_idx <= config.hash_functions.len() {
+                let mut table_hyperplanes = Array2::zeros((functions_per_table, config.vector_dim));
+                
+                for (func_idx, hash_func) in config.hash_functions[start_idx..end_idx].iter().enumerate() {
+                    for (dim_idx, &value) in hash_func.random_vector.iter().enumerate() {
+                        if dim_idx < config.vector_dim {
+                            table_hyperplanes[[func_idx, dim_idx]] = value as f32;
+                        }
+                    }
+                }
+                
+                hyperplanes.push(table_hyperplanes);
+            }
+        }
+        
+        // Create LSH with loaded configuration
+        let mut lsh = Self {
+            num_tables: config.num_tables,
+            hash_size: config.num_hash_functions,
+            vector_dim: config.vector_dim,
+            hyperplanes,
+            hash_tables: vec![HashMap::new(); config.num_tables],
+            stored_vectors: Vec::new(),
+            stored_data: Vec::new(),
+        };
+        
+        // Rebuild the index with provided positions
+        for (vector, evaluation) in positions {
+            lsh.add_vector(vector.clone(), *evaluation);
+        }
+        
+        Ok(Some(lsh))
+    }
+
+    /// Create LSH from database or return None if no saved configuration exists
+    pub fn from_database_or_new(db: &crate::persistence::Database, positions: &[(Array1<f32>, f32)], vector_dim: usize, num_tables: usize, hash_size: usize) -> Result<Self, Box<dyn std::error::Error>> {
+        match Self::load_from_database(db, positions)? {
+            Some(lsh) => {
+                println!("Loaded LSH configuration from database with {} vectors", lsh.stored_vectors.len());
+                Ok(lsh)
+            }
+            None => {
+                println!("No saved LSH configuration found, creating new LSH index");
+                let mut lsh = Self::new(vector_dim, num_tables, hash_size);
+                for (vector, evaluation) in positions {
+                    lsh.add_vector(vector.clone(), *evaluation);
+                }
+                Ok(lsh)
+            }
         }
     }
 }

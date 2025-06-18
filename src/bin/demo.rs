@@ -6,8 +6,21 @@ fn main() {
     println!("Chess Vector Engine Demo");
     println!("========================");
 
-    // Create a new engine with 1024-dimensional vectors
-    let mut engine = ChessVectorEngine::new(1024);
+    // Try to create engine with auto-loading first
+    let mut engine = match ChessVectorEngine::new_with_auto_load(1024) {
+        Ok(engine) => {
+            let stats = engine.training_stats();
+            println!("🚀 Auto-loaded engine with {} positions!", stats.total_positions);
+            if stats.has_move_data {
+                println!("🎯 Includes tactical training data!");
+            }
+            engine
+        }
+        Err(_) => {
+            println!("🤖 Creating fresh engine (no training data found)");
+            ChessVectorEngine::new(1024)
+        }
+    };
     
     // Define some sample positions with simple evaluations
     let positions_with_evals = vec![
