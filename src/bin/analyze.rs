@@ -21,14 +21,71 @@ fn main() {
     println!("Analyzing position: {}", fen);
     println!("Side to move: {:?}", board.side_to_move());
     
-    // Initialize engine with some known positions
-    let mut engine = ChessVectorEngine::new(1024);
-    load_opening_book(&mut engine);
+    // Initialize engine with intelligent architecture selection
+    let engine = initialize_analysis_engine();
     
     println!("\nKnowledge base loaded with {} positions", engine.knowledge_base_size());
     
     // Analyze the position
     analyze_position(&engine, &board);
+}
+
+/// Initialize analysis engine with advanced features based on available data
+fn initialize_analysis_engine() -> ChessVectorEngine {
+    // Check available training data to determine optimal architecture
+    let mut total_positions = 0;
+    
+    // Count positions in training data
+    if let Ok(dataset) = chess_vector_engine::TrainingDataset::load("training_data.json") {
+        total_positions += dataset.data.len();
+    }
+    
+    // Estimate positions from opening book
+    total_positions += 100; // Approximate opening book size
+    
+    println!("🔍 Initializing analysis engine for {} estimated positions...", total_positions);
+    
+    let mut engine = if total_positions > 10000 {
+        println!("📊 Large dataset detected, using LSH for fast analysis");
+        // LSH optimized for analysis: more hash tables for better recall
+        ChessVectorEngine::new_with_lsh(1024, 14, 22)
+    } else {
+        println!("📊 Standard dataset, using linear search");
+        ChessVectorEngine::new(1024)
+    };
+    
+    // Enable opening book
+    engine.enable_opening_book();
+    
+    // Load training data if available
+    match chess_vector_engine::TrainingDataset::load("training_data.json") {
+        Ok(dataset) => {
+            println!("📚 Loading {} positions from training_data.json", dataset.data.len());
+            total_positions = dataset.data.len();
+            for training_data in dataset.data {
+                engine.add_position(&training_data.board, training_data.evaluation);
+            }
+        }
+        Err(_) => {
+            println!("📖 No training data found, using opening book only");
+        }
+    }
+    
+    // Load basic opening positions
+    load_opening_book(&mut engine);
+    
+    // Enable manifold learning for large analysis datasets
+    if total_positions > 15000 {
+        println!("🧠 Large analysis dataset, enabling manifold learning for deeper pattern recognition...");
+        let _ = engine.enable_manifold_learning(4.0); // 4:1 compression for analysis depth (1024d -> 256d)
+        
+        println!("🏋️  Training manifold compression for analysis optimization...");
+        let _ = engine.train_manifold_learning(12); // More epochs for better analysis quality
+        
+        println!("✅ Manifold learning enabled - optimized for position analysis");
+    }
+    
+    engine
 }
 
 /// Load a basic opening book with evaluations

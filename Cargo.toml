@@ -45,6 +45,10 @@ path = "src/bin/train.rs"
 name = "multithreading_demo"
 path = "src/bin/multithreading_demo.rs"
 
+[[bin]]
+name = "tactical_training"
+path = "src/bin/tactical_training.rs"
+
 [dependencies]
 # Chess game logic
 chess = "3.2"
@@ -79,6 +83,12 @@ vampirc-uci = "0.11"
 
 # Progress bars and indicators
 indicatif = "0.17"
+
+# CSV parsing for tactical puzzles
+csv = "1.3"
+
+# Date/time formatting
+chrono = "0.4"
 
 [dev-dependencies]
 criterion = "0.5"

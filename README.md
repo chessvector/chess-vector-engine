@@ -10,8 +10,9 @@ A **Rust library** for vector-based chess position analysis using similarity sea
 - **📐 Vector Position Encoding** - Convert chess positions to 1024-dimensional vectors capturing piece positions, game state, and strategic features
 - **🔍 Similarity Search** - Find similar positions using cosine similarity with linear and LSH-based search
 - **🧠 Neural Compression** - Autoencoder networks compress vectors 8:1 (1024d → 128d) while maintaining accuracy
-- **📖 Opening Book** - Integrated opening book with standard chess openings (8 positions, 7 ECO codes) for fast lookup
+- **📖 Opening Book** - Comprehensive opening book with 50+ chess openings and 45+ ECO codes for fast lookup
 - **🎯 Move Recommendations** - Intelligent move suggestions based on similar positions with confidence scoring
+- **⚔️ Tactical Training** - Advanced tactical puzzle integration from Lichess database with 3M+ puzzles
 - **⚡ Performance Optimized** - LSH indexing provides 3.3x speedup, opening book gives 7.7x speedup over linear search
 - **🔄 Multithreading Support** - Parallel processing for training, similarity search, LSH operations, and data preprocessing using Rayon
 
@@ -22,9 +23,11 @@ The engine provides a complete pipeline from chess positions to intelligent reco
 ```
 Chess Position → Position Encoder → Vector (1024d)
                                      ↓
-                 ┌─ Opening Book (fast lookup)
-                 │                  ↓
-                 └─ Manifold Learner → Compressed Vector (128d)
+         ┌─ Opening Book (50+ openings, fast lookup)
+         │       ↓
+         ├─ Tactical Patterns (3M+ puzzles, high-value moves)
+         │       ↓
+         └─ Manifold Learner → Compressed Vector (128d)
                                      ↓
                    LSH Index → Similar Positions → Move Recommendations
 ```
@@ -113,13 +116,22 @@ cargo run --bin manifold_lsh_demo
 
 # Opening book demonstration
 cargo run --bin opening_book_demo
+
+# Tactical training with Lichess puzzles
+cargo run --bin tactical_training -- --puzzles lichess_db_puzzle.csv
+
+# Play against Stockfish engine
+cargo run --bin play_stockfish
+
+# Format PGN files for training
+cargo run --bin format_pgn
 ```
 
 ## 🎓 Training the Engine
 
 ### 1. Load Training Data
 
-The engine includes quality training data with 147 diverse chess positions:
+The engine includes quality training data with 57,970+ diverse chess positions:
 
 ```rust
 use chess_vector_engine::ChessVectorEngine;
@@ -204,6 +216,126 @@ cargo run --bin train -- --dataset existing_data.json --max-games 500
 # Enable LSH during training
 cargo run --bin train -- --dataset data.json --enable-lsh
 ```
+
+## ⚔️ Tactical Training
+
+The engine supports advanced tactical training using the Lichess puzzle database with 3M+ tactical puzzles, dramatically improving tactical play.
+
+### Download Lichess Puzzle Database
+
+```bash
+# Download the latest Lichess puzzle database (~800MB compressed)
+wget https://database.lichess.org/lichess_db_puzzle.csv.bz2
+
+# Extract the CSV file (~4GB uncompressed)
+bunzip2 lichess_db_puzzle.csv.bz2
+```
+
+### Tactical Training with CLI
+
+```bash
+# Basic tactical training (10,000 puzzles, rating 1000-2500)
+cargo run --bin tactical_training -- --puzzles lichess_db_puzzle.csv
+
+# Advanced configuration with custom parameters
+cargo run --bin tactical_training -- \
+  --puzzles lichess_db_puzzle.csv \
+  --max-puzzles 25000 \
+  --min-rating 1200 \
+  --max-rating 2200 \
+  --output tactical_engine.json \
+  --test
+
+# Merge with existing training data
+cargo run --bin tactical_training -- \
+  --puzzles lichess_db_puzzle.csv \
+  --existing training_data.json \
+  --max-puzzles 15000 \
+  --output combined_training.json
+```
+
+### Tactical Training with API
+
+```rust
+use chess_vector_engine::{ChessVectorEngine, TacticalPuzzleParser};
+
+// Parse tactical puzzles with filtering
+let tactical_data = TacticalPuzzleParser::parse_csv(
+    "lichess_db_puzzle.csv",
+    Some(10000),        // Max puzzles
+    Some(1000),         // Min rating
+    Some(2500),         // Max rating
+)?;
+
+// Create engine and load existing data
+let mut engine = ChessVectorEngine::new(1024);
+engine.enable_opening_book();
+
+// Load positional training data
+if let Ok(dataset) = TrainingDataset::load("training_data.json") {
+    for data in dataset.data {
+        engine.add_position(&data.board, data.evaluation);
+    }
+}
+
+// Load tactical patterns (high-value moves)
+TacticalPuzzleParser::load_into_engine(&tactical_data, &mut engine);
+
+println!("Engine loaded with tactical knowledge!");
+```
+
+### How Tactical Training Works
+
+The tactical training system integrates seamlessly with your existing position-based training:
+
+1. **Puzzle Processing**: Lichess puzzles are parsed from CSV format
+2. **Solution Extraction**: First move in each puzzle sequence is the tactical solution
+3. **High-Value Weighting**: Tactical moves receive high outcome values (2.0-5.0) based on:
+   - Puzzle rating difficulty (normalized 0.8-3.0)
+   - Community popularity bonus (up to +2.0)
+4. **Hybrid Recommendation**: Engine balances tactical and positional patterns automatically
+
+### Tactical vs Positional Training
+
+```rust
+// Positional training: normal evaluation values
+engine.add_position_with_move(&board, 0.5, Some(positional_move), Some(0.2));
+
+// Tactical training: high-value tactical solutions  
+engine.add_position_with_move(&puzzle_fen, 0.0, Some(tactical_move), Some(4.5));
+```
+
+When the engine encounters similar positions, it automatically weights tactical solutions higher due to their superior outcome values, leading to more aggressive and tactically aware play.
+
+### Tactical Performance Testing
+
+```rust
+// Test tactical accuracy on a subset of puzzles
+let test_puzzles: Vec<_> = tactical_data.iter().take(100).cloned().collect();
+let mut correct = 0;
+
+for puzzle in &test_puzzles {
+    let recommendations = engine.recommend_legal_moves(&puzzle.position, 3);
+    
+    if let Some(top_move) = recommendations.first() {
+        if top_move.chess_move == puzzle.solution_move {
+            correct += 1;
+        }
+    }
+}
+
+let accuracy = (correct as f32 / test_puzzles.len() as f32) * 100.0;
+println!("Tactical accuracy: {:.1}%", accuracy);
+```
+
+### Tactical Themes Supported
+
+The Lichess database includes puzzles with various tactical themes:
+- **Basic tactics**: pin, fork, skewer, discovered attack
+- **Advanced tactics**: deflection, decoy, clearance, interference  
+- **Mating patterns**: back rank mate, smothered mate, checkmate sequences
+- **Positional tactics**: trapped pieces, weak squares, pawn breaks
+- **Endgame tactics**: promotion, stalemate tricks, opposition
 
 ## 📊 Performance Characteristics
 
@@ -375,6 +507,10 @@ src/
     ├── move_recommendation_demo.rs # Move suggestions
     ├── opening_book_demo.rs # Opening book demo
     ├── multithreading_demo.rs # Parallel processing demo
+    ├── tactical_training.rs # Tactical puzzle training
+    ├── play_stockfish.rs    # Play against Stockfish
+    ├── format_pgn.rs        # PGN formatting utility
+    ├── debug_similarity.rs  # Similarity debugging tool
     └── train.rs             # Training CLI
 ```
 
@@ -451,18 +587,23 @@ This library is designed for extension and contribution:
 
 ### Completed ✅
 - **Core engine architecture** with position encoding and similarity search
-- **LSH implementation** for approximate nearest neighbor search
-- **Neural compression** using autoencoder networks (8:1 ratio)
-- **Opening book integration** with standard chess openings
-- **Move recommendation system** with confidence scoring
+- **LSH implementation** for approximate nearest neighbor search with 3.3x speedup
+- **Neural compression** using autoencoder networks (8:1 ratio, 1024d → 128d)
+- **Comprehensive opening book** with 50+ openings and 45+ ECO codes
+- **Tactical training system** integrated with Lichess 3M+ puzzle database
+- **Move recommendation system** with confidence scoring and hybrid tactical/positional weighting
+- **Stockfish integration** for gameplay and training data evaluation
+- **PGN processing utilities** for training data preparation
+- **Multithreading support** with Rayon for parallel processing
 - **Comprehensive testing** (26 tests) and documentation
+- **Performance optimization** with manifold learning threshold tuning
 
 ### Next Steps
 - **Variational Autoencoders** - Better compression with probabilistic models
 - **Transformer Architecture** - Attention-based position understanding
-- **Advanced Opening Book** - Expand to thousands of opening positions
-- **Tactical Pattern Recognition** - Specialized encoding for tactical motifs
+- **Enhanced Tactical Recognition** - Specialized encoding for specific tactical motifs
 - **Game Phase Detection** - Separate models for opening/middlegame/endgame
+- **UCI Protocol Integration** - Full chess engine protocol support
 
 ## 📄 License
 

@@ -11,7 +11,7 @@ pub use similarity_search::SimilaritySearch;
 pub use lsh::LSH;
 pub use manifold_learner::ManifoldLearner;
 pub use opening_book::{OpeningBook, OpeningEntry, OpeningBookStats};
-pub use training::*;
+pub use training::{TrainingData, TrainingDataset, GameExtractor, EngineEvaluator, TacticalPuzzle, TacticalTrainingData, TacticalPuzzleParser};
 
 use chess::{Board, ChessMove};
 use ndarray::Array1;
@@ -67,6 +67,38 @@ impl ChessVectorEngine {
             position_boards: Vec::new(),
             position_evaluations: Vec::new(),
             opening_book: None,
+        }
+    }
+
+    /// Create a new chess vector engine with intelligent architecture selection
+    /// based on expected dataset size and use case
+    pub fn new_adaptive(vector_size: usize, expected_positions: usize, use_case: &str) -> Self {
+        match use_case {
+            "training" => {
+                if expected_positions > 10000 {
+                    // Large training datasets benefit from LSH for loading speed
+                    Self::new_with_lsh(vector_size, 12, 20)
+                } else {
+                    Self::new(vector_size)
+                }
+            }
+            "gameplay" => {
+                if expected_positions > 15000 {
+                    // Gameplay needs balance of speed and accuracy
+                    Self::new_with_lsh(vector_size, 10, 18)
+                } else {
+                    Self::new(vector_size)
+                }
+            }
+            "analysis" => {
+                if expected_positions > 10000 {
+                    // Analysis prioritizes recall over speed
+                    Self::new_with_lsh(vector_size, 14, 22)
+                } else {
+                    Self::new(vector_size)
+                }
+            }
+            _ => Self::new(vector_size) // Default to linear search
         }
     }
     

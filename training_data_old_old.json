@@ -1,0 +1,404 @@
+[
+  {
+    "fen": "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1",
+    "evaluation": 0.0,
+    "depth": 15,
+    "game_id": 1
+  },
+  {
+    "fen": "rnbqkbnr/pppppppp/8/8/4P3/8/PPPP1PPP/RNBQKBNR b KQkq - 0 1",
+    "evaluation": 0.25,
+    "depth": 15,
+    "game_id": 1
+  },
+  {
+    "fen": "rnbqkbnr/pppp1ppp/4p3/8/4P3/8/PPPP1PPP/RNBQKBNR w KQkq - 0 2",
+    "evaluation": 0.15,
+    "depth": 15,
+    "game_id": 1
+  },
+  {
+    "fen": "rnbqkbnr/pppp1ppp/4p3/8/4P3/5N2/PPPP1PPP/RNBQKB1R b KQkq - 1 2",
+    "evaluation": 0.3,
+    "depth": 15,
+    "game_id": 1
+  },
+  {
+    "fen": "r1bqkbnr/pppp1ppp/2n1p3/8/4P3/5N2/PPPP1PPP/RNBQKB1R w KQkq - 2 3",
+    "evaluation": 0.2,
+    "depth": 15,
+    "game_id": 1
+  },
+  {
+    "fen": "r1bqkbnr/pppp1ppp/2n1p3/8/3PP3/5N2/PPP2PPP/RNBQKB1R b KQkq - 0 3",
+    "evaluation": 0.4,
+    "depth": 15,
+    "game_id": 1
+  },
+  {
+    "fen": "r1bqkb1r/pppp1ppp/2n1pn2/8/3PP3/5N2/PPP2PPP/RNBQKB1R w KQkq - 2 4",
+    "evaluation": 0.25,
+    "depth": 15,
+    "game_id": 1
+  },
+  {
+    "fen": "r1bqkb1r/pppp1ppp/2n1pn2/8/3PP3/3P1N2/PPP2PPP/RNBQKB1R b KQkq - 0 4",
+    "evaluation": 0.3,
+    "depth": 15,
+    "game_id": 1
+  },
+  {
+    "fen": "r1bqkb1r/pppp1ppp/2n1pn2/8/3PP3/2NP1N2/PPP2PPP/R1BQKB1R b KQkq - 1 4",
+    "evaluation": 0.35,
+    "depth": 15,
+    "game_id": 1
+  },
+  {
+    "fen": "r1bqk2r/pppp1ppp/2n1pn2/2b5/3PP3/2NP1N2/PPP2PPP/R1BQKB1R w KQkq - 2 5",
+    "evaluation": 0.25,
+    "depth": 15,
+    "game_id": 1
+  },
+  {
+    "fen": "r1bqk2r/pppp1ppp/2n1pn2/2b1p3/3PP3/2NP1N2/PPP2PPP/R1BQKB1R w KQkq - 0 5",
+    "evaluation": 0.2,
+    "depth": 15,
+    "game_id": 2
+  },
+  {
+    "fen": "r1bqk2r/pppp1ppp/2n1pn2/2b1p3/2BPP3/2NP1N2/PPP2PPP/R1BQK2R b KQkq - 1 5",
+    "evaluation": 0.4,
+    "depth": 15,
+    "game_id": 2
+  },
+  {
+    "fen": "r1bqk2r/pppp1ppp/2n1pn2/4p3/2BPP3/2NP1N2/PPP2PPP/R1BQK2R b KQkq - 0 5",
+    "evaluation": 0.6,
+    "depth": 15,
+    "game_id": 2
+  },
+  {
+    "fen": "r1bqk2r/pppp1ppp/2n1pn2/4p3/2BPP3/2NP1N2/PPP2PPP/R1BQ1RK1 b kq - 1 5",
+    "evaluation": 0.65,
+    "depth": 15,
+    "game_id": 2
+  },
+  {
+    "fen": "rnbqkbnr/pppp1ppp/8/4p3/4P3/8/PPPP1PPP/RNBQKBNR w KQkq - 0 2",
+    "evaluation": 0.0,
+    "depth": 15,
+    "game_id": 3
+  },
+  {
+    "fen": "rnbqkbnr/pppp1ppp/8/4p3/4P3/5N2/PPPP1PPP/RNBQKB1R b KQkq - 1 2",
+    "evaluation": 0.1,
+    "depth": 15,
+    "game_id": 3
+  },
+  {
+    "fen": "r1bqkbnr/pppp1ppp/2n5/4p3/4P3/5N2/PPPP1PPP/RNBQKB1R w KQkq - 2 3",
+    "evaluation": 0.05,
+    "depth": 15,
+    "game_id": 3
+  },
+  {
+    "fen": "r1bqkbnr/pppp1ppp/2n5/1B2p3/4P3/5N2/PPPP1PPP/RNBQK2R b KQkq - 3 3",
+    "evaluation": 0.3,
+    "depth": 15,
+    "game_id": 3
+  },
+  {
+    "fen": "r1bqkbnr/1ppp1ppp/p1n5/1B2p3/4P3/5N2/PPPP1PPP/RNBQK2R w KQkq - 0 4",
+    "evaluation": 0.4,
+    "depth": 15,
+    "game_id": 3
+  },
+  {
+    "fen": "r1bqkbnr/1ppp1ppp/p1n5/4p3/1B2P3/5N2/PPPP1PPP/RNBQK2R b KQkq - 1 4",
+    "evaluation": 0.5,
+    "depth": 15,
+    "game_id": 3
+  },
+  {
+    "fen": "rnbqkbnr/ppp1pppp/8/3p4/4P3/8/PPPP1PPP/RNBQKBNR w KQkq - 0 2",
+    "evaluation": 0.2,
+    "depth": 15,
+    "game_id": 4
+  },
+  {
+    "fen": "rnbqkbnr/ppp1pppp/8/3p4/3PP3/8/PPP2PPP/RNBQKBNR b KQkq - 0 2",
+    "evaluation": 0.15,
+    "depth": 15,
+    "game_id": 4
+  },
+  {
+    "fen": "rnbqkbnr/ppp2ppp/4p3/3p4/3PP3/8/PPP2PPP/RNBQKBNR w KQkq - 0 3",
+    "evaluation": 0.1,
+    "depth": 15,
+    "game_id": 4
+  },
+  {
+    "fen": "rnbqkbnr/ppp2ppp/4p3/3p4/2PPP3/8/PP3PPP/RNBQKBNR b KQkq - 0 3",
+    "evaluation": 0.25,
+    "depth": 15,
+    "game_id": 4
+  },
+  {
+    "fen": "rnbqkbnr/ppp2ppp/4p3/8/2PpP3/8/PP3PPP/RNBQKBNR w KQkq - 0 4",
+    "evaluation": 0.2,
+    "depth": 15,
+    "game_id": 4
+  },
+  {
+    "fen": "rnbqkbnr/ppp1pppp/8/8/2pp4/8/PPP1PPPP/RNBQKBNR w KQkq - 0 3",
+    "evaluation": 0.3,
+    "depth": 15,
+    "game_id": 5
+  },
+  {
+    "fen": "rnbqkbnr/ppp1pppp/8/8/2pp4/2P5/PP2PPPP/RNBQKBNR b KQkq - 0 3",
+    "evaluation": 0.4,
+    "depth": 15,
+    "game_id": 5
+  },
+  {
+    "fen": "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1",
+    "evaluation": 0.0,
+    "depth": 15,
+    "game_id": 6
+  },
+  {
+    "fen": "rnbqkbnr/pppppppp/8/8/3P4/8/PPP1PPPP/RNBQKBNR b KQkq - 0 1",
+    "evaluation": 0.2,
+    "depth": 15,
+    "game_id": 6
+  },
+  {
+    "fen": "rnbqkbnr/ppp1pppp/8/3p4/3P4/8/PPP1PPPP/RNBQKBNR w KQkq - 0 2",
+    "evaluation": 0.15,
+    "depth": 15,
+    "game_id": 6
+  },
+  {
+    "fen": "rnbqkbnr/ppp1pppp/8/3p4/2PP4/8/PP2PPPP/RNBQKBNR b KQkq - 0 2",
+    "evaluation": 0.25,
+    "depth": 15,
+    "game_id": 6
+  },
+  {
+    "fen": "rnbqkbnr/ppp2ppp/4p3/3p4/2PP4/8/PP2PPPP/RNBQKBNR w KQkq - 0 3",
+    "evaluation": 0.2,
+    "depth": 15,
+    "game_id": 6
+  },
+  {
+    "fen": "rnbqkbnr/ppp2ppp/4p3/3p4/2PP4/2N5/PP2PPPP/R1BQKBNR b KQkq - 1 3",
+    "evaluation": 0.3,
+    "depth": 15,
+    "game_id": 6
+  },
+  {
+    "fen": "r1bqkbnr/ppp2ppp/2n1p3/3p4/2PP4/2N5/PP2PPPP/R1BQKBNR w KQkq - 2 4",
+    "evaluation": 0.25,
+    "depth": 15,
+    "game_id": 6
+  },
+  {
+    "fen": "r1bqkbnr/ppp2ppp/2n1p3/3p4/2PP4/2N2N2/PP2PPPP/R1BQKB1R b KQkq - 3 4",
+    "evaluation": 0.35,
+    "depth": 15,
+    "game_id": 6
+  },
+  {
+    "fen": "r1bqkb1r/ppp2ppp/2n1pn2/3p4/2PP4/2N2N2/PP2PPPP/R1BQKB1R w KQkq - 4 5",
+    "evaluation": 0.3,
+    "depth": 15,
+    "game_id": 6
+  },
+  {
+    "fen": "r1bqkb1r/ppp2ppp/2n1pn2/3p4/2PP4/2N2N2/PP2PPPP/R1BQKB1R w KQkq - 4 5",
+    "evaluation": 0.3,
+    "depth": 15,
+    "game_id": 7
+  },
+  {
+    "fen": "r1bqkb1r/ppp2ppp/2n1pn2/3p4/2PP4/2N2N2/PPP1PPPP/R1BQKB1R b KQkq - 0 5",
+    "evaluation": 0.4,
+    "depth": 15,
+    "game_id": 7
+  },
+  {
+    "fen": "r1bqkb1r/ppp2ppp/2n1pn2/8/2PpP3/2N2N2/PPP1PPPP/R1BQKB1R w KQkq - 0 6",
+    "evaluation": 0.35,
+    "depth": 15,
+    "game_id": 7
+  },
+  {
+    "fen": "r1bqkb1r/ppp2ppp/2n1pn2/8/2NpP3/5N2/PPP1PPPP/R1BQKB1R b KQkq - 0 6",
+    "evaluation": 0.5,
+    "depth": 15,
+    "game_id": 7
+  },
+  {
+    "fen": "r1bqkb1r/ppp2ppp/4pn2/2n5/2NpP3/5N2/PPP1PPPP/R1BQKB1R w KQkq - 1 7",
+    "evaluation": 0.45,
+    "depth": 15,
+    "game_id": 7
+  },
+  {
+    "fen": "r1bqkb1r/ppp2ppp/4pn2/2n5/3pP3/3P1N2/PPP2PPP/R1BQKB1R b KQkq - 0 7",
+    "evaluation": 0.3,
+    "depth": 15,
+    "game_id": 7
+  },
+  {
+    "fen": "r2qkb1r/ppp2ppp/2b1pn2/2n5/3pP3/3P1N2/PPP2PPP/R1BQKB1R w KQkq - 1 8",
+    "evaluation": 0.25,
+    "depth": 15,
+    "game_id": 7
+  },
+  {
+    "fen": "r2qkb1r/ppp2ppp/2b1pn2/2n5/3pP3/3P1N2/PPPB1PPP/R2QKB1R b KQkq - 2 8",
+    "evaluation": 0.4,
+    "depth": 15,
+    "game_id": 7
+  },
+  {
+    "fen": "r2q1rk1/ppp2ppp/2b1pn2/2n5/3pP3/3P1N2/PPPB1PPP/R2QKB1R w KQ - 3 9",
+    "evaluation": 0.35,
+    "depth": 15,
+    "game_id": 7
+  },
+  {
+    "fen": "r2q1rk1/ppp2ppp/2b1pn2/2n5/3pP3/3P1N2/PPPB1PPP/R2Q1RK1 b - - 4 9",
+    "evaluation": 0.45,
+    "depth": 15,
+    "game_id": 7
+  },
+  {
+    "fen": "r2q1rk1/ppp2ppp/4pn2/2nb4/3pP3/3P1N2/PPPB1PPP/R2Q1RK1 w - - 5 10",
+    "evaluation": 0.4,
+    "depth": 15,
+    "game_id": 7
+  },
+  {
+    "fen": "r2q1rk1/ppp2ppp/4pn2/2nb4/3NP3/3P4/PPPB1PPP/R2Q1RK1 b - - 0 10",
+    "evaluation": 0.6,
+    "depth": 15,
+    "game_id": 7
+  },
+  {
+    "fen": "r2q1rk1/ppp2ppp/4pn2/3b4/3nP3/3P4/PPPB1PPP/R2Q1RK1 w - - 0 11",
+    "evaluation": 0.2,
+    "depth": 15,
+    "game_id": 7
+  },
+  {
+    "fen": "r2q1rk1/ppp2ppp/4pn2/3b4/3BP3/3P4/PPP2PPP/R2Q1RK1 b - - 0 11",
+    "evaluation": 0.5,
+    "depth": 15,
+    "game_id": 7
+  },
+  {
+    "fen": "r2q1rk1/ppp2ppp/5n2/3b1p2/3BP3/3P4/PPP2PPP/R2Q1RK1 w - - 0 12",
+    "evaluation": 0.3,
+    "depth": 15,
+    "game_id": 7
+  },
+  {
+    "fen": "r2q1rk1/ppp2ppp/5n2/3b1B2/4P3/3P4/PPP2PPP/R2Q1RK1 b - - 0 12",
+    "evaluation": 0.8,
+    "depth": 15,
+    "game_id": 7
+  },
+  {
+    "fen": "r2qr1k1/ppp2ppp/5n2/3b1B2/4P3/3P4/PPP2PPP/R2Q1RK1 w - - 1 13",
+    "evaluation": 0.75,
+    "depth": 15,
+    "game_id": 7
+  },
+  {
+    "fen": "r2qr1k1/ppp2ppp/5n2/5B2/4P3/3P4/PPP2PPP/R2Q1RK1 b - - 0 13",
+    "evaluation": 1.2,
+    "depth": 15,
+    "game_id": 7
+  },
+  {
+    "fen": "r2qr1k1/ppp2ppp/5n2/5B2/4P3/3P4/PPP2PPP/R2Q1RK1 b - - 0 13",
+    "evaluation": 1.2,
+    "depth": 15,
+    "game_id": 8
+  },
+  {
+    "fen": "r2qr1k1/ppp3pp/5n1p/5B2/4P3/3P4/PPP2PPP/R2Q1RK1 w - - 0 14",
+    "evaluation": 1.3,
+    "depth": 15,
+    "game_id": 8
+  },
+  {
+    "fen": "r2qr1k1/ppp3pp/5n1p/8/4P3/3P4/PPP2PPP/R2Q1RK1 b - - 0 14",
+    "evaluation": 0.4,
+    "depth": 15,
+    "game_id": 8
+  },
+  {
+    "fen": "r3r1k1/ppp1q1pp/5n1p/8/4P3/3P4/PPP2PPP/R2Q1RK1 w - - 1 15",
+    "evaluation": 0.3,
+    "depth": 15,
+    "game_id": 8
+  },
+  {
+    "fen": "r3r1k1/ppp1q1pp/5n1p/8/4P3/3P4/PPPQ1PPP/R4RK1 b - - 2 15",
+    "evaluation": 0.5,
+    "depth": 15,
+    "game_id": 8
+  },
+  {
+    "fen": "4rrk1/ppp1q1pp/5n1p/8/4P3/3P4/PPPQ1PPP/R4RK1 w - - 3 16",
+    "evaluation": 0.4,
+    "depth": 15,
+    "game_id": 8
+  },
+  {
+    "fen": "4rrk1/ppp1q1pp/5n1p/8/4P3/3P4/PPPQ1PPP/2R2RK1 b - - 4 16",
+    "evaluation": 0.6,
+    "depth": 15,
+    "game_id": 8
+  },
+  {
+    "fen": "5rk1/ppp1qrpp/5n1p/8/4P3/3P4/PPPQ1PPP/2R2RK1 w - - 5 17",
+    "evaluation": 0.55,
+    "depth": 15,
+    "game_id": 8
+  },
+  {
+    "fen": "5rk1/ppp1qrpp/5n1p/8/4P3/3P4/PPPQ1PPP/R4RK1 b - - 6 17",
+    "evaluation": 0.4,
+    "depth": 15,
+    "game_id": 8
+  },
+  {
+    "fen": "5rk1/ppp2rpp/4qn1p/8/4P3/3P4/PPPQ1PPP/R4RK1 w - - 7 18",
+    "evaluation": 0.3,
+    "depth": 15,
+    "game_id": 8
+  },
+  {
+    "fen": "5rk1/ppp2rpp/4qn1p/8/4P3/3PQ3/PPP2PPP/R4RK1 b - - 8 18",
+    "evaluation": 0.5,
+    "depth": 15,
+    "game_id": 8
+  },
+  {
+    "fen": "5rk1/ppp2rpp/5n1p/4q3/4P3/3PQ3/PPP2PPP/R4RK1 w - - 9 19",
+    "evaluation": 0.45,
+    "depth": 15,
+    "game_id": 8
+  },
+  {
+    "fen": "5rk1/ppp2rpp/5n1p/4Q3/4P3/3P4/PPP2PPP/R4RK1 b - - 0 19",
+    "evaluation": 2.5,
+    "depth": 15,
+    "game_id": 8
+  }
+]

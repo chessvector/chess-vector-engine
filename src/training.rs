@@ -1,4 +1,4 @@
-use chess::{Board, Game, MoveGen};
+use chess::{Board, Game, MoveGen, ChessMove};
 use pgn_reader::{RawHeader, SanPlus, Skip, Visitor, BufferedReader};
 use std::fs::File;
 use std::io::{BufRead, BufReader};
@@ -7,6 +7,7 @@ use std::process::{Command, Stdio};
 use std::str::FromStr;
 use indicatif::{ProgressBar, ProgressStyle};
 use rayon::prelude::*;
+use serde::{Deserialize, Serialize};
 
 use crate::ChessVectorEngine;
 
@@ -17,6 +18,41 @@ pub struct TrainingData {
     pub evaluation: f32,
     pub depth: u8,
     pub game_id: usize,
+}
+
+/// Tactical puzzle data from Lichess puzzle database
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct TacticalPuzzle {
+    #[serde(rename = "PuzzleId")]
+    pub puzzle_id: String,
+    #[serde(rename = "FEN")]
+    pub fen: String,
+    #[serde(rename = "Moves")]
+    pub moves: String,           // Space-separated move sequence
+    #[serde(rename = "Rating")]
+    pub rating: u32,
+    #[serde(rename = "RatingDeviation")]
+    pub rating_deviation: u32,
+    #[serde(rename = "Popularity")]
+    pub popularity: i32,
+    #[serde(rename = "NbPlays")]
+    pub nb_plays: u32,
+    #[serde(rename = "Themes")]
+    pub themes: String,          // Space-separated themes
+    #[serde(rename = "GameUrl")]
+    pub game_url: Option<String>,
+    #[serde(rename = "OpeningTags")]
+    pub opening_tags: Option<String>,
+}
+
+/// Processed tactical training data
+#[derive(Debug, Clone)]
+pub struct TacticalTrainingData {
+    pub position: Board,
+    pub solution_move: ChessMove,
+    pub move_theme: String,
+    pub difficulty: f32,         // Rating as difficulty
+    pub tactical_value: f32,     // High value for move outcome
 }
 
 /// PGN game visitor for extracting positions
@@ -630,5 +666,214 @@ impl<'de> serde::Deserialize<'de> for TrainingData {
 
         const FIELDS: &'static [&'static str] = &["fen", "evaluation", "depth", "game_id"];
         deserializer.deserialize_struct("TrainingData", FIELDS, TrainingDataVisitor)
+    }
+}
+
+/// Tactical puzzle parser for Lichess puzzle database
+pub struct TacticalPuzzleParser;
+
+impl TacticalPuzzleParser {
+    /// Parse Lichess puzzle CSV file
+    pub fn parse_csv<P: AsRef<Path>>(
+        file_path: P,
+        max_puzzles: Option<usize>,
+        min_rating: Option<u32>,
+        max_rating: Option<u32>,
+    ) -> Result<Vec<TacticalTrainingData>, Box<dyn std::error::Error>> {
+        let file = File::open(file_path)?;
+        let reader = BufReader::new(file);
+        
+        // Create CSV reader without headers since Lichess CSV has no header row
+        // Set flexible field count to handle inconsistent CSV structure
+        let mut csv_reader = csv::ReaderBuilder::new()
+            .has_headers(false)
+            .flexible(true)  // Allow variable number of fields
+            .from_reader(reader);
+        
+        let mut tactical_data = Vec::new();
+        let mut processed = 0;
+        let mut skipped = 0;
+        
+        let pb = ProgressBar::new_spinner();
+        pb.set_style(ProgressStyle::default_spinner()
+            .template("{spinner:.green} Parsing tactical puzzles: {pos} (skipped: {skipped})")
+            .unwrap());
+        
+        for result in csv_reader.records() {
+            let record = match result {
+                Ok(r) => r,
+                Err(e) => {
+                    skipped += 1;
+                    println!("CSV parse error: {}", e);
+                    continue;
+                }
+            };
+            
+            // Parse record manually since we don't have headers
+            // Need at least 8 fields (PuzzleId, FEN, Moves, Rating, RatingDeviation, Popularity, NbPlays, Themes)
+            if record.len() < 8 {
+                skipped += 1;
+                continue;
+            }
+            
+            let puzzle_id = record[0].to_string();
+            let fen = record[1].to_string();
+            let moves = record[2].to_string();
+            let rating: u32 = match record[3].parse() {
+                Ok(r) => r,
+                Err(_) => {
+                    skipped += 1;
+                    continue;
+                }
+            };
+            let rating_deviation: u32 = match record[4].parse() {
+                Ok(r) => r,
+                Err(_) => {
+                    skipped += 1;
+                    continue;
+                }
+            };
+            let popularity: i32 = match record[5].parse() {
+                Ok(p) => p,
+                Err(_) => {
+                    skipped += 1;
+                    continue;
+                }
+            };
+            let nb_plays: u32 = match record[6].parse() {
+                Ok(n) => n,
+                Err(_) => {
+                    skipped += 1;
+                    continue;
+                }
+            };
+            let themes = record[7].to_string();
+            let game_url = if record.len() > 8 { Some(record[8].to_string()) } else { None };
+            let opening_tags = if record.len() > 9 { Some(record[9].to_string()) } else { None };
+            
+            let puzzle = TacticalPuzzle {
+                puzzle_id,
+                fen,
+                moves,
+                rating,
+                rating_deviation,
+                popularity,
+                nb_plays,
+                themes,
+                game_url,
+                opening_tags,
+            };
+            
+            // Apply rating filters
+            if let Some(min) = min_rating {
+                if puzzle.rating < min { 
+                    skipped += 1;
+                    continue; 
+                }
+            }
+            if let Some(max) = max_rating {
+                if puzzle.rating > max { 
+                    skipped += 1;
+                    continue; 
+                }
+            }
+            
+            // Parse and process puzzle
+            if let Some(training_data) = Self::process_puzzle(puzzle) {
+                tactical_data.push(training_data);
+                processed += 1;
+                pb.set_position(processed as u64);
+                
+                // Check max limit
+                if let Some(max) = max_puzzles {
+                    if processed >= max { break; }
+                }
+            } else {
+                skipped += 1;
+            }
+            
+            // Update progress message with skip count
+            if (processed + skipped) % 1000 == 0 {
+                pb.set_message(format!("Parsing tactical puzzles: {} (skipped: {})", processed, skipped));
+            }
+        }
+        
+        pb.finish_with_message(format!("Parsed {} tactical puzzles (skipped {})", tactical_data.len(), skipped));
+        Ok(tactical_data)
+    }
+    
+    /// Process individual puzzle into training data
+    fn process_puzzle(puzzle: TacticalPuzzle) -> Option<TacticalTrainingData> {
+        // Parse FEN position
+        let position = match Board::from_str(&puzzle.fen) {
+            Ok(board) => board,
+            Err(_) => return None,
+        };
+        
+        // Parse move sequence - first move is the solution
+        let moves: Vec<&str> = puzzle.moves.split_whitespace().collect();
+        if moves.is_empty() {
+            return None;
+        }
+        
+        // Parse the solution move (first move in sequence)
+        let solution_move = match ChessMove::from_str(moves[0]) {
+            Ok(mv) => mv,
+            Err(_) => {
+                // Try parsing as SAN
+                match ChessMove::from_san(&position, moves[0]) {
+                    Ok(mv) => mv,
+                    Err(_) => return None,
+                }
+            }
+        };
+        
+        // Verify move is legal
+        let legal_moves: Vec<ChessMove> = MoveGen::new_legal(&position).collect();
+        if !legal_moves.contains(&solution_move) {
+            return None;
+        }
+        
+        // Extract primary theme
+        let themes: Vec<&str> = puzzle.themes.split_whitespace().collect();
+        let primary_theme = themes.first().unwrap_or(&"tactical").to_string();
+        
+        // Calculate tactical value based on rating and popularity
+        let difficulty = puzzle.rating as f32 / 1000.0; // Normalize to 0.8-3.0 range
+        let popularity_bonus = (puzzle.popularity as f32 / 100.0).min(2.0);
+        let tactical_value = difficulty + popularity_bonus; // High value for move outcome
+        
+        Some(TacticalTrainingData {
+            position,
+            solution_move,
+            move_theme: primary_theme,
+            difficulty,
+            tactical_value,
+        })
+    }
+    
+    /// Load tactical training data into chess engine
+    pub fn load_into_engine(
+        tactical_data: &[TacticalTrainingData],
+        engine: &mut ChessVectorEngine,
+    ) {
+        let pb = ProgressBar::new(tactical_data.len() as u64);
+        pb.set_style(ProgressStyle::default_bar()
+            .template("{spinner:.green} [{elapsed_precise}] [{bar:40.cyan/blue}] {pos}/{len} Loading tactical patterns")
+            .unwrap()
+            .progress_chars("#>-"));
+        
+        for data in tactical_data {
+            // Add position with high-value tactical move
+            engine.add_position_with_move(
+                &data.position,
+                0.0, // Position evaluation (neutral for puzzles)
+                Some(data.solution_move),
+                Some(data.tactical_value), // High tactical value
+            );
+            pb.inc(1);
+        }
+        
+        pb.finish_with_message(format!("Loaded {} tactical patterns", tactical_data.len()));
     }
 }

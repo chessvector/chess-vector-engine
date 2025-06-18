@@ -40,6 +40,9 @@ impl PositionEncoder {
         // 4. Basic positional features
         self.encode_positional_features(board, &mut features);
         
+        // 5. Tactical pattern features
+        self.encode_tactical_patterns(board, &mut features);
+        
         // Pad or truncate to desired size
         features.resize(self.vector_size, 0.0);
         
@@ -344,6 +347,10 @@ impl PositionEncoder {
             
             features.push(potential_pins as f32);
         }
+        
+        // Add center control and piece coordination features  
+        self.encode_center_control(board, features);
+        self.encode_piece_coordination(board, features);
     }
     
     /// Encode center control
