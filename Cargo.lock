@@ -310,6 +310,7 @@ dependencies = [
  "clap",
  "criterion",
  "csv",
+ "fastrand",
  "indicatif",
  "ndarray",
  "ndarray-rand",

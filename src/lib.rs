@@ -14,7 +14,7 @@ pub use similarity_search::SimilaritySearch;
 pub use lsh::LSH;
 pub use manifold_learner::ManifoldLearner;
 pub use opening_book::{OpeningBook, OpeningEntry, OpeningBookStats};
-pub use training::{TrainingData, TrainingDataset, GameExtractor, EngineEvaluator, TacticalPuzzle, TacticalTrainingData, TacticalPuzzleParser};
+pub use training::{TrainingData, TrainingDataset, GameExtractor, EngineEvaluator, TacticalPuzzle, TacticalTrainingData, TacticalPuzzleParser, SelfPlayConfig, SelfPlayTrainer};
 pub use persistence::{Database, PositionData, LSHTableData};
 pub use gpu_acceleration::{GPUAccelerator, DeviceType};
 pub use tactical_search::{TacticalSearch, TacticalConfig, TacticalResult};
@@ -952,6 +952,118 @@ impl ChessVectorEngine {
     /// Check if opening book is enabled
     pub fn is_opening_book_enabled(&self) -> bool {
         self.opening_book.is_some()
+    }
+    
+    /// Run self-play training to generate new positions
+    pub fn self_play_training(&mut self, config: training::SelfPlayConfig) -> Result<usize, Box<dyn std::error::Error>> {
+        let mut trainer = training::SelfPlayTrainer::new(config);
+        let new_data = trainer.generate_training_data(self);
+        
+        let positions_added = new_data.data.len();
+        
+        // Add new positions to the engine incrementally
+        for data in &new_data.data {
+            self.add_position(&data.board, data.evaluation);
+        }
+        
+        println!("🧠 Self-play training complete: {} new positions learned", positions_added);
+        Ok(positions_added)
+    }
+    
+    /// Run continuous self-play training with periodic saving
+    pub fn continuous_self_play(&mut self, 
+        config: training::SelfPlayConfig,
+        iterations: usize,
+        save_path: Option<&str>) -> Result<usize, Box<dyn std::error::Error>> {
+        
+        let mut total_positions = 0;
+        let mut trainer = training::SelfPlayTrainer::new(config.clone());
+        
+        println!("🔄 Starting continuous self-play training for {} iterations...", iterations);
+        
+        for iteration in 1..=iterations {
+            println!("\n--- Self-Play Iteration {}/{} ---", iteration, iterations);
+            
+            // Generate new training data
+            let new_data = trainer.generate_training_data(self);
+            let batch_size = new_data.data.len();
+            
+            // Add new positions incrementally
+            for data in &new_data.data {
+                self.add_position(&data.board, data.evaluation);
+            }
+            
+            total_positions += batch_size;
+            
+            println!("✅ Iteration {}: Added {} positions (total: {})", 
+                     iteration, batch_size, self.knowledge_base_size());
+            
+            // Save periodically if path provided
+            if let Some(path) = save_path {
+                if iteration % 5 == 0 || iteration == iterations {
+                    match self.save_training_data(path) {
+                        Ok(_) => println!("💾 Progress saved to {}", path),
+                        Err(e) => println!("⚠️  Failed to save: {}", e),
+                    }
+                }
+            }
+            
+            // Rebuild manifold learning every 10 iterations for large datasets
+            if iteration % 10 == 0 && self.knowledge_base_size() > 5000 {
+                if self.manifold_learner.is_some() {
+                    println!("🧠 Retraining manifold learning with new data...");
+                    let _ = self.train_manifold_learning(5);
+                }
+            }
+        }
+        
+        println!("\n🎉 Continuous self-play complete: {} total new positions", total_positions);
+        Ok(total_positions)
+    }
+    
+    /// Self-play with adaptive difficulty (engine gets stronger as it learns)
+    pub fn adaptive_self_play(&mut self, 
+        base_config: training::SelfPlayConfig,
+        target_strength: f32) -> Result<usize, Box<dyn std::error::Error>> {
+        
+        let mut current_config = base_config;
+        let mut total_positions = 0;
+        let mut iteration = 1;
+        
+        println!("🎯 Starting adaptive self-play training (target strength: {:.2})...", target_strength);
+        
+        loop {
+            println!("\n--- Adaptive Iteration {} ---", iteration);
+            
+            // Run self-play with current configuration
+            let positions_added = self.self_play_training(current_config.clone())?;
+            total_positions += positions_added;
+            
+            // Evaluate current strength (simplified - could use more sophisticated metrics)
+            let current_strength = self.knowledge_base_size() as f32 / 10000.0; // Simple heuristic
+            
+            println!("📊 Current strength estimate: {:.2} (target: {:.2})", 
+                     current_strength, target_strength);
+            
+            if current_strength >= target_strength {
+                println!("🎉 Target strength reached!");
+                break;
+            }
+            
+            // Adapt configuration for next iteration
+            current_config.exploration_factor *= 0.95; // Reduce exploration as we get stronger
+            current_config.temperature *= 0.98; // Reduce randomness
+            current_config.games_per_iteration = (current_config.games_per_iteration as f32 * 1.1) as usize; // More games
+            
+            iteration += 1;
+            
+            if iteration > 50 {
+                println!("⚠️  Maximum iterations reached");
+                break;
+            }
+        }
+        
+        Ok(total_positions)
     }
 }
 

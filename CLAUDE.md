@@ -18,6 +18,7 @@ This is a **Rust library** (`chess-vector-engine`) that provides vector-based ch
 - `cargo run --bin analyze <FEN>` - Position analysis tool with opening book
 - `cargo run --bin training_benchmark` - Test training performance optimizations
 - `cargo run --bin tactical_training -- --puzzles <CSV_FILE>` - Train with Lichess puzzles
+- `cargo run --bin self_play_training` - Self-play training for continuous learning
 
 ### Publishing
 - `cargo publish` - Publish library to crates.io (when ready)

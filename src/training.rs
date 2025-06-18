@@ -11,6 +11,36 @@ use serde::{Deserialize, Serialize};
 
 use crate::ChessVectorEngine;
 
+/// Self-play training configuration
+#[derive(Debug, Clone)]
+pub struct SelfPlayConfig {
+    /// Number of games to play per training iteration
+    pub games_per_iteration: usize,
+    /// Maximum moves per game (to prevent infinite games)
+    pub max_moves_per_game: usize,
+    /// Exploration factor for move selection (0.0 = greedy, 1.0 = random)
+    pub exploration_factor: f32,
+    /// Minimum evaluation confidence to include position
+    pub min_confidence: f32,
+    /// Whether to use opening book for game starts
+    pub use_opening_book: bool,
+    /// Temperature for move selection (higher = more random)
+    pub temperature: f32,
+}
+
+impl Default for SelfPlayConfig {
+    fn default() -> Self {
+        Self {
+            games_per_iteration: 100,
+            max_moves_per_game: 200,
+            exploration_factor: 0.3,
+            min_confidence: 0.1,
+            use_opening_book: true,
+            temperature: 0.8,
+        }
+    }
+}
+
 /// Training data point containing a position and its evaluation
 #[derive(Debug, Clone)]
 pub struct TrainingData {
@@ -844,6 +874,210 @@ impl TrainingDataset {
         } else {
             dot_product / (norm_a * norm_b)
         }
+    }
+}
+
+/// Self-play training system for generating new positions
+pub struct SelfPlayTrainer {
+    config: SelfPlayConfig,
+    game_counter: usize,
+}
+
+impl SelfPlayTrainer {
+    pub fn new(config: SelfPlayConfig) -> Self {
+        Self {
+            config,
+            game_counter: 0,
+        }
+    }
+    
+    /// Generate training data through self-play games
+    pub fn generate_training_data(&mut self, engine: &ChessVectorEngine) -> TrainingDataset {
+        let mut dataset = TrainingDataset::new();
+        
+        println!("🎮 Starting self-play training with {} games...", self.config.games_per_iteration);
+        let pb = ProgressBar::new(self.config.games_per_iteration as u64);
+        pb.set_style(ProgressStyle::default_bar()
+            .template("{spinner:.green} [{elapsed_precise}] [{bar:40.cyan/blue}] {pos}/{len} ({eta})")
+            .unwrap()
+            .progress_chars("#>-"));
+        
+        for _ in 0..self.config.games_per_iteration {
+            let game_data = self.play_single_game(engine);
+            dataset.data.extend(game_data);
+            self.game_counter += 1;
+            pb.inc(1);
+        }
+        
+        pb.finish_with_message("Self-play games completed");
+        println!("✅ Generated {} positions from {} games", dataset.data.len(), self.config.games_per_iteration);
+        
+        dataset
+    }
+    
+    /// Play a single self-play game and extract training positions
+    fn play_single_game(&self, engine: &ChessVectorEngine) -> Vec<TrainingData> {
+        let mut game = Game::new();
+        let mut positions = Vec::new();
+        let mut move_count = 0;
+        
+        // Use opening book for variety if enabled
+        if self.config.use_opening_book {
+            if let Some(opening_moves) = self.get_random_opening() {
+                for mv in opening_moves {
+                    if game.make_move(mv) {
+                        move_count += 1;
+                    } else {
+                        break;
+                    }
+                }
+            }
+        }
+        
+        // Play the game
+        while !game.result().is_some() && move_count < self.config.max_moves_per_game {
+            let current_position = game.current_position();
+            
+            // Get engine's move recommendation with exploration
+            let move_choice = self.select_move_with_exploration(engine, &current_position);
+            
+            if let Some(chess_move) = move_choice {
+                // Evaluate the position before making the move
+                if let Some(evaluation) = engine.evaluate_position(&current_position) {
+                    // Only include positions with sufficient confidence
+                    if evaluation.abs() >= self.config.min_confidence || move_count < 10 {
+                        positions.push(TrainingData {
+                            board: current_position,
+                            evaluation,
+                            depth: 1, // Self-play depth
+                            game_id: self.game_counter,
+                        });
+                    }
+                }
+                
+                // Make the move
+                if !game.make_move(chess_move) {
+                    break; // Invalid move, end game
+                }
+                move_count += 1;
+            } else {
+                break; // No legal moves
+            }
+        }
+        
+        // Add final position evaluation based on game result
+        if let Some(result) = game.result() {
+            let final_position = game.current_position();
+            let final_eval = match result {
+                chess::GameResult::WhiteCheckmates => if final_position.side_to_move() == chess::Color::Black { 10.0 } else { -10.0 },
+                chess::GameResult::BlackCheckmates => if final_position.side_to_move() == chess::Color::White { 10.0 } else { -10.0 },
+                chess::GameResult::WhiteResigns => -10.0,
+                chess::GameResult::BlackResigns => 10.0,
+                chess::GameResult::Stalemate | chess::GameResult::DrawAccepted | 
+                chess::GameResult::DrawDeclared => 0.0,
+            };
+            
+            positions.push(TrainingData {
+                board: final_position,
+                evaluation: final_eval,
+                depth: 1,
+                game_id: self.game_counter,
+            });
+        }
+        
+        positions
+    }
+    
+    /// Select a move with exploration vs exploitation balance
+    fn select_move_with_exploration(&self, engine: &ChessVectorEngine, position: &Board) -> Option<ChessMove> {
+        let recommendations = engine.recommend_legal_moves(position, 5);
+        
+        if recommendations.is_empty() {
+            return None;
+        }
+        
+        // Use temperature-based selection for exploration
+        if fastrand::f32() < self.config.exploration_factor {
+            // Exploration: weighted random selection based on evaluations
+            self.select_move_with_temperature(&recommendations)
+        } else {
+            // Exploitation: take the best move
+            Some(recommendations[0].chess_move)
+        }
+    }
+    
+    /// Temperature-based move selection for exploration
+    fn select_move_with_temperature(&self, recommendations: &[crate::MoveRecommendation]) -> Option<ChessMove> {
+        if recommendations.is_empty() {
+            return None;
+        }
+        
+        // Convert evaluations to probabilities using temperature
+        let mut probabilities = Vec::new();
+        let mut sum = 0.0;
+        
+        for rec in recommendations {
+            // Use average_outcome as evaluation score for temperature selection
+            let prob = (rec.average_outcome / self.config.temperature).exp();
+            probabilities.push(prob);
+            sum += prob;
+        }
+        
+        // Normalize probabilities
+        for prob in &mut probabilities {
+            *prob /= sum;
+        }
+        
+        // Random selection based on probabilities
+        let rand_val = fastrand::f32();
+        let mut cumulative = 0.0;
+        
+        for (i, &prob) in probabilities.iter().enumerate() {
+            cumulative += prob;
+            if rand_val <= cumulative {
+                return Some(recommendations[i].chess_move);
+            }
+        }
+        
+        // Fallback to first move
+        Some(recommendations[0].chess_move)
+    }
+    
+    /// Get random opening moves for variety
+    fn get_random_opening(&self) -> Option<Vec<ChessMove>> {
+        let openings = vec![
+            // Italian Game
+            vec!["e4", "e5", "Nf3", "Nc6", "Bc4"],
+            // Ruy Lopez
+            vec!["e4", "e5", "Nf3", "Nc6", "Bb5"],
+            // Queen's Gambit
+            vec!["d4", "d5", "c4"],
+            // King's Indian Defense
+            vec!["d4", "Nf6", "c4", "g6"],
+            // Sicilian Defense
+            vec!["e4", "c5"],
+            // French Defense
+            vec!["e4", "e6"],
+            // Caro-Kann Defense
+            vec!["e4", "c6"],
+        ];
+        
+        let selected_opening = &openings[fastrand::usize(0..openings.len())];
+        
+        let mut moves = Vec::new();
+        let mut game = Game::new();
+        
+        for move_str in selected_opening {
+            if let Ok(chess_move) = ChessMove::from_str(move_str) {
+                if game.make_move(chess_move) {
+                    moves.push(chess_move);
+                } else {
+                    break;
+                }
+            }
+        }
+        
+        if moves.is_empty() { None } else { Some(moves) }
     }
 }
 
