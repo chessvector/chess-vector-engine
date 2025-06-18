@@ -524,6 +524,11 @@ impl TrainingDataset {
 
     /// Save incrementally (append to existing file if it exists)
     pub fn save_incremental<P: AsRef<Path>>(&self, path: P) -> Result<(), Box<dyn std::error::Error>> {
+        self.save_incremental_with_options(path, true)
+    }
+    
+    /// Save incrementally with option to skip deduplication
+    pub fn save_incremental_with_options<P: AsRef<Path>>(&self, path: P, deduplicate: bool) -> Result<(), Box<dyn std::error::Error>> {
         let path = path.as_ref();
         
         if path.exists() {
@@ -532,12 +537,36 @@ impl TrainingDataset {
                 return Ok(());
             }
             
-            // Fall back to full merge if append-only fails
-            self.save_incremental_full_merge(path)
+            // Fall back to full merge
+            if deduplicate {
+                self.save_incremental_full_merge(path)
+            } else {
+                self.save_incremental_no_dedup(path)
+            }
         } else {
             // File doesn't exist, just save normally
             self.save(path)
         }
+    }
+    
+    /// Fast merge without deduplication (for trusted unique data)
+    fn save_incremental_no_dedup<P: AsRef<Path>>(&self, path: P) -> Result<(), Box<dyn std::error::Error>> {
+        let path = path.as_ref();
+        
+        println!("📂 Loading existing training data...");
+        let mut existing = Self::load(path)?;
+        
+        println!("⚡ Fast merge without deduplication...");
+        existing.data.extend(self.data.iter().cloned());
+        
+        println!("💾 Serializing {} positions to JSON...", existing.data.len());
+        let json = serde_json::to_string_pretty(&existing.data)?;
+        
+        println!("✍️  Writing to disk...");
+        std::fs::write(path, json)?;
+        
+        println!("✅ Fast merge save: total {} positions", existing.data.len());
+        Ok(())
     }
     
     /// Fast append-only save (no deduplication, just append new positions)
@@ -594,11 +623,8 @@ impl TrainingDataset {
         let mut existing = Self::load(path)?;
         let original_len = existing.data.len();
         
-        println!("🔄 Merging {} new positions with {} existing...", self.data.len(), original_len);
-        existing.data.extend(self.data.iter().cloned());
-        
-        println!("🔍 Removing exact duplicates...");
-        existing.deduplicate(0.999);
+        println!("🔄 Streaming merge with deduplication (avoiding O(n²) operation)...");
+        existing.merge_and_deduplicate(self.data.clone());
         
         println!("💾 Serializing {} positions to JSON...", existing.data.len());
         let json = serde_json::to_string_pretty(&existing.data)?;
@@ -606,8 +632,7 @@ impl TrainingDataset {
         println!("✍️  Writing to disk...");
         std::fs::write(path, json)?;
         
-        println!("✅ Full merge save: added {} new positions (total: {})", 
-                existing.data.len() - original_len, existing.data.len());
+        println!("✅ Streaming merge save: total {} positions", existing.data.len());
         Ok(())
     }
 
@@ -648,7 +673,7 @@ impl TrainingDataset {
             return;
         }
         
-        let mut seen_positions = HashSet::new();
+        let mut seen_positions = HashSet::with_capacity(self.data.len());
         let original_len = self.data.len();
         
         // Keep positions with unique FEN strings
@@ -659,6 +684,36 @@ impl TrainingDataset {
         
         println!("Fast deduplicated: {} -> {} positions (removed {} exact duplicates)", 
                  original_len, self.data.len(), original_len - self.data.len());
+    }
+    
+    /// Streaming deduplication when merging with existing data (faster for large datasets)
+    pub fn merge_and_deduplicate(&mut self, new_data: Vec<TrainingData>) {
+        use std::collections::HashSet;
+        
+        if new_data.is_empty() {
+            return;
+        }
+        
+        let original_len = self.data.len();
+        
+        // Build hashset of existing positions for fast lookup
+        let mut existing_positions: HashSet<String> = HashSet::with_capacity(self.data.len());
+        for data in &self.data {
+            existing_positions.insert(data.board.to_string());
+        }
+        
+        // Only add new positions that don't already exist
+        let mut added = 0;
+        for data in new_data {
+            let fen = data.board.to_string();
+            if existing_positions.insert(fen) {
+                self.data.push(data);
+                added += 1;
+            }
+        }
+        
+        println!("Streaming merge: added {} unique positions (total: {})", 
+                 added, self.data.len());
     }
     
     /// Similarity-based deduplication for near-duplicates (O(n²) but optimized)
