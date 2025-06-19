@@ -1,6 +1,7 @@
 pub mod position_encoder;
 pub mod similarity_search;
 pub mod manifold_learner;
+pub mod variational_autoencoder;
 pub mod lsh;
 pub mod ann;
 pub mod training;
@@ -8,16 +9,19 @@ pub mod opening_book;
 pub mod persistence;
 pub mod gpu_acceleration;
 pub mod tactical_search;
+pub mod uci;
 
 pub use position_encoder::PositionEncoder;
 pub use similarity_search::SimilaritySearch;
 pub use lsh::LSH;
 pub use manifold_learner::ManifoldLearner;
+pub use variational_autoencoder::{VariationalAutoencoder, VAEConfig};
 pub use opening_book::{OpeningBook, OpeningEntry, OpeningBookStats};
 pub use training::{TrainingData, TrainingDataset, GameExtractor, EngineEvaluator, TacticalPuzzle, TacticalTrainingData, TacticalPuzzleParser, SelfPlayConfig, SelfPlayTrainer};
 pub use persistence::{Database, PositionData, LSHTableData};
 pub use gpu_acceleration::{GPUAccelerator, DeviceType};
 pub use tactical_search::{TacticalSearch, TacticalConfig, TacticalResult};
+pub use uci::{UCIEngine, UCIConfig, run_uci_engine, run_uci_engine_with_config};
 
 use chess::{Board, ChessMove};
 use ndarray::Array1;

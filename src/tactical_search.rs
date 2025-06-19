@@ -7,7 +7,7 @@ use std::time::{Duration, Instant};
 pub struct TacticalResult {
     pub evaluation: f32,
     pub best_move: Option<ChessMove>,
-    pub depth_reached: u8,
+    pub depth_reached: u32,
     pub nodes_searched: u64,
     pub time_elapsed: Duration,
     pub is_tactical: bool,
@@ -16,21 +16,29 @@ pub struct TacticalResult {
 /// Tactical search configuration
 #[derive(Debug, Clone)]
 pub struct TacticalConfig {
-    pub max_depth: u8,
+    pub max_depth: u32,
     pub max_time_ms: u64,
     pub max_nodes: u64,
-    pub quiescence_depth: u8,
+    pub quiescence_depth: u32,
     pub enable_transposition_table: bool,
+    pub enable_iterative_deepening: bool,
+    pub enable_aspiration_windows: bool,
+    pub enable_null_move_pruning: bool,
+    pub enable_late_move_reductions: bool,
 }
 
 impl Default for TacticalConfig {
     fn default() -> Self {
         Self {
-            max_depth: 3,
-            max_time_ms: 100,  // 100ms limit for tactical search
-            max_nodes: 10_000,
-            quiescence_depth: 2,
+            max_depth: 6,
+            max_time_ms: 500,  // 500ms limit for deeper tactical search
+            max_nodes: 50_000,
+            quiescence_depth: 4,
             enable_transposition_table: true,
+            enable_iterative_deepening: true,
+            enable_aspiration_windows: false, // Disabled by default for simplicity
+            enable_null_move_pruning: true,
+            enable_late_move_reductions: true,
         }
     }
 }
@@ -38,10 +46,11 @@ impl Default for TacticalConfig {
 /// Transposition table entry
 #[derive(Debug, Clone)]
 struct TranspositionEntry {
-    depth: u8,
+    depth: u32,
     evaluation: f32,
     best_move: Option<ChessMove>,
     node_type: NodeType,
+    age: u8, // For replacement strategy
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -85,26 +94,97 @@ impl TacticalSearch {
         // Check if this is already a tactical position
         let is_tactical = self.is_tactical_position(board);
         
-        let (evaluation, best_move) = self.minimax(
-            board, 
-            self.config.max_depth, 
-            f32::NEG_INFINITY, 
-            f32::INFINITY, 
-            board.side_to_move() == Color::White
-        );
+        let (evaluation, best_move, depth_reached) = if self.config.enable_iterative_deepening {
+            self.iterative_deepening_search(board)
+        } else {
+            let (eval, mv) = self.minimax(
+                board, 
+                self.config.max_depth, 
+                f32::NEG_INFINITY, 
+                f32::INFINITY, 
+                board.side_to_move() == Color::White
+            );
+            (eval, mv, self.config.max_depth)
+        };
 
         TacticalResult {
             evaluation,
             best_move,
-            depth_reached: self.config.max_depth,
+            depth_reached,
             nodes_searched: self.nodes_searched,
             time_elapsed: self.start_time.elapsed(),
             is_tactical,
         }
     }
+    
+    /// Iterative deepening search for better time management and move ordering
+    fn iterative_deepening_search(&mut self, board: &Board) -> (f32, Option<ChessMove>, u32) {
+        let mut best_move = None;
+        let mut best_evaluation = 0.0;
+        let mut completed_depth = 0;
+        
+        for depth in 1..=self.config.max_depth {
+            // Check time limit
+            if self.start_time.elapsed().as_millis() > self.config.max_time_ms as u128 {
+                break;
+            }
+            
+            let window_size = if self.config.enable_aspiration_windows && depth > 2 {
+                50.0 // Centipawn window
+            } else {
+                f32::INFINITY
+            };
+            
+            let (evaluation, mv) = if self.config.enable_aspiration_windows && depth > 2 {
+                self.aspiration_window_search(board, depth, best_evaluation, window_size)
+            } else {
+                self.minimax(
+                    board,
+                    depth,
+                    f32::NEG_INFINITY,
+                    f32::INFINITY,
+                    board.side_to_move() == Color::White
+                )
+            };
+            
+            best_evaluation = evaluation;
+            if mv.is_some() {
+                best_move = mv;
+            }
+            completed_depth = depth;
+            
+            // Early termination for mate
+            if evaluation.abs() > 9000.0 {
+                break;
+            }
+        }
+        
+        (best_evaluation, best_move, completed_depth)
+    }
+    
+    /// Aspiration window search for efficiency
+    fn aspiration_window_search(&mut self, board: &Board, depth: u32, prev_score: f32, window: f32) -> (f32, Option<ChessMove>) {
+        let mut alpha = prev_score - window;
+        let mut beta = prev_score + window;
+        
+        loop {
+            let (score, mv) = self.minimax(board, depth, alpha, beta, board.side_to_move() == Color::White);
+            
+            if score <= alpha {
+                // Failed low, expand window down
+                alpha = f32::NEG_INFINITY;
+            } else if score >= beta {
+                // Failed high, expand window up  
+                beta = f32::INFINITY;
+            } else {
+                // Score within window
+                return (score, mv);
+            }
+        }
+    }
 
-    /// Minimax search with alpha-beta pruning
-    fn minimax(&mut self, board: &Board, depth: u8, mut alpha: f32, mut beta: f32, maximizing: bool) -> (f32, Option<ChessMove>) {
+    /// Minimax search with alpha-beta pruning and advanced pruning techniques
+    fn minimax(&mut self, board: &Board, depth: u32, mut alpha: f32, mut beta: f32, maximizing: bool) -> (f32, Option<ChessMove>) {
         self.nodes_searched += 1;
 
         // Time and node limit checks
@@ -139,25 +219,70 @@ impl TacticalSearch {
         let mut best_move = None;
         let mut best_value = if maximizing { f32::NEG_INFINITY } else { f32::INFINITY };
         
+        // Null move pruning (when not in check and depth > 2)
+        if self.config.enable_null_move_pruning 
+            && depth >= 3 
+            && !maximizing // Only try null move pruning for the opponent
+            && board.checkers().is_empty() // Not in check
+            && self.has_non_pawn_material(board, board.side_to_move()) {
+            
+            let null_move_reduction = (depth / 4).max(2).min(4);
+            let new_depth = if depth > null_move_reduction { depth - null_move_reduction } else { 0 };
+            
+            // Make null move (switch sides without moving)
+            let null_board = board.null_move().unwrap_or(*board);
+            let (null_score, _) = self.minimax(&null_board, new_depth, alpha, beta, !maximizing);
+            
+            // If null move fails high, we can prune
+            if null_score >= beta {
+                return (beta, None);
+            }
+        }
+
         // Move ordering: captures and checks first
         let moves = self.generate_ordered_moves(board);
+        let move_count = moves.len();
         
-        for chess_move in moves {
+        for (move_index, chess_move) in moves.into_iter().enumerate() {
             let new_board = board.make_move_new(chess_move);
-            let (evaluation, _) = self.minimax(&new_board, depth - 1, alpha, beta, !maximizing);
+            
+            // Late move reductions (LMR)
+            let reduction = if self.config.enable_late_move_reductions 
+                && depth >= 3 
+                && move_index >= 4 // Only reduce later moves
+                && !self.is_capture_or_promotion(&chess_move, board)
+                && new_board.checkers().is_empty() { // Not giving check
+                
+                // Reduce depth for likely bad moves
+                ((move_index as f32).ln() * (depth as f32).ln() / 2.0) as u32
+            } else {
+                0
+            };
+            
+            let search_depth = if depth > reduction { depth - 1 - reduction } else { 0 };
+            
+            let (evaluation, _) = self.minimax(&new_board, search_depth, alpha, beta, !maximizing);
+            
+            // If LMR search failed high, research with full depth
+            let final_evaluation = if reduction > 0 && evaluation > alpha {
+                let (re_eval, _) = self.minimax(&new_board, depth - 1, alpha, beta, !maximizing);
+                re_eval
+            } else {
+                evaluation
+            };
             
             if maximizing {
-                if evaluation > best_value {
-                    best_value = evaluation;
+                if final_evaluation > best_value {
+                    best_value = final_evaluation;
                     best_move = Some(chess_move);
                 }
-                alpha = alpha.max(evaluation);
+                alpha = alpha.max(final_evaluation);
             } else {
-                if evaluation < best_value {
-                    best_value = evaluation;
+                if final_evaluation < best_value {
+                    best_value = final_evaluation;
                     best_move = Some(chess_move);
                 }
-                beta = beta.min(evaluation);
+                beta = beta.min(final_evaluation);
             }
             
             // Alpha-beta pruning
@@ -181,6 +306,7 @@ impl TacticalSearch {
                 evaluation: best_value,
                 best_move,
                 node_type,
+                age: 0, // Current search age
             });
         }
 
@@ -188,7 +314,7 @@ impl TacticalSearch {
     }
 
     /// Quiescence search to avoid horizon effect
-    fn quiescence_search(&mut self, board: &Board, depth: u8, mut alpha: f32, beta: f32, maximizing: bool) -> f32 {
+    fn quiescence_search(&mut self, board: &Board, depth: u32, mut alpha: f32, beta: f32, maximizing: bool) -> f32 {
         self.nodes_searched += 1;
 
         let stand_pat = self.evaluate_position(board);
@@ -396,6 +522,17 @@ impl TacticalSearch {
         }
         
         false
+    }
+    
+    /// Check if a move is a capture or promotion
+    fn is_capture_or_promotion(&self, chess_move: &ChessMove, board: &Board) -> bool {
+        board.piece_on(chess_move.get_dest()).is_some() || chess_move.get_promotion().is_some()
+    }
+    
+    /// Check if a side has non-pawn material
+    fn has_non_pawn_material(&self, board: &Board, color: Color) -> bool {
+        let pieces = board.color_combined(color) & !board.pieces(chess::Piece::Pawn) & !board.pieces(chess::Piece::King);
+        pieces.popcnt() > 0
     }
 
     /// Clear transposition table
