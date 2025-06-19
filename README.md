@@ -236,8 +236,11 @@ cargo run --bin tactical_training -- --puzzles lichess_db_puzzle.csv
 # 🚀 Optimized self-play training (fast + resumable)
 cargo run --bin self_play_training --stockfish-level
 
-# 🎮 Play against Stockfish with trained engine
+# 🎮 Play against Stockfish with trained engine (quick start)
 cargo run --bin play_stockfish
+
+# 🎮 Play against Stockfish with model rebuilding (slower startup)
+cargo run --bin play_stockfish -- --rebuild-models
 
 # ⚡ NEW: Test all performance optimizations  
 cargo run --bin performance_benchmark

@@ -4,12 +4,28 @@ use std::io::{BufRead, BufReader, Write};
 use std::process::{Command, Stdio};
 use std::str::FromStr;
 use rand::seq::SliceRandom;
+use std::env;
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
+    let args: Vec<String> = env::args().collect();
+    
+    // Check for help flag
+    if args.contains(&"--help".to_string()) || args.contains(&"-h".to_string()) {
+        print_usage();
+        return Ok(());
+    }
+    
+    let rebuild_models = args.contains(&"--rebuild-models".to_string());
+    
     println!("Starting game: Chess Vector Engine vs Stockfish (Improved Version)");
+    if rebuild_models {
+        println!("🔄 Rebuild models flag detected - will retrain LSH and manifold learning");
+    } else {
+        println!("⚡ Using pre-built models for fast startup (use --rebuild-models to retrain)");
+    }
     
     // Initialize the chess vector engine with opening book and substantial knowledge base
-    let engine = create_engine_with_knowledge();
+    let engine = create_engine_with_knowledge(rebuild_models);
     
     // Start Stockfish process
     let mut stockfish = Command::new("stockfish")
@@ -99,7 +115,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     Ok(())
 }
 
-fn create_engine_with_knowledge() -> ChessVectorEngine {
+fn create_engine_with_knowledge(rebuild_models: bool) -> ChessVectorEngine {
     println!("🚀 Initializing Chess Vector Engine with auto-loading for gameplay...");
     
     // Use auto-loading to automatically discover and load ALL training data
@@ -120,20 +136,24 @@ fn create_engine_with_knowledge() -> ChessVectorEngine {
             
             // Enable LSH for large datasets to maintain game speed
             let mut engine = engine;
-            if stats.total_positions > 15000 {
-                println!("📊 Large knowledge base detected, enabling LSH for optimal gameplay performance");
+            if rebuild_models && stats.total_positions > 15000 {
+                println!("📊 Large knowledge base detected, rebuilding LSH for optimal gameplay performance");
                 engine.enable_lsh(10, 18); // Optimized for speed vs accuracy balance
+            } else if !rebuild_models && stats.total_positions > 15000 {
+                println!("📊 Large knowledge base detected, LSH models should be pre-built (use --rebuild-models to retrain)");
             }
             
             // Enable manifold learning for very large datasets during gameplay
-            if stats.total_positions > 30000 {
-                println!("🧠 Very large knowledge base, enabling manifold learning for faster similarity search...");
+            if rebuild_models && stats.total_positions > 30000 {
+                println!("🧠 Very large knowledge base, rebuilding manifold learning for faster similarity search...");
                 let _ = engine.enable_manifold_learning(6.0); // 6:1 compression for speed (1024d -> ~170d)
                 
                 println!("🏋️  Training manifold compression for gameplay optimization...");
                 let _ = engine.train_manifold_learning(8); // Fewer epochs for faster startup
                 
                 println!("✅ Manifold learning enabled - optimized for real-time gameplay");
+            } else if !rebuild_models && stats.total_positions > 30000 {
+                println!("🧠 Very large knowledge base detected, manifold learning models should be pre-built (use --rebuild-models to retrain)");
             }
             
             engine
@@ -155,6 +175,19 @@ fn add_position_knowledge(_engine: &mut ChessVectorEngine) {
     // The engine will use its opening book and similarity search to discover
     // tactical patterns, endgame principles, and positional concepts organically
     // based on the encoded position vectors and their inherent relationships
+}
+
+fn print_usage() {
+    println!("Usage: cargo run --bin play_stockfish [OPTIONS]");
+    println!();
+    println!("Options:");
+    println!("  --rebuild-models    Force rebuild of LSH and manifold learning models");
+    println!("                      (normally models are pre-built to avoid startup delay)");
+    println!("  --help             Show this help message");
+    println!();
+    println!("Examples:");
+    println!("  cargo run --bin play_stockfish                    # Quick start with pre-built models");
+    println!("  cargo run --bin play_stockfish -- --rebuild-models  # Rebuild models before playing");
 }
 
 fn choose_random_opening(engine: &ChessVectorEngine) -> Option<ChessMove> {
