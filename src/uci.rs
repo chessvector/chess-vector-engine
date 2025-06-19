@@ -2,7 +2,6 @@ use chess::{Board, ChessMove, Color};
 use std::collections::HashMap;
 use std::io::{self, BufRead, Write};
 use std::str::FromStr;
-use std::sync::mpsc::{self, Receiver, Sender};
 use std::thread;
 use std::time::{Duration, Instant};
 
@@ -369,11 +368,11 @@ impl UCIEngine {
         // Parse go command parameters
         let mut wtime = None;
         let mut btime = None;
-        let mut winc = None;
-        let mut binc = None;
+        let mut _winc: Option<u64> = None;
+        let mut _binc: Option<u64> = None;
         let mut movestogo = None;
         let mut depth = None;
-        let mut nodes = None;
+        let mut _nodes: Option<u64> = None;
         let mut movetime = None;
         let mut infinite = false;
         
@@ -389,11 +388,11 @@ impl UCIEngine {
                     i += 2;
                 }
                 "winc" if i + 1 < parts.len() => {
-                    winc = parts[i + 1].parse().ok();
+                    _winc = parts[i + 1].parse().ok();
                     i += 2;
                 }
                 "binc" if i + 1 < parts.len() => {
-                    binc = parts[i + 1].parse().ok();
+                    _binc = parts[i + 1].parse().ok();
                     i += 2;
                 }
                 "movestogo" if i + 1 < parts.len() => {
@@ -405,7 +404,7 @@ impl UCIEngine {
                     i += 2;
                 }
                 "nodes" if i + 1 < parts.len() => {
-                    nodes = parts[i + 1].parse().ok();
+                    _nodes = parts[i + 1].parse().ok();
                     i += 2;
                 }
                 "movetime" if i + 1 < parts.len() => {
@@ -444,12 +443,12 @@ impl UCIEngine {
         String::new()
     }
     
-    fn start_search(&mut self, max_time: Duration, max_depth: Option<u32>) {
+    fn start_search(&mut self, _max_time: Duration, _max_depth: Option<u32>) {
         self.thinking = true;
         self.stop_search = false;
         
         let board = self.board;
-        let mut engine = self.engine.clone();
+        let engine = self.engine.clone();
         let start_time = Instant::now();
         
         // Spawn search thread

@@ -1,8 +1,6 @@
-use ndarray::{Array1, Array2};
+use ndarray::Array2;
 use candle_core::{Device, Result as CandleResult, Tensor, Module};
 use candle_nn::{linear, Linear, VarBuilder, VarMap, Optimizer, AdamW, ParamsAdamW};
-use rayon::prelude::*;
-use serde::{Serialize, Deserialize};
 use std::collections::HashMap;
 
 /// Variational Autoencoder for chess position manifold learning with uncertainty quantification
@@ -67,8 +65,9 @@ impl VariationalEncoder {
     /// Reparameterization trick: z = μ + σ * ε
     fn reparameterize(&self, mean: &Tensor, logvar: &Tensor) -> CandleResult<Tensor> {
         let std = (logvar * 0.5)?.exp()?;
-        let eps = Tensor::randn_like(&std)?;
-        Ok((mean + &(std * eps))?)
+        let eps = Tensor::randn_like(&std, 0.0, 1.0)?;
+        let scaled_eps = (&std * &eps)?;
+        mean + &scaled_eps
     }
 }
 
@@ -181,26 +180,37 @@ impl VariationalAutoencoder {
         let batch_size = x.dims()[0] as f32;
         
         // Reconstruction loss (MSE)
-        let recon_loss = ((x - reconstruction)?.powf(2.0)?)?.sum_all()? / batch_size;
+        let diff = (x - reconstruction)?;
+        let squared = diff.powf(2.0)?;
+        let sum_tensor = squared.sum_all()?;
+        let batch_tensor = Tensor::new(batch_size, &self.device)?;
+        let recon_loss = (&sum_tensor / &batch_tensor)?;
         
         // KL divergence: -0.5 * sum(1 + log(σ²) - μ² - σ²)
         let kl_div = {
             let var = logvar.exp()?;
             let mean_sq = mean.powf(2.0)?;
-            let kl_per_dim = (logvar + 1.0)? - mean_sq - var;
-            (-0.5 * kl_per_dim.sum_all()?)? / batch_size
+            let one_tensor = Tensor::ones_like(&logvar)?;
+            let logvar_plus_one = (logvar + &one_tensor)?;
+            let minus_mean_sq = (&logvar_plus_one - &mean_sq)?;
+            let kl_per_dim = (&minus_mean_sq - &var)?;
+            let kl_sum = kl_per_dim.sum_all()?;
+            let neg_half = Tensor::new(-0.5f32, &self.device)?;
+            let kl_scaled = (&kl_sum * &neg_half)?;
+            let batch_tensor = Tensor::new(batch_size, &self.device)?;
+            (&kl_scaled / &batch_tensor)?
         };
         
         // Total loss with β weighting
-        let total_loss = recon_loss + (kl_div * self.beta)?;
+        let beta_tensor = Tensor::new(self.beta, &self.device)?;
+        let weighted_kl = (&kl_div * &beta_tensor)?;
+        let total_loss = (&recon_loss + &weighted_kl)?;
         
         Ok(total_loss)
     }
     
     /// Train the VAE on a batch of position vectors
     pub fn train_step(&mut self, vectors: &Array2<f32>) -> Result<f32, String> {
-        let optimizer = self.optimizer.as_mut().ok_or("Optimizer not initialized")?;
-        
         // Convert to tensor
         let batch_tensor = self.array_to_tensor(vectors)?;
         
@@ -212,15 +222,20 @@ impl VariationalAutoencoder {
         let loss = self.compute_loss(&batch_tensor, &reconstruction, &mean, &logvar)
             .map_err(|e| format!("Loss computation failed: {}", e))?;
         
+        // Get loss value for return
+        let loss_value = loss.to_scalar::<f32>().map_err(|e| format!("Loss extraction failed: {}", e))?;
+        
         // Backward pass
-        optimizer.zero_grad()?;
-        loss.backward()
+        let grads = loss.backward()
             .map_err(|e| format!("Backward pass failed: {}", e))?;
-        optimizer.step()
+        
+        // Now get optimizer and step
+        let optimizer = self.optimizer.as_mut().ok_or("Optimizer not initialized")?;
+        optimizer.step(&grads)
             .map_err(|e| format!("Optimizer step failed: {}", e))?;
         
         // Return loss value
-        loss.to_scalar::<f32>().map_err(|e| format!("Loss extraction failed: {}", e))
+        Ok(loss_value)
     }
     
     /// Encode positions to latent space with uncertainty
@@ -269,7 +284,7 @@ impl VariationalAutoencoder {
     
     /// Generate new samples from the learned manifold
     pub fn generate(&self, num_samples: usize) -> Result<Array2<f32>, String> {
-        let decoder = self.decoder.as_ref().ok_or("Decoder not initialized")?;
+        let _decoder = self.decoder.as_ref().ok_or("Decoder not initialized")?;
         
         // Sample from standard normal distribution
         let latent_samples = Array2::from_shape_fn((num_samples, self.latent_dim), |_| {
@@ -284,7 +299,7 @@ impl VariationalAutoencoder {
     /// Get reconstruction quality metrics
     pub fn evaluate_reconstruction(&self, vectors: &Array2<f32>) -> Result<HashMap<String, f32>, String> {
         let input_tensor = self.array_to_tensor(vectors)?;
-        let (reconstruction, mean, logvar) = self.forward(&input_tensor)
+        let (reconstruction, _mean, _logvar) = self.forward(&input_tensor)
             .map_err(|e| format!("Forward pass failed: {}", e))?;
         
         let reconstruction_array = self.tensor_to_array(&reconstruction)?;

@@ -2,6 +2,7 @@ pub mod position_encoder;
 pub mod similarity_search;
 pub mod manifold_learner;
 pub mod variational_autoencoder;
+pub mod nnue;
 pub mod lsh;
 pub mod ann;
 pub mod training;
@@ -16,6 +17,7 @@ pub use similarity_search::SimilaritySearch;
 pub use lsh::LSH;
 pub use manifold_learner::ManifoldLearner;
 pub use variational_autoencoder::{VariationalAutoencoder, VAEConfig};
+pub use nnue::{NNUE, NNUEConfig, HybridEvaluator, BlendStrategy, EvalStats};
 pub use opening_book::{OpeningBook, OpeningEntry, OpeningBookStats};
 pub use training::{TrainingData, TrainingDataset, GameExtractor, EngineEvaluator, TacticalPuzzle, TacticalTrainingData, TacticalPuzzleParser, SelfPlayConfig, SelfPlayTrainer};
 pub use persistence::{Database, PositionData, LSHTableData};
@@ -105,6 +107,29 @@ pub struct ChessVectorEngine {
     tactical_search: Option<TacticalSearch>,
     /// Hybrid evaluation configuration
     hybrid_config: HybridConfig,
+}
+
+impl Clone for ChessVectorEngine {
+    fn clone(&self) -> Self {
+        Self {
+            encoder: self.encoder.clone(),
+            similarity_search: self.similarity_search.clone(),
+            lsh_index: self.lsh_index.clone(),
+            manifold_learner: None, // ManifoldLearner cannot be cloned due to ML components
+            use_lsh: self.use_lsh,
+            use_manifold: false, // Disable manifold learning in cloned instance
+            position_moves: self.position_moves.clone(),
+            manifold_similarity_search: self.manifold_similarity_search.clone(),
+            manifold_lsh_index: self.manifold_lsh_index.clone(),
+            position_vectors: self.position_vectors.clone(),
+            position_boards: self.position_boards.clone(),
+            position_evaluations: self.position_evaluations.clone(),
+            opening_book: self.opening_book.clone(),
+            database: None, // Database connection cannot be cloned
+            tactical_search: self.tactical_search.clone(),
+            hybrid_config: self.hybrid_config.clone(),
+        }
+    }
 }
 
 impl ChessVectorEngine {

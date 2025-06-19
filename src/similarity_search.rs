@@ -41,6 +41,7 @@ impl Ord for SearchResult {
 }
 
 /// Similarity search engine for chess positions
+#[derive(Clone)]
 pub struct SimilaritySearch {
     /// All stored positions
     positions: Vec<PositionEntry>,

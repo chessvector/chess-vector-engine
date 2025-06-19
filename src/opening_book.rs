@@ -12,6 +12,7 @@ pub struct OpeningEntry {
 }
 
 /// Opening book for chess positions
+#[derive(Clone)]
 pub struct OpeningBook {
     /// Map from FEN string to opening entry
     entries: HashMap<String, OpeningEntry>,

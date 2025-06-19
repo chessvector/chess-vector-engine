@@ -25,6 +25,7 @@ pub struct TacticalConfig {
     pub enable_aspiration_windows: bool,
     pub enable_null_move_pruning: bool,
     pub enable_late_move_reductions: bool,
+    pub enable_principal_variation_search: bool,
 }
 
 impl Default for TacticalConfig {
@@ -39,6 +40,7 @@ impl Default for TacticalConfig {
             enable_aspiration_windows: false, // Disabled by default for simplicity
             enable_null_move_pruning: true,
             enable_late_move_reductions: true,
+            enable_principal_variation_search: true,
         }
     }
 }
@@ -119,7 +121,7 @@ impl TacticalSearch {
     
     /// Iterative deepening search for better time management and move ordering
     fn iterative_deepening_search(&mut self, board: &Board) -> (f32, Option<ChessMove>, u32) {
-        let mut best_move = None;
+        let mut best_move: Option<ChessMove> = None;
         let mut best_evaluation = 0.0;
         let mut completed_depth = 0;
         
@@ -184,7 +186,7 @@ impl TacticalSearch {
     }
 
     /// Minimax search with alpha-beta pruning and advanced pruning techniques
-    fn minimax(&mut self, board: &Board, depth: u32, mut alpha: f32, mut beta: f32, maximizing: bool) -> (f32, Option<ChessMove>) {
+    fn minimax(&mut self, board: &Board, depth: u32, alpha: f32, beta: f32, maximizing: bool) -> (f32, Option<ChessMove>) {
         self.nodes_searched += 1;
 
         // Time and node limit checks
@@ -216,14 +218,14 @@ impl TacticalSearch {
             }
         }
 
-        let mut best_move = None;
+        let mut best_move: Option<ChessMove> = None;
         let mut best_value = if maximizing { f32::NEG_INFINITY } else { f32::INFINITY };
         
         // Null move pruning (when not in check and depth > 2)
         if self.config.enable_null_move_pruning 
             && depth >= 3 
             && !maximizing // Only try null move pruning for the opponent
-            && board.checkers().is_empty() // Not in check
+            && board.checkers().popcnt() == 0 // Not in check
             && self.has_non_pawn_material(board, board.side_to_move()) {
             
             let null_move_reduction = (depth / 4).max(2).min(4);
@@ -241,7 +243,132 @@ impl TacticalSearch {
 
         // Move ordering: captures and checks first
         let moves = self.generate_ordered_moves(board);
-        let move_count = moves.len();
+        
+        let (best_value, best_move) = if self.config.enable_principal_variation_search && moves.len() > 1 {
+            // Principal Variation Search (PVS)
+            self.principal_variation_search(board, depth, alpha, beta, maximizing, moves)
+        } else {
+            // Standard alpha-beta search
+            self.alpha_beta_search(board, depth, alpha, beta, maximizing, moves)
+        };
+        
+        // Store in transposition table
+        if self.config.enable_transposition_table {
+            let node_type = if best_value <= alpha {
+                NodeType::UpperBound
+            } else if best_value >= beta {
+                NodeType::LowerBound
+            } else {
+                NodeType::Exact
+            };
+
+            self.transposition_table.insert(board.get_hash(), TranspositionEntry {
+                depth,
+                evaluation: best_value,
+                best_move,
+                node_type,
+                age: 0, // Current search age
+            });
+        }
+
+        (best_value, best_move)
+    }
+    
+    /// Principal Variation Search - more efficient than pure alpha-beta
+    fn principal_variation_search(&mut self, board: &Board, depth: u32, mut alpha: f32, mut beta: f32, maximizing: bool, moves: Vec<ChessMove>) -> (f32, Option<ChessMove>) {
+        let mut best_move: Option<ChessMove> = None;
+        let mut best_value = if maximizing { f32::NEG_INFINITY } else { f32::INFINITY };
+        let mut _pv_found = false;
+        
+        // If no moves available, return current position evaluation
+        if moves.is_empty() {
+            return (self.evaluate_position(board), None);
+        }
+        
+        for (move_index, chess_move) in moves.into_iter().enumerate() {
+            let new_board = board.make_move_new(chess_move);
+            let mut evaluation;
+            
+            // Late move reductions (LMR)
+            let reduction = if self.config.enable_late_move_reductions 
+                && depth >= 3 
+                && move_index >= 4 // Only reduce later moves
+                && !self.is_capture_or_promotion(&chess_move, board)
+                && new_board.checkers().popcnt() == 0 { // Not giving check
+                
+                // Reduce depth for likely bad moves
+                ((move_index as f32).ln() * (depth as f32).ln() / 2.0) as u32
+            } else {
+                0
+            };
+            
+            let search_depth = if depth > reduction { depth - 1 - reduction } else { 0 };
+            
+            if move_index == 0 {
+                // Search first move with full window (likely the best move)
+                let (eval, _) = self.minimax(&new_board, depth - 1, alpha, beta, !maximizing);
+                evaluation = eval;
+                _pv_found = true;
+            } else {
+                // Search subsequent moves with null window first (PVS optimization)
+                let null_window_alpha = if maximizing { alpha } else { beta - 1.0 };
+                let null_window_beta = if maximizing { alpha + 1.0 } else { beta };
+                
+                let (null_eval, _) = self.minimax(&new_board, search_depth, null_window_alpha, null_window_beta, !maximizing);
+                
+                // If null window search fails, re-search with full window
+                if (maximizing && null_eval > alpha && null_eval < beta) ||
+                   (!maximizing && null_eval < beta && null_eval > alpha) {
+                    
+                    // Re-search with full window and full depth if reduced
+                    let full_depth = if reduction > 0 { depth - 1 } else { search_depth };
+                    let (full_eval, _) = self.minimax(&new_board, full_depth, alpha, beta, !maximizing);
+                    evaluation = full_eval;
+                } else {
+                    evaluation = null_eval;
+                    
+                    // If LMR was used and failed high, research with full depth
+                    if reduction > 0 && 
+                       ((maximizing && evaluation > alpha) || (!maximizing && evaluation < beta)) {
+                        let (re_eval, _) = self.minimax(&new_board, depth - 1, alpha, beta, !maximizing);
+                        evaluation = re_eval;
+                    }
+                }
+            }
+            
+            // Update best move and alpha/beta
+            if maximizing {
+                if evaluation > best_value {
+                    best_value = evaluation;
+                    best_move = Some(chess_move);
+                }
+                alpha = alpha.max(evaluation);
+            } else {
+                if evaluation < best_value {
+                    best_value = evaluation;
+                    best_move = Some(chess_move);
+                }
+                beta = beta.min(evaluation);
+            }
+            
+            // Alpha-beta pruning
+            if beta <= alpha {
+                break;
+            }
+        }
+        
+        (best_value, best_move)
+    }
+    
+    /// Standard alpha-beta search (fallback when PVS is disabled)
+    fn alpha_beta_search(&mut self, board: &Board, depth: u32, mut alpha: f32, mut beta: f32, maximizing: bool, moves: Vec<ChessMove>) -> (f32, Option<ChessMove>) {
+        let mut best_move: Option<ChessMove> = None;
+        let mut best_value = if maximizing { f32::NEG_INFINITY } else { f32::INFINITY };
+        
+        // If no moves available, return current position evaluation
+        if moves.is_empty() {
+            return (self.evaluate_position(board), None);
+        }
         
         for (move_index, chess_move) in moves.into_iter().enumerate() {
             let new_board = board.make_move_new(chess_move);
@@ -251,7 +378,7 @@ impl TacticalSearch {
                 && depth >= 3 
                 && move_index >= 4 // Only reduce later moves
                 && !self.is_capture_or_promotion(&chess_move, board)
-                && new_board.checkers().is_empty() { // Not giving check
+                && new_board.checkers().popcnt() == 0 { // Not giving check
                 
                 // Reduce depth for likely bad moves
                 ((move_index as f32).ln() * (depth as f32).ln() / 2.0) as u32
@@ -264,7 +391,8 @@ impl TacticalSearch {
             let (evaluation, _) = self.minimax(&new_board, search_depth, alpha, beta, !maximizing);
             
             // If LMR search failed high, research with full depth
-            let final_evaluation = if reduction > 0 && evaluation > alpha {
+            let final_evaluation = if reduction > 0 && 
+                ((maximizing && evaluation > alpha) || (!maximizing && evaluation < beta)) {
                 let (re_eval, _) = self.minimax(&new_board, depth - 1, alpha, beta, !maximizing);
                 re_eval
             } else {
@@ -290,26 +418,7 @@ impl TacticalSearch {
                 break;
             }
         }
-
-        // Store in transposition table
-        if self.config.enable_transposition_table {
-            let node_type = if best_value <= alpha {
-                NodeType::UpperBound
-            } else if best_value >= beta {
-                NodeType::LowerBound
-            } else {
-                NodeType::Exact
-            };
-
-            self.transposition_table.insert(board.get_hash(), TranspositionEntry {
-                depth,
-                evaluation: best_value,
-                best_move,
-                node_type,
-                age: 0, // Current search age
-            });
-        }
-
+        
         (best_value, best_move)
     }
 

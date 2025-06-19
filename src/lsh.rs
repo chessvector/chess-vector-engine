@@ -4,6 +4,7 @@ use std::collections::HashMap;
 use rayon::prelude::*;
 
 /// Locality Sensitive Hashing for approximate nearest neighbor search
+#[derive(Clone)]
 pub struct LSH {
     /// Number of hash tables
     num_tables: usize,

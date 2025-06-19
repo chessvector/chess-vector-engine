@@ -81,6 +81,10 @@ path = "src/bin/self_play_training.rs"
 name = "uci_engine"
 path = "src/bin/uci_engine.rs"
 
+[[bin]]
+name = "nnue_pvs_demo"
+path = "src/bin/nnue_pvs_demo.rs"
+
 [dependencies]
 # Chess game logic
 chess = "3.2"

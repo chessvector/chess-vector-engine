@@ -3,6 +3,7 @@ use ndarray::Array1;
 use rayon::prelude::*;
 
 /// Basic position encoder that converts chess positions to vectors
+#[derive(Clone)]
 pub struct PositionEncoder {
     /// Dimension of the output vector
     vector_size: usize,
