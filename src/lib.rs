@@ -26,7 +26,7 @@ pub use tactical_search::{TacticalSearch, TacticalConfig, TacticalResult};
 pub use uci::{UCIEngine, UCIConfig, run_uci_engine, run_uci_engine_with_config};
 
 use chess::{Board, ChessMove};
-use ndarray::Array1;
+use ndarray::{Array1, Array2};
 use std::collections::HashMap;
 use std::path::Path;
 use std::str::FromStr;
@@ -302,7 +302,7 @@ impl ChessVectorEngine {
     }
 
     /// Get evaluation for a position using hybrid approach (opening book + pattern evaluation + tactical search)
-    pub fn evaluate_position(&self, board: &Board) -> Option<f32> {
+    pub fn evaluate_position(&mut self, board: &Board) -> Option<f32> {
         // First check opening book - highest priority
         if let Some(entry) = self.get_opening_entry(board) {
             return Some(entry.evaluation);
@@ -313,9 +313,8 @@ impl ChessVectorEngine {
         
         if similar_positions.is_empty() {
             // No similar positions found - use tactical search if available
-            if let Some(ref tactical_search) = self.tactical_search {
-                let mut tactical_engine = tactical_search.clone();
-                let result = tactical_engine.search(board);
+            if let Some(ref mut tactical_search) = self.tactical_search {
+                let result = tactical_search.search(board);
                 return Some(result.evaluation);
             }
             return None;
@@ -347,8 +346,7 @@ impl ChessVectorEngine {
 
         if use_tactical {
             // Get tactical evaluation
-            let mut tactical_engine = self.tactical_search.as_ref().unwrap().clone();
-            let tactical_result = tactical_engine.search(board);
+            let tactical_result = self.tactical_search.as_mut().unwrap().search(board);
             
             // Blend pattern and tactical evaluations
             let pattern_weight = self.hybrid_config.pattern_weight * pattern_confidence;
@@ -663,18 +661,17 @@ impl ChessVectorEngine {
             return Err("No positions in knowledge base to train on.".to_string());
         }
         
-        // Collect all position vectors
-        let all_positions = self.similarity_search.get_all_positions();
-        let mut training_data = Vec::new();
-        
-        for (vector, _eval) in all_positions {
-            training_data.extend_from_slice(vector.as_slice().unwrap());
-        }
-        
+        // Create training matrix directly without intermediate vectors
         let rows = self.similarity_search.size();
         let cols = self.encoder.vector_size();
-        let training_matrix = ndarray::Array2::from_shape_vec((rows, cols), training_data)
-            .map_err(|e| format!("Failed to create training matrix: {}", e))?;
+        
+        let training_matrix = Array2::from_shape_fn((rows, cols), |(row, col)| {
+            if let Some((vector, _)) = self.similarity_search.get_position_ref(row) {
+                vector[col]
+            } else {
+                0.0
+            }
+        });
         
         // Train the manifold learner
         if let Some(ref mut learner) = self.manifold_learner {
@@ -695,11 +692,9 @@ impl ChessVectorEngine {
         Ok(())
     }
     
-    /// Rebuild manifold-based indices after training
+    /// Rebuild manifold-based indices after training (memory efficient)
     fn rebuild_manifold_indices(&mut self) -> Result<(), String> {
         if let Some(ref learner) = self.manifold_learner {
-            let all_positions = self.similarity_search.get_all_positions();
-            
             // Clear existing manifold indices
             let output_dim = learner.output_dim();
             if let Some(ref mut search) = self.manifold_similarity_search {
@@ -709,9 +704,9 @@ impl ChessVectorEngine {
                 *lsh = LSH::new(output_dim, 8, 16); // Default LSH params for compressed space
             }
             
-            // Add compressed vectors to indices
-            for (vector, eval) in all_positions {
-                let compressed = learner.encode(&vector);
+            // Process positions using iterator to avoid cloning all at once
+            for (vector, eval) in self.similarity_search.iter_positions() {
+                let compressed = learner.encode(vector);
                 
                 if let Some(ref mut search) = self.manifold_similarity_search {
                     search.add_position(compressed.clone(), eval);

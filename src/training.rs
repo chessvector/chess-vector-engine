@@ -1082,7 +1082,7 @@ impl SelfPlayTrainer {
     }
     
     /// Generate training data through self-play games
-    pub fn generate_training_data(&mut self, engine: &ChessVectorEngine) -> TrainingDataset {
+    pub fn generate_training_data(&mut self, engine: &mut ChessVectorEngine) -> TrainingDataset {
         let mut dataset = TrainingDataset::new();
         
         println!("🎮 Starting self-play training with {} games...", self.config.games_per_iteration);
@@ -1106,7 +1106,7 @@ impl SelfPlayTrainer {
     }
     
     /// Play a single self-play game and extract training positions
-    fn play_single_game(&self, engine: &ChessVectorEngine) -> Vec<TrainingData> {
+    fn play_single_game(&self, engine: &mut ChessVectorEngine) -> Vec<TrainingData> {
         let mut game = Game::new();
         let mut positions = Vec::new();
         let mut move_count = 0;
@@ -1285,7 +1285,7 @@ impl EngineEvaluator {
     /// Compare engine evaluations against Stockfish on test set
     pub fn evaluate_accuracy(
         &self,
-        engine: &ChessVectorEngine,
+        engine: &mut ChessVectorEngine,
         test_data: &TrainingDataset,
     ) -> Result<f32, Box<dyn std::error::Error>> {
         let mut total_error = 0.0;
@@ -2070,7 +2070,7 @@ mod tests {
         engine.add_position(&board, 0.1);
         
         // Test accuracy evaluation
-        let accuracy = evaluator.evaluate_accuracy(&engine, &dataset);
+        let accuracy = evaluator.evaluate_accuracy(&mut engine, &dataset);
         assert!(accuracy.is_ok());
         assert!(accuracy.unwrap() < 1.0); // Should have some accuracy
     }

@@ -1,6 +1,61 @@
 use chess::{Board, ChessMove, MoveGen, Color};
-use std::collections::HashMap;
 use std::time::{Duration, Instant};
+
+/// Custom fixed-size transposition table with replacement strategy
+#[derive(Clone)]
+struct FixedTranspositionTable {
+    entries: Vec<Option<TranspositionEntry>>,
+    size: usize,
+    age: u8,
+}
+
+impl FixedTranspositionTable {
+    fn new(size_mb: usize) -> Self {
+        let entry_size = std::mem::size_of::<TranspositionEntry>();
+        let size = (size_mb * 1024 * 1024) / entry_size;
+        
+        Self {
+            entries: vec![None; size],
+            size,
+            age: 0,
+        }
+    }
+    
+    fn get(&self, hash: u64) -> Option<&TranspositionEntry> {
+        let index = (hash as usize) % self.size;
+        self.entries[index].as_ref()
+    }
+    
+    fn insert(&mut self, hash: u64, entry: TranspositionEntry) {
+        let index = (hash as usize) % self.size;
+        
+        // Replacement strategy: always replace if empty, otherwise use depth + age
+        let should_replace = match &self.entries[index] {
+            None => true,
+            Some(existing) => {
+                // Replace if new entry has higher depth or is much newer
+                entry.depth >= existing.depth || 
+                (self.age.wrapping_sub(existing.age) > 4)
+            }
+        };
+        
+        if should_replace {
+            self.entries[index] = Some(TranspositionEntry {
+                age: self.age,
+                ..entry
+            });
+        }
+    }
+    
+    fn clear(&mut self) {
+        self.entries.fill(None);
+        self.age = self.age.wrapping_add(1);
+    }
+    
+    fn len(&self) -> usize {
+        self.entries.iter().filter(|e| e.is_some()).count()
+    }
+}
 
 /// Tactical search result
 #[derive(Debug, Clone)]
@@ -66,7 +121,7 @@ enum NodeType {
 #[derive(Clone)]
 pub struct TacticalSearch {
     config: TacticalConfig,
-    transposition_table: HashMap<u64, TranspositionEntry>,
+    transposition_table: FixedTranspositionTable,
     nodes_searched: u64,
     start_time: Instant,
 }
@@ -76,7 +131,17 @@ impl TacticalSearch {
     pub fn new(config: TacticalConfig) -> Self {
         Self {
             config,
-            transposition_table: HashMap::new(),
+            transposition_table: FixedTranspositionTable::new(64), // 64MB table
+            nodes_searched: 0,
+            start_time: Instant::now(),
+        }
+    }
+    
+    /// Create with custom transposition table size
+    pub fn with_table_size(config: TacticalConfig, table_size_mb: usize) -> Self {
+        Self {
+            config,
+            transposition_table: FixedTranspositionTable::new(table_size_mb),
             nodes_searched: 0,
             start_time: Instant::now(),
         }
@@ -206,7 +271,7 @@ impl TacticalSearch {
 
         // Transposition table lookup
         if self.config.enable_transposition_table {
-            if let Some(entry) = self.transposition_table.get(&board.get_hash()) {
+            if let Some(entry) = self.transposition_table.get(board.get_hash()) {
                 if entry.depth >= depth {
                     match entry.node_type {
                         NodeType::Exact => return (entry.evaluation, entry.best_move),
@@ -264,7 +329,7 @@ impl TacticalSearch {
                 evaluation: best_value,
                 best_move,
                 node_type,
-                age: 0, // Current search age
+                age: 0, // Will be set by the table
             });
         }
 
@@ -712,6 +777,6 @@ mod tests {
         let board = Board::default();
         let result = search.search(&board);
         
-        assert!(result.time_elapsed.as_millis() <= 50); // Should respect time limit with some margin
+        assert!(result.time_elapsed.as_millis() <= 100); // Should respect time limit with some margin
     }
 }

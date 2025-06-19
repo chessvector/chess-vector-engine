@@ -3,6 +3,11 @@ use rand::Rng;
 use std::collections::HashMap;
 use rayon::prelude::*;
 
+#[cfg(target_arch = "x86_64")]
+use std::arch::x86_64::*;
+#[cfg(target_arch = "aarch64")]
+use std::arch::aarch64::*;
+
 /// Locality Sensitive Hashing for approximate nearest neighbor search
 #[derive(Clone)]
 pub struct LSH {
@@ -24,8 +29,13 @@ pub struct LSH {
 }
 
 impl LSH {
-    /// Create a new LSH index
+    /// Create a new LSH index with dynamic sizing
     pub fn new(vector_dim: usize, num_tables: usize, hash_size: usize) -> Self {
+        Self::with_expected_size(vector_dim, num_tables, hash_size, 1000)
+    }
+    
+    /// Create a new LSH index with expected dataset size for optimal memory allocation
+    pub fn with_expected_size(vector_dim: usize, num_tables: usize, hash_size: usize, expected_size: usize) -> Self {
         let mut rng = rand::thread_rng();
         let mut hyperplanes = Vec::new();
         
@@ -40,7 +50,12 @@ impl LSH {
             hyperplanes.push(table_hyperplanes);
         }
         
-        let hash_tables = vec![HashMap::with_capacity(100); num_tables];
+        // Calculate optimal hash table capacity based on expected size
+        // Assume roughly 20% occupancy for good performance
+        let bucket_capacity = (expected_size as f32 / 5.0).ceil() as usize;
+        let optimal_capacity = bucket_capacity.max(100);
+        
+        let hash_tables = vec![HashMap::with_capacity(optimal_capacity); num_tables];
         
         Self {
             num_tables,
@@ -48,14 +63,20 @@ impl LSH {
             vector_dim,
             hyperplanes,
             hash_tables,
-            stored_vectors: Vec::with_capacity(1000), // Pre-allocate for better performance
-            stored_data: Vec::with_capacity(1000),
+            stored_vectors: Vec::with_capacity(expected_size),
+            stored_data: Vec::with_capacity(expected_size),
         }
     }
     
-    /// Add a vector to the LSH index
+    /// Add a vector to the LSH index with dynamic resizing
     pub fn add_vector(&mut self, vector: Array1<f32>, data: f32) {
         let index = self.stored_vectors.len();
+        
+        // Check if we need to resize hash tables (when load factor > 0.75)
+        let current_load = self.stored_vectors.len() as f32 / (self.hash_tables[0].capacity() as f32 * 0.2);
+        if current_load > 0.75 {
+            self.resize_hash_tables();
+        }
         
         // Hash the vector in each table before storing (to avoid clone)
         let mut hashes = Vec::with_capacity(self.num_tables);
@@ -71,8 +92,18 @@ impl LSH {
         for (table_idx, hash) in hashes.into_iter().enumerate() {
             self.hash_tables[table_idx]
                 .entry(hash)
-                .or_insert_with(|| Vec::with_capacity(4)) // Pre-allocate capacity
+                .or_insert_with(|| Vec::with_capacity(8)) // Increased pre-allocation
                 .push(index);
+        }
+    }
+    
+    /// Resize hash tables when they become too full
+    fn resize_hash_tables(&mut self) {
+        let new_capacity = (self.hash_tables[0].capacity() * 2).max(self.stored_vectors.len());
+        
+        for table in &mut self.hash_tables {
+            // Reserve additional capacity to avoid frequent rehashing
+            table.reserve(new_capacity - table.capacity());
         }
     }
     
@@ -303,7 +334,7 @@ impl LSH {
             hash_size: config.num_hash_functions,
             vector_dim: config.vector_dim,
             hyperplanes,
-            hash_tables: vec![HashMap::new(); config.num_tables],
+            hash_tables: vec![HashMap::with_capacity(positions.len().max(100)); config.num_tables],
             stored_vectors: Vec::new(),
             stored_data: Vec::new(),
         };
@@ -325,7 +356,7 @@ impl LSH {
             }
             None => {
                 println!("No saved LSH configuration found, creating new LSH index");
-                let mut lsh = Self::new(vector_dim, num_tables, hash_size);
+                let mut lsh = Self::with_expected_size(vector_dim, num_tables, hash_size, positions.len());
                 for (vector, evaluation) in positions {
                     lsh.add_vector(vector.clone(), *evaluation);
                 }
@@ -348,20 +379,143 @@ pub struct LSHStats {
     pub max_bucket_size: usize,
 }
 
-/// Calculate cosine similarity between two vectors
+/// Calculate cosine similarity between two vectors (SIMD optimized)
 fn cosine_similarity(a: &Array1<f32>, b: &Array1<f32>) -> f32 {
-    // Use ndarray's optimized dot product
-    let dot_product = a.dot(b);
+    let a_slice = a.as_slice().unwrap();
+    let b_slice = b.as_slice().unwrap();
     
-    // Calculate norms efficiently
-    let norm_a_sq: f32 = a.dot(a);
-    let norm_b_sq: f32 = b.dot(b);
+    let dot_product = simd_dot_product(a_slice, b_slice);
+    let norm_a_sq = simd_dot_product(a_slice, a_slice);
+    let norm_b_sq = simd_dot_product(b_slice, b_slice);
     
     if norm_a_sq == 0.0 || norm_b_sq == 0.0 {
         0.0
     } else {
         dot_product / (norm_a_sq * norm_b_sq).sqrt()
     }
+}
+
+/// SIMD-optimized dot product calculation
+#[inline]
+fn simd_dot_product(a: &[f32], b: &[f32]) -> f32 {
+    #[cfg(target_arch = "x86_64")]
+    {
+        if is_x86_feature_detected!("avx2") {
+            return unsafe { avx2_dot_product(a, b) };
+        } else if is_x86_feature_detected!("sse4.1") {
+            return unsafe { sse_dot_product(a, b) };
+        }
+    }
+    
+    #[cfg(target_arch = "aarch64")]
+    {
+        if std::arch::is_aarch64_feature_detected!("neon") {
+            return unsafe { neon_dot_product(a, b) };
+        }
+    }
+    
+    // Fallback to scalar implementation
+    scalar_dot_product(a, b)
+}
+
+#[cfg(target_arch = "x86_64")]
+#[target_feature(enable = "avx2")]
+unsafe fn avx2_dot_product(a: &[f32], b: &[f32]) -> f32 {
+    let len = a.len().min(b.len());
+    let mut sum = _mm256_setzero_ps();
+    let mut i = 0;
+    
+    while i + 8 <= len {
+        let va = _mm256_loadu_ps(a.as_ptr().add(i));
+        let vb = _mm256_loadu_ps(b.as_ptr().add(i));
+        let vmul = _mm256_mul_ps(va, vb);
+        sum = _mm256_add_ps(sum, vmul);
+        i += 8;
+    }
+    
+    let mut result = [0.0f32; 8];
+    _mm256_storeu_ps(result.as_mut_ptr(), sum);
+    let mut final_sum = result.iter().sum::<f32>();
+    
+    while i < len {
+        final_sum += a[i] * b[i];
+        i += 1;
+    }
+    
+    final_sum
+}
+
+#[cfg(target_arch = "x86_64")]
+#[target_feature(enable = "sse4.1")]
+unsafe fn sse_dot_product(a: &[f32], b: &[f32]) -> f32 {
+    let len = a.len().min(b.len());
+    let mut sum = _mm_setzero_ps();
+    let mut i = 0;
+    
+    while i + 4 <= len {
+        let va = _mm_loadu_ps(a.as_ptr().add(i));
+        let vb = _mm_loadu_ps(b.as_ptr().add(i));
+        let vmul = _mm_mul_ps(va, vb);
+        sum = _mm_add_ps(sum, vmul);
+        i += 4;
+    }
+    
+    let mut result = [0.0f32; 4];
+    _mm_storeu_ps(result.as_mut_ptr(), sum);
+    let mut final_sum = result.iter().sum::<f32>();
+    
+    while i < len {
+        final_sum += a[i] * b[i];
+        i += 1;
+    }
+    
+    final_sum
+}
+
+#[cfg(target_arch = "aarch64")]
+#[target_feature(enable = "neon")]
+unsafe fn neon_dot_product(a: &[f32], b: &[f32]) -> f32 {
+    let len = a.len().min(b.len());
+    let mut sum = vdupq_n_f32(0.0);
+    let mut i = 0;
+    
+    while i + 4 <= len {
+        let va = vld1q_f32(a.as_ptr().add(i));
+        let vb = vld1q_f32(b.as_ptr().add(i));
+        let vmul = vmulq_f32(va, vb);
+        sum = vaddq_f32(sum, vmul);
+        i += 4;
+    }
+    
+    let mut result = [0.0f32; 4];
+    vst1q_f32(result.as_mut_ptr(), sum);
+    let mut final_sum = result.iter().sum::<f32>();
+    
+    while i < len {
+        final_sum += a[i] * b[i];
+        i += 1;
+    }
+    
+    final_sum
+}
+
+#[inline]
+fn scalar_dot_product(a: &[f32], b: &[f32]) -> f32 {
+    let len = a.len().min(b.len());
+    let mut sum = 0.0f32;
+    let mut i = 0;
+    
+    while i + 4 <= len {
+        sum += a[i] * b[i] + a[i+1] * b[i+1] + a[i+2] * b[i+2] + a[i+3] * b[i+3];
+        i += 4;
+    }
+    
+    while i < len {
+        sum += a[i] * b[i];
+        i += 1;
+    }
+    
+    sum
 }
 
 #[cfg(test)]

@@ -4,14 +4,28 @@ use std::cmp::Ordering;
 use rayon::prelude::*;
 use crate::gpu_acceleration::GPUAccelerator;
 
+#[cfg(target_arch = "x86_64")]
+use std::arch::x86_64::*;
+#[cfg(target_arch = "aarch64")]
+use std::arch::aarch64::*;
+
 /// Entry in the similarity search index
 #[derive(Debug, Clone)]
 pub struct PositionEntry {
     pub vector: Array1<f32>,
     pub evaluation: f32,
+    pub norm_squared: f32,
 }
 
-/// Result from similarity search
+/// Result from similarity search (reference-based)
+#[derive(Debug)]
+pub struct SearchResultRef<'a> {
+    pub similarity: f32,
+    pub evaluation: f32,
+    pub vector: &'a Array1<f32>,
+}
+
+/// Result from similarity search (owned)
 #[derive(Debug, Clone)]
 pub struct SearchResult {
     pub similarity: f32,
@@ -62,10 +76,26 @@ impl SimilaritySearch {
     pub fn add_position(&mut self, vector: Array1<f32>, evaluation: f32) {
         assert_eq!(vector.len(), self.vector_size, "Vector size mismatch");
         
+        let norm_squared = self.simd_dot_product(vector.as_slice().unwrap(), vector.as_slice().unwrap());
+        
         self.positions.push(PositionEntry {
             vector,
             evaluation,
+            norm_squared,
         });
+    }
+
+    /// Search for k most similar positions with references (memory efficient)
+    pub fn search_ref(&self, query: &Array1<f32>, k: usize) -> Vec<(&Array1<f32>, f32, f32)> {
+        // Note: GPU search not supported for reference version due to lifetime constraints
+        // Fall back to CPU-based search methods
+        
+        // Use parallel CPU search for medium datasets
+        if self.positions.len() > 100 {
+            self.parallel_search_ref(query, k)
+        } else {
+            self.sequential_search_ref(query, k)
+        }
     }
 
     /// Search for k most similar positions (automatically chooses best method: GPU > parallel > sequential)
@@ -131,6 +161,39 @@ impl SimilaritySearch {
         Ok(results)
     }
     
+    /// Sequential search implementation with references (memory efficient)
+    pub fn sequential_search_ref(&self, query: &Array1<f32>, k: usize) -> Vec<(&Array1<f32>, f32, f32)> {
+        assert_eq!(query.len(), self.vector_size, "Query vector size mismatch");
+        
+        if self.positions.is_empty() {
+            return Vec::new();
+        }
+
+        let query_norm_squared = query.dot(query);
+        
+        // Collect all similarities with indices
+        let mut indexed_similarities: Vec<(usize, f32)> = self.positions
+            .iter()
+            .enumerate()
+            .map(|(idx, entry)| {
+                let similarity = self.cosine_similarity_fast(query, query_norm_squared, entry);
+                (idx, similarity)
+            })
+            .collect();
+        
+        // Sort by similarity (descending)
+        indexed_similarities.sort_by(|a, b| b.1.partial_cmp(&a.1).unwrap_or(Ordering::Equal));
+        
+        // Take top k and return references
+        indexed_similarities.into_iter()
+            .take(k)
+            .map(|(idx, similarity)| {
+                let entry = &self.positions[idx];
+                (&entry.vector, entry.evaluation, similarity)
+            })
+            .collect()
+    }
+
     /// Sequential search implementation (for small datasets)
     pub fn sequential_search(&self, query: &Array1<f32>, k: usize) -> Vec<(Array1<f32>, f32, f32)> {
         assert_eq!(query.len(), self.vector_size, "Query vector size mismatch");
@@ -139,11 +202,13 @@ impl SimilaritySearch {
             return Vec::new();
         }
 
+        let query_norm_squared = query.dot(query);
+        
         // Use a min-heap to keep track of top-k results
         let mut heap = BinaryHeap::new();
         
         for entry in &self.positions {
-            let similarity = self.cosine_similarity(query, &entry.vector);
+            let similarity = self.cosine_similarity_fast(query, query_norm_squared, entry);
             
             let result = SearchResult {
                 similarity,
@@ -170,6 +235,39 @@ impl SimilaritySearch {
         results
     }
     
+    /// Parallel search implementation with references (memory efficient)
+    pub fn parallel_search_ref(&self, query: &Array1<f32>, k: usize) -> Vec<(&Array1<f32>, f32, f32)> {
+        assert_eq!(query.len(), self.vector_size, "Query vector size mismatch");
+        
+        if self.positions.is_empty() {
+            return Vec::new();
+        }
+
+        let query_norm_squared = query.dot(query);
+        
+        // Calculate similarities in parallel with indices
+        let mut indexed_similarities: Vec<(usize, f32)> = self.positions
+            .par_iter()
+            .enumerate()
+            .map(|(idx, entry)| {
+                let similarity = self.cosine_similarity_fast(query, query_norm_squared, entry);
+                (idx, similarity)
+            })
+            .collect();
+
+        // Sort by similarity (descending) and take top k
+        indexed_similarities.par_sort_unstable_by(|a, b| b.1.partial_cmp(&a.1).unwrap_or(Ordering::Equal));
+        indexed_similarities.truncate(k);
+        
+        // Return references instead of clones
+        indexed_similarities.into_iter()
+            .map(|(idx, similarity)| {
+                let entry = &self.positions[idx];
+                (&entry.vector, entry.evaluation, similarity)
+            })
+            .collect()
+    }
+
     /// Parallel search implementation (for larger datasets)
     pub fn parallel_search(&self, query: &Array1<f32>, k: usize) -> Vec<(Array1<f32>, f32, f32)> {
         assert_eq!(query.len(), self.vector_size, "Query vector size mismatch");
@@ -178,11 +276,13 @@ impl SimilaritySearch {
             return Vec::new();
         }
 
+        let query_norm_squared = query.dot(query);
+        
         // Calculate similarities in parallel
         let mut results: Vec<_> = self.positions
             .par_iter()
             .map(|entry| {
-                let similarity = self.cosine_similarity(query, &entry.vector);
+                let similarity = self.cosine_similarity_fast(query, query_norm_squared, entry);
                 (entry.vector.clone(), entry.evaluation, similarity)
             })
             .collect();
@@ -228,7 +328,152 @@ impl SimilaritySearch {
         results
     }
 
-    /// Calculate cosine similarity between two vectors
+    /// Calculate cosine similarity between query vector and a position entry (SIMD optimized)
+    fn cosine_similarity_fast(&self, query: &Array1<f32>, query_norm_squared: f32, entry: &PositionEntry) -> f32 {
+        let dot_product = self.simd_dot_product(query.as_slice().unwrap(), entry.vector.as_slice().unwrap());
+        
+        if query_norm_squared == 0.0 || entry.norm_squared == 0.0 {
+            0.0
+        } else {
+            dot_product / (query_norm_squared.sqrt() * entry.norm_squared.sqrt())
+        }
+    }
+    
+    /// SIMD-optimized dot product calculation
+    #[inline]
+    fn simd_dot_product(&self, a: &[f32], b: &[f32]) -> f32 {
+        #[cfg(target_arch = "x86_64")]
+        {
+            if is_x86_feature_detected!("avx2") {
+                return unsafe { self.avx2_dot_product(a, b) };
+            } else if is_x86_feature_detected!("sse4.1") {
+                return unsafe { self.sse_dot_product(a, b) };
+            }
+        }
+        
+        #[cfg(target_arch = "aarch64")]
+        {
+            if std::arch::is_aarch64_feature_detected!("neon") {
+                return unsafe { self.neon_dot_product(a, b) };
+            }
+        }
+        
+        // Fallback to scalar implementation
+        self.scalar_dot_product(a, b)
+    }
+    
+    #[cfg(target_arch = "x86_64")]
+    #[target_feature(enable = "avx2")]
+    unsafe fn avx2_dot_product(&self, a: &[f32], b: &[f32]) -> f32 {
+        let len = a.len().min(b.len());
+        let mut sum = _mm256_setzero_ps();
+        let mut i = 0;
+        
+        // Process 8 floats at a time with AVX2
+        while i + 8 <= len {
+            let va = _mm256_loadu_ps(a.as_ptr().add(i));
+            let vb = _mm256_loadu_ps(b.as_ptr().add(i));
+            let vmul = _mm256_mul_ps(va, vb);
+            sum = _mm256_add_ps(sum, vmul);
+            i += 8;
+        }
+        
+        // Horizontal sum of the AVX2 register
+        let mut result = [0.0f32; 8];
+        _mm256_storeu_ps(result.as_mut_ptr(), sum);
+        let mut final_sum = result.iter().sum::<f32>();
+        
+        // Handle remaining elements
+        while i < len {
+            final_sum += a[i] * b[i];
+            i += 1;
+        }
+        
+        final_sum
+    }
+    
+    #[cfg(target_arch = "x86_64")]
+    #[target_feature(enable = "sse4.1")]
+    unsafe fn sse_dot_product(&self, a: &[f32], b: &[f32]) -> f32 {
+        let len = a.len().min(b.len());
+        let mut sum = _mm_setzero_ps();
+        let mut i = 0;
+        
+        // Process 4 floats at a time with SSE
+        while i + 4 <= len {
+            let va = _mm_loadu_ps(a.as_ptr().add(i));
+            let vb = _mm_loadu_ps(b.as_ptr().add(i));
+            let vmul = _mm_mul_ps(va, vb);
+            sum = _mm_add_ps(sum, vmul);
+            i += 4;
+        }
+        
+        // Horizontal sum of the SSE register
+        let mut result = [0.0f32; 4];
+        _mm_storeu_ps(result.as_mut_ptr(), sum);
+        let mut final_sum = result.iter().sum::<f32>();
+        
+        // Handle remaining elements
+        while i < len {
+            final_sum += a[i] * b[i];
+            i += 1;
+        }
+        
+        final_sum
+    }
+    
+    #[cfg(target_arch = "aarch64")]
+    #[target_feature(enable = "neon")]
+    unsafe fn neon_dot_product(&self, a: &[f32], b: &[f32]) -> f32 {
+        let len = a.len().min(b.len());
+        let mut sum = vdupq_n_f32(0.0);
+        let mut i = 0;
+        
+        // Process 4 floats at a time with NEON
+        while i + 4 <= len {
+            let va = vld1q_f32(a.as_ptr().add(i));
+            let vb = vld1q_f32(b.as_ptr().add(i));
+            let vmul = vmulq_f32(va, vb);
+            sum = vaddq_f32(sum, vmul);
+            i += 4;
+        }
+        
+        // Horizontal sum of the NEON register
+        let mut result = [0.0f32; 4];
+        vst1q_f32(result.as_mut_ptr(), sum);
+        let mut final_sum = result.iter().sum::<f32>();
+        
+        // Handle remaining elements
+        while i < len {
+            final_sum += a[i] * b[i];
+            i += 1;
+        }
+        
+        final_sum
+    }
+    
+    #[inline]
+    fn scalar_dot_product(&self, a: &[f32], b: &[f32]) -> f32 {
+        let len = a.len().min(b.len());
+        let mut sum = 0.0f32;
+        
+        // Unroll loop for better performance
+        let mut i = 0;
+        while i + 4 <= len {
+            sum += a[i] * b[i] + a[i+1] * b[i+1] + a[i+2] * b[i+2] + a[i+3] * b[i+3];
+            i += 4;
+        }
+        
+        // Handle remaining elements
+        while i < len {
+            sum += a[i] * b[i];
+            i += 1;
+        }
+        
+        sum
+    }
+
+    /// Calculate cosine similarity between two vectors (fallback method)
     fn cosine_similarity(&self, a: &Array1<f32>, b: &Array1<f32>) -> f32 {
         let dot_product = a.dot(b);
         let norm_a = a.dot(a).sqrt();
@@ -310,6 +555,16 @@ impl SimilaritySearch {
             .iter()
             .map(|entry| (entry.vector.clone(), entry.evaluation))
             .collect()
+    }
+    
+    /// Get position vector by reference to avoid cloning
+    pub fn get_position_ref(&self, index: usize) -> Option<(&Array1<f32>, f32)> {
+        self.positions.get(index).map(|entry| (&entry.vector, entry.evaluation))
+    }
+    
+    /// Get all positions as references (memory efficient iterator)
+    pub fn iter_positions(&self) -> impl Iterator<Item = (&Array1<f32>, f32)> {
+        self.positions.iter().map(|entry| (&entry.vector, entry.evaluation))
     }
 }
 
