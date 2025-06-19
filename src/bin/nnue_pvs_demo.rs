@@ -29,7 +29,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     // Configure advanced tactical search with PVS
     let tactical_config = TacticalConfig {
         max_depth: 3, // Reduce depth for debugging
-        enable_principal_variation_search: false, // Disable PVS for debugging
+        enable_principal_variation_search: true, // Enable PVS for testing
         enable_iterative_deepening: false, // Disable iterative deepening
         enable_null_move_pruning: false, // Disable complex features
         enable_late_move_reductions: false,

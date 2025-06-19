@@ -18,6 +18,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         max_nodes: 10_000,
         quiescence_depth: 2,
         enable_transposition_table: true,
+        ..Default::default()
     };
     engine.enable_tactical_search(tactical_config);
     

@@ -217,9 +217,6 @@ impl TacticalSearch {
                 }
             }
         }
-
-        let mut best_move: Option<ChessMove> = None;
-        let mut best_value = if maximizing { f32::NEG_INFINITY } else { f32::INFINITY };
         
         // Null move pruning (when not in check and depth > 2)
         if self.config.enable_null_move_pruning 
@@ -279,6 +276,7 @@ impl TacticalSearch {
         let mut best_move: Option<ChessMove> = None;
         let mut best_value = if maximizing { f32::NEG_INFINITY } else { f32::INFINITY };
         let mut _pv_found = false;
+        let mut first_move = true;
         
         // If no moves available, return current position evaluation
         if moves.is_empty() {
@@ -309,6 +307,7 @@ impl TacticalSearch {
                 let (eval, _) = self.minimax(&new_board, depth - 1, alpha, beta, !maximizing);
                 evaluation = eval;
                 _pv_found = true;
+                
             } else {
                 // Search subsequent moves with null window first (PVS optimization)
                 let null_window_alpha = if maximizing { alpha } else { beta - 1.0 };
@@ -338,18 +337,20 @@ impl TacticalSearch {
             
             // Update best move and alpha/beta
             if maximizing {
-                if evaluation > best_value {
+                if first_move || evaluation > best_value {
                     best_value = evaluation;
                     best_move = Some(chess_move);
                 }
                 alpha = alpha.max(evaluation);
             } else {
-                if evaluation < best_value {
+                if first_move || evaluation < best_value {
                     best_value = evaluation;
                     best_move = Some(chess_move);
                 }
                 beta = beta.min(evaluation);
             }
+            
+            first_move = false;
             
             // Alpha-beta pruning
             if beta <= alpha {
@@ -364,6 +365,7 @@ impl TacticalSearch {
     fn alpha_beta_search(&mut self, board: &Board, depth: u32, mut alpha: f32, mut beta: f32, maximizing: bool, moves: Vec<ChessMove>) -> (f32, Option<ChessMove>) {
         let mut best_move: Option<ChessMove> = None;
         let mut best_value = if maximizing { f32::NEG_INFINITY } else { f32::INFINITY };
+        let mut first_move = true;
         
         // If no moves available, return current position evaluation
         if moves.is_empty() {
@@ -400,18 +402,20 @@ impl TacticalSearch {
             };
             
             if maximizing {
-                if final_evaluation > best_value {
+                if first_move || final_evaluation > best_value {
                     best_value = final_evaluation;
                     best_move = Some(chess_move);
                 }
                 alpha = alpha.max(final_evaluation);
             } else {
-                if final_evaluation < best_value {
+                if first_move || final_evaluation < best_value {
                     best_value = final_evaluation;
                     best_move = Some(chess_move);
                 }
                 beta = beta.min(final_evaluation);
             }
+            
+            first_move = false;
             
             // Alpha-beta pruning
             if beta <= alpha {
@@ -462,7 +466,7 @@ impl TacticalSearch {
             }
         }
 
-        if maximizing { alpha } else { stand_pat.min(alpha) }
+        stand_pat
     }
 
     /// Generate moves ordered by likely tactical value
@@ -513,11 +517,13 @@ impl TacticalSearch {
         score += self.king_safety(board);
 
         // Perspective from white's point of view
-        if board.side_to_move() == Color::Black {
+        let final_score = if board.side_to_move() == Color::Black {
             -score
         } else {
             score
-        }
+        };
+        
+        final_score
     }
 
     /// Evaluate terminal positions (checkmate, stalemate, etc.)

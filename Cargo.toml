@@ -70,10 +70,6 @@ name = "hybrid_evaluation_demo"
 path = "src/bin/hybrid_evaluation_demo.rs"
 
 [[bin]]
-name = "tactical_hybrid_demo"
-path = "tactical_hybrid_demo.rs"
-
-[[bin]]
 name = "self_play_training"
 path = "src/bin/self_play_training.rs"
 
