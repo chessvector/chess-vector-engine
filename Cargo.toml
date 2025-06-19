@@ -81,6 +81,14 @@ path = "src/bin/uci_engine.rs"
 name = "nnue_pvs_demo"
 path = "src/bin/nnue_pvs_demo.rs"
 
+[[bin]]
+name = "play_stockfish"
+path = "src/bin/play_stockfish.rs"
+
+[[bin]]
+name = "performance_benchmark"
+path = "src/bin/performance_benchmark.rs"
+
 [dependencies]
 # Chess game logic
 chess = "3.2"
@@ -126,6 +134,9 @@ chrono = "0.4"
 # Database persistence
 rusqlite = { version = "0.32", features = ["bundled", "blob"] }
 bincode = "1.3"
+
+# Compression for fast training data
+lz4_flex = "0.11"
 
 [features]
 default = []

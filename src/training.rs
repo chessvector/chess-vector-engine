@@ -1,13 +1,14 @@
 use chess::{Board, Game, MoveGen, ChessMove};
 use pgn_reader::{RawHeader, SanPlus, Skip, Visitor, BufferedReader};
 use std::fs::File;
-use std::io::{BufRead, BufReader};
+use std::io::{BufRead, BufReader, Write, BufWriter};
 use std::path::Path;
-use std::process::{Command, Stdio};
+use std::process::{Command, Stdio, Child};
 use std::str::FromStr;
 use indicatif::{ProgressBar, ProgressStyle};
 use rayon::prelude::*;
 use serde::{Deserialize, Serialize};
+use std::sync::{Arc, Mutex};
 
 use crate::ChessVectorEngine;
 
@@ -387,6 +388,195 @@ impl StockfishEvaluator {
         });
         
         pb.finish_with_message("Parallel evaluation complete");
+        Ok(())
+    }
+}
+
+/// Persistent Stockfish process for fast UCI communication
+struct StockfishProcess {
+    child: Child,
+    stdin: BufWriter<std::process::ChildStdin>,
+    stdout: BufReader<std::process::ChildStdout>,
+    depth: u8,
+}
+
+impl StockfishProcess {
+    fn new(depth: u8) -> Result<Self, Box<dyn std::error::Error>> {
+        let mut child = Command::new("stockfish")
+            .stdin(Stdio::piped())
+            .stdout(Stdio::piped())
+            .stderr(Stdio::piped())
+            .spawn()?;
+
+        let stdin = BufWriter::new(child.stdin.take().unwrap());
+        let stdout = BufReader::new(child.stdout.take().unwrap());
+        
+        let mut process = Self { child, stdin, stdout, depth };
+        
+        // Initialize UCI
+        process.send_command("uci")?;
+        process.wait_for_ready()?;
+        process.send_command("isready")?;
+        process.wait_for_ready()?;
+        
+        Ok(process)
+    }
+    
+    fn send_command(&mut self, command: &str) -> Result<(), Box<dyn std::error::Error>> {
+        writeln!(self.stdin, "{}", command)?;
+        self.stdin.flush()?;
+        Ok(())
+    }
+    
+    fn wait_for_ready(&mut self) -> Result<(), Box<dyn std::error::Error>> {
+        let mut line = String::new();
+        loop {
+            line.clear();
+            self.stdout.read_line(&mut line)?;
+            if line.trim() == "uciok" || line.trim() == "readyok" {
+                break;
+            }
+        }
+        Ok(())
+    }
+    
+    fn evaluate_position(&mut self, board: &Board) -> Result<f32, Box<dyn std::error::Error>> {
+        let fen = board.to_string();
+        
+        // Send position and evaluation commands
+        self.send_command(&format!("position fen {}", fen))?;
+        self.send_command(&format!("go depth {}", self.depth))?;
+        
+        // Read response until we get bestmove
+        let mut line = String::new();
+        let mut last_evaluation = 0.0;
+        
+        loop {
+            line.clear();
+            self.stdout.read_line(&mut line)?;
+            let line = line.trim();
+            
+            if line.starts_with("info") && line.contains("score cp") {
+                if let Some(cp_pos) = line.find("score cp ") {
+                    let cp_str = &line[cp_pos + 9..];
+                    if let Some(end) = cp_str.find(' ') {
+                        if let Ok(cp_value) = cp_str[..end].parse::<i32>() {
+                            last_evaluation = cp_value as f32 / 100.0;
+                        }
+                    }
+                }
+            } else if line.starts_with("info") && line.contains("score mate") {
+                if let Some(mate_pos) = line.find("score mate ") {
+                    let mate_str = &line[mate_pos + 11..];
+                    if let Some(end) = mate_str.find(' ') {
+                        if let Ok(mate_moves) = mate_str[..end].parse::<i32>() {
+                            last_evaluation = if mate_moves > 0 { 100.0 } else { -100.0 };
+                        }
+                    }
+                }
+            } else if line.starts_with("bestmove") {
+                break;
+            }
+        }
+        
+        Ok(last_evaluation)
+    }
+}
+
+impl Drop for StockfishProcess {
+    fn drop(&mut self) {
+        let _ = self.send_command("quit");
+        let _ = self.child.wait();
+    }
+}
+
+/// High-performance Stockfish process pool
+pub struct StockfishPool {
+    pool: Arc<Mutex<Vec<StockfishProcess>>>,
+    depth: u8,
+    pool_size: usize,
+}
+
+impl StockfishPool {
+    pub fn new(depth: u8, pool_size: usize) -> Result<Self, Box<dyn std::error::Error>> {
+        let mut processes = Vec::with_capacity(pool_size);
+        
+        println!("🚀 Initializing Stockfish pool with {} processes...", pool_size);
+        
+        for i in 0..pool_size {
+            match StockfishProcess::new(depth) {
+                Ok(process) => {
+                    processes.push(process);
+                    if i % 2 == 1 {
+                        print!(".");
+                        std::io::stdout().flush().unwrap();
+                    }
+                }
+                Err(e) => {
+                    eprintln!("Failed to create Stockfish process {}: {}", i, e);
+                    return Err(e);
+                }
+            }
+        }
+        
+        println!(" ✅ Pool ready!");
+        
+        Ok(Self {
+            pool: Arc::new(Mutex::new(processes)),
+            depth,
+            pool_size,
+        })
+    }
+    
+    pub fn evaluate_position(&self, board: &Board) -> Result<f32, Box<dyn std::error::Error>> {
+        // Get a process from the pool
+        let mut process = {
+            let mut pool = self.pool.lock().unwrap();
+            if let Some(process) = pool.pop() {
+                process
+            } else {
+                // Pool is empty, create temporary process
+                StockfishProcess::new(self.depth)?
+            }
+        };
+        
+        // Evaluate position
+        let result = process.evaluate_position(board);
+        
+        // Return process to pool
+        {
+            let mut pool = self.pool.lock().unwrap();
+            if pool.len() < self.pool_size {
+                pool.push(process);
+            }
+            // Otherwise drop the process (in case of pool size changes)
+        }
+        
+        result
+    }
+    
+    pub fn evaluate_batch_parallel(&self, positions: &mut [TrainingData]) -> Result<(), Box<dyn std::error::Error>> {
+        let pb = ProgressBar::new(positions.len() as u64);
+        pb.set_style(ProgressStyle::default_bar()
+            .template("{spinner:.green} [{elapsed_precise}] [{bar:40.cyan/blue}] {pos}/{len} Pool evaluation")
+            .unwrap()
+            .progress_chars("#>-"));
+
+        // Use rayon for parallel evaluation
+        positions.par_iter_mut().for_each(|data| {
+            match self.evaluate_position(&data.board) {
+                Ok(eval) => {
+                    data.evaluation = eval;
+                    data.depth = self.depth;
+                }
+                Err(_) => {
+                    data.evaluation = 0.0;
+                }
+            }
+            pb.inc(1);
+        });
+        
+        pb.finish_with_message("Pool evaluation complete");
         Ok(())
     }
 }

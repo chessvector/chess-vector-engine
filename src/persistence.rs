@@ -382,6 +382,87 @@ impl Database {
             None => Ok(None),
         }
     }
+
+    /// Save multiple positions in a single transaction for much better performance
+    pub fn save_positions_batch(&self, positions: &[PositionData]) -> SqlResult<usize> {
+        if positions.is_empty() {
+            return Ok(0);
+        }
+
+        let tx = self.conn.unchecked_transaction()?;
+        
+        {
+            let mut stmt = tx.prepare(
+                "INSERT OR REPLACE INTO positions (fen, vector, evaluation, compressed_vector, created_at, updated_at)
+                 VALUES (?1, ?2, ?3, ?4, ?5, ?6)"
+            )?;
+
+            let current_time = std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .map_err(|e| rusqlite::Error::ToSqlConversionFailure(Box::new(e)))?
+                .as_secs() as i64;
+
+            for position_data in positions {
+                let vector_bytes = bincode::serialize(&position_data.vector)
+                    .map_err(|e| rusqlite::Error::ToSqlConversionFailure(Box::new(e)))?;
+
+                let compressed_vector_bytes = position_data.compressed_vector.as_ref()
+                    .map(|v| bincode::serialize(v))
+                    .transpose()
+                    .map_err(|e| rusqlite::Error::ToSqlConversionFailure(Box::new(e)))?;
+
+                stmt.execute(params![
+                    position_data.fen,
+                    vector_bytes,
+                    position_data.evaluation,
+                    compressed_vector_bytes,
+                    position_data.created_at,
+                    current_time
+                ])?;
+            }
+        }
+        
+        tx.commit()?;
+        Ok(positions.len())
+    }
+
+    /// Load positions in batches for better memory efficiency
+    pub fn load_positions_batch(&self, limit: usize, offset: usize) -> SqlResult<Vec<PositionData>> {
+        let mut stmt = self.conn.prepare(
+            "SELECT fen, vector, evaluation, compressed_vector, created_at 
+             FROM positions ORDER BY id LIMIT ?1 OFFSET ?2"
+        )?;
+
+        let rows = stmt.query_map([limit, offset], |row| {
+            let vector_bytes: Vec<u8> = row.get(1)?;
+            let vector: Vec<f64> = bincode::deserialize(&vector_bytes)
+                .map_err(|e| rusqlite::Error::FromSqlConversionFailure(1, rusqlite::types::Type::Blob, Box::new(e)))?;
+
+            let compressed_vector = if let Ok(Some(compressed_bytes)) = row.get::<_, Option<Vec<u8>>>(3) {
+                Some(bincode::deserialize(&compressed_bytes)
+                    .map_err(|e| rusqlite::Error::FromSqlConversionFailure(3, rusqlite::types::Type::Blob, Box::new(e)))?)
+            } else {
+                None
+            };
+
+            Ok(PositionData {
+                fen: row.get(0)?,
+                vector,
+                evaluation: row.get(2)?,
+                compressed_vector,
+                created_at: row.get(4)?,
+            })
+        })?;
+
+        rows.collect()
+    }
+
+    /// Get the total count of positions in the database (as usize)
+    pub fn get_total_position_count(&self) -> SqlResult<usize> {
+        let mut stmt = self.conn.prepare("SELECT COUNT(*) FROM positions")?;
+        let count: i64 = stmt.query_row([], |row| row.get(0))?;
+        Ok(count as usize)
+    }
 }
 
 #[cfg(test)]

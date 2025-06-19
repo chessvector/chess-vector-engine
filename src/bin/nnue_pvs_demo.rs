@@ -26,14 +26,14 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let nnue_config = NNUEConfig::vector_integrated(); // 40% vector influence
     let nnue = NNUE::new(nnue_config)?;
     
-    // Configure advanced tactical search with PVS
+    // Configure optimal tactical search with PVS
     let tactical_config = TacticalConfig {
-        max_depth: 3, // Reduce depth for debugging
-        enable_principal_variation_search: true, // Enable PVS for testing
-        enable_iterative_deepening: false, // Disable iterative deepening
-        enable_null_move_pruning: false, // Disable complex features
-        enable_late_move_reductions: false,
-        max_time_ms: 1000,
+        max_depth: 6, // Full depth for optimal play
+        enable_principal_variation_search: true,
+        enable_iterative_deepening: true, // Enable for better move ordering
+        enable_null_move_pruning: true, // Enable all optimizations
+        enable_late_move_reductions: true,
+        max_time_ms: 2000, // More time for deeper analysis
         ..Default::default()
     };
     let mut tactical_search = TacticalSearch::new(tactical_config);

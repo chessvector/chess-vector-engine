@@ -47,7 +47,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                 .short('o')
                 .value_name("FILE")
                 .help("Output file for training data")
-                .default_value("self_play_training.json")
+                .default_value("self_play_training.bin")
         )
         .arg(
             Arg::new("existing")
@@ -160,6 +160,24 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             println!("⚠️  Could not enable persistence: {}", e);
         } else {
             println!("💾 Database persistence enabled ({})", db_path);
+            
+            // Load existing data from database if it exists
+            let initial_size = engine.knowledge_base_size();
+            match engine.load_from_database() {
+                Ok(_) => {
+                    let loaded_count = engine.knowledge_base_size() - initial_size;
+                    if loaded_count > 0 {
+                        println!("📚 Loaded {} existing positions from database", loaded_count);
+                        println!("🔄 Resuming training from previous state");
+                    } else {
+                        println!("📝 Starting fresh training (no existing data)");
+                    }
+                }
+                Err(e) => {
+                    println!("⚠️  Could not load existing data: {}", e);
+                    println!("📝 Starting fresh training");
+                }
+            }
         }
     }
     
@@ -171,9 +189,20 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         }
     }
 
-    // Load existing training data if provided
+    // Load existing training data if provided (auto-detect format)
     if let Some(existing_path) = existing_file {
-        match engine.load_training_data_incremental(existing_path) {
+        // Try binary format first, fallback to JSON for backwards compatibility
+        let load_result = if existing_path.ends_with(".bin") || existing_path.ends_with(".binary") {
+            engine.load_training_data_binary(existing_path)
+        } else if existing_path.ends_with(".json") {
+            engine.load_training_data_incremental(existing_path)
+        } else {
+            // Auto-detect: try binary first, then JSON
+            engine.load_training_data_binary(existing_path)
+                .or_else(|_| engine.load_training_data_incremental(existing_path))
+        };
+        
+        match load_result {
             Ok(_) => {
                 println!("📚 Loaded existing training data from {}", existing_path);
                 println!("   Starting knowledge base size: {}", engine.knowledge_base_size());
@@ -239,8 +268,8 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     // Save final training data
     if !continuous { // Continuous mode saves automatically
         println!("\n💾 Saving training data to {}...", output_file);
-        match engine.save_training_data(output_file) {
-            Ok(_) => println!("✅ Training data saved successfully!"),
+        match engine.save_training_data_binary(output_file) {
+            Ok(_) => println!("✅ Training data saved successfully (binary format)!"),
             Err(e) => println!("⚠️  Failed to save training data: {}", e),
         }
     }

@@ -17,8 +17,10 @@ This is a **Rust library** (`chess-vector-engine`) that provides vector-based ch
 - `cargo run --bin manifold_demo` - Demonstrate neural network compression
 - `cargo run --bin analyze <FEN>` - Position analysis tool with opening book
 - `cargo run --bin training_benchmark` - Test training performance optimizations
+- `cargo run --bin performance_benchmark` - Benchmark new optimizations (Stockfish pool, DB batching, binary format)
 - `cargo run --bin tactical_training -- --puzzles <CSV_FILE>` - Train with Lichess puzzles
-- `cargo run --bin self_play_training` - Self-play training for continuous learning
+- `cargo run --bin self_play_training` - Self-play training (optimized: binary format, DB batching, Stockfish pool)
+- `cargo run --bin play_stockfish` - Play against Stockfish with the trained engine
 
 ### Publishing
 - `cargo publish` - Publish library to crates.io (when ready)
