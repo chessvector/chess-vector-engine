@@ -89,6 +89,10 @@ path = "src/bin/play_stockfish.rs"
 name = "performance_benchmark"
 path = "src/bin/performance_benchmark.rs"
 
+[[bin]]
+name = "comprehensive_training"
+path = "src/bin/comprehensive_training.rs"
+
 [dependencies]
 # Chess game logic
 chess = "3.2"

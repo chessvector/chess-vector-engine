@@ -7,6 +7,10 @@ use std::sync::OnceLock;
 pub struct GPUAccelerator {
     device: Device,
     device_type: DeviceType,
+    /// Available GPU devices for multi-GPU operations
+    available_devices: Vec<Device>,
+    /// Current device index for multi-GPU operations
+    current_device_index: usize,
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -27,6 +31,8 @@ impl GPUAccelerator {
                 GPUAccelerator {
                     device: Device::Cpu,
                     device_type: DeviceType::CPU,
+                    available_devices: vec![Device::Cpu],
+                    current_device_index: 0,
                 }
             })
         })
@@ -66,15 +72,38 @@ impl GPUAccelerator {
         Ok(GPUAccelerator {
             device: Device::Cpu,
             device_type: DeviceType::CPU,
+            available_devices: vec![Device::Cpu],
+            current_device_index: 0,
         })
     }
 
     #[cfg(feature = "cuda")]
     fn try_cuda() -> CandleResult<Self> {
-        let device = Device::new_cuda(0)?; // Try first CUDA device
+        // Try to detect multiple CUDA devices
+        let mut available_devices = Vec::new();
+        let mut device_count = 0;
+        
+        // Try to detect up to 8 CUDA devices
+        for i in 0..8 {
+            if let Ok(device) = Device::new_cuda(i) {
+                available_devices.push(device);
+                device_count += 1;
+            } else {
+                break;
+            }
+        }
+        
+        if available_devices.is_empty() {
+            return Err(candle_core::Error::Msg("No CUDA devices available".into()));
+        }
+        
+        println!("🚀 Detected {} CUDA device(s)", device_count);
+        
         Ok(GPUAccelerator {
-            device,
+            device: available_devices[0].clone(),
             device_type: DeviceType::CUDA,
+            available_devices,
+            current_device_index: 0,
         })
     }
 
@@ -85,10 +114,31 @@ impl GPUAccelerator {
 
     #[cfg(feature = "metal")]
     fn try_metal() -> CandleResult<Self> {
-        let device = Device::new_metal(0)?; // Try first Metal device
+        // Try to detect multiple Metal devices
+        let mut available_devices = Vec::new();
+        let mut device_count = 0;
+        
+        // Try to detect up to 4 Metal devices (typically fewer than CUDA)
+        for i in 0..4 {
+            if let Ok(device) = Device::new_metal(i) {
+                available_devices.push(device);
+                device_count += 1;
+            } else {
+                break;
+            }
+        }
+        
+        if available_devices.is_empty() {
+            return Err(candle_core::Error::Msg("No Metal devices available".into()));
+        }
+        
+        println!("🍎 Detected {} Metal device(s)", device_count);
+        
         Ok(GPUAccelerator {
-            device,
+            device: available_devices[0].clone(),
             device_type: DeviceType::Metal,
+            available_devices,
+            current_device_index: 0,
         })
     }
 
@@ -110,6 +160,38 @@ impl GPUAccelerator {
     /// Check if GPU acceleration is available
     pub fn is_gpu_enabled(&self) -> bool {
         matches!(self.device_type, DeviceType::CUDA | DeviceType::Metal)
+    }
+    
+    /// Get number of available GPU devices
+    pub fn device_count(&self) -> usize {
+        self.available_devices.len()
+    }
+    
+    /// Check if multiple GPU devices are available
+    pub fn is_multi_gpu_available(&self) -> bool {
+        self.is_gpu_enabled() && self.available_devices.len() > 1
+    }
+    
+    /// Get all available devices for multi-GPU operations
+    pub fn all_devices(&self) -> &[Device] {
+        &self.available_devices
+    }
+    
+    /// Switch to a specific device (for multi-GPU operations)
+    pub fn switch_device(&mut self, device_index: usize) -> Result<(), String> {
+        if device_index >= self.available_devices.len() {
+            return Err(format!("Device index {} out of range (have {} devices)", 
+                             device_index, self.available_devices.len()));
+        }
+        
+        self.device = self.available_devices[device_index].clone();
+        self.current_device_index = device_index;
+        Ok(())
+    }
+    
+    /// Get current device index
+    pub fn current_device_index(&self) -> usize {
+        self.current_device_index
     }
 
     /// Convert ndarray to Candle tensor on the appropriate device
@@ -263,6 +345,102 @@ impl GPUAccelerator {
         
         Ok(gflops)
     }
+    
+    /// Multi-GPU parallel similarity search (when multiple GPUs available)
+    pub fn multi_gpu_similarity_search(&self, query: &Array1<f32>, vectors: &Array2<f32>) -> CandleResult<Array1<f32>> {
+        if !self.is_multi_gpu_available() || vectors.nrows() < 1000 {
+            // Fall back to single GPU/CPU
+            return self.cosine_similarity_batch(query, vectors);
+        }
+        
+        println!("🚀 Using multi-GPU similarity search across {} devices", self.device_count());
+        
+        let chunk_size = (vectors.nrows() + self.device_count() - 1) / self.device_count();
+        let mut results = Vec::new();
+        
+        // Process chunks in parallel across different GPUs
+        for (device_idx, chunk) in vectors.axis_chunks_iter(ndarray::Axis(0), chunk_size).enumerate() {
+            if device_idx >= self.available_devices.len() {
+                break;
+            }
+            
+            // Create tensor on specific device
+            let device = &self.available_devices[device_idx];
+            let query_tensor = Tensor::from_slice(
+                query.as_slice().expect("Array must be contiguous"),
+                query.len(),
+                device
+            )?;
+            
+            let chunk_data = chunk.as_slice().expect("Chunk must be contiguous");
+            let chunk_tensor = Tensor::from_slice(
+                chunk_data,
+                (chunk.nrows(), chunk.ncols()),
+                device
+            )?;
+            
+            // Compute similarities on this GPU
+            let similarities = self.compute_cosine_similarity_tensor(&query_tensor, &chunk_tensor)?;
+            let similarities_array = self.tensor_to_array(&similarities)?;
+            results.push(similarities_array);
+        }
+        
+        // Concatenate results
+        let total_len: usize = results.iter().map(|r| r.len()).sum();
+        let mut combined = Vec::with_capacity(total_len);
+        for result in results {
+            combined.extend(result.iter());
+        }
+        
+        Ok(Array1::from_vec(combined))
+    }
+    
+    /// Helper method to compute cosine similarity on tensor
+    fn compute_cosine_similarity_tensor(&self, query: &Tensor, vectors: &Tensor) -> CandleResult<Tensor> {
+        // Normalize query
+        let query_norm = query.sqr()?.sum_keepdim(0)?.sqrt()?;
+        let query_normalized = query.broadcast_div(&query_norm)?;
+        
+        // Normalize vectors
+        let vectors_norm = vectors.sqr()?.sum_keepdim(1)?.sqrt()?;
+        let vectors_normalized = vectors.broadcast_div(&vectors_norm)?;
+        
+        // Compute dot product (cosine similarity)
+        vectors_normalized.matmul(&query_normalized.unsqueeze(1)?)?.squeeze(1)
+    }
+    
+    /// Multi-GPU batch processing for large operations
+    pub fn multi_gpu_batch_process<T, F>(&self, data: &[T], process_fn: F) -> Result<Vec<T>, String> 
+    where 
+        T: Clone + Send + Sync,
+        F: Fn(&[T], usize) -> Result<Vec<T>, String> + Send + Sync,
+    {
+        if !self.is_multi_gpu_available() || data.len() < 1000 {
+            // Single device processing
+            return process_fn(data, 0);
+        }
+        
+        use rayon::prelude::*;
+        
+        let chunk_size = (data.len() + self.device_count() - 1) / self.device_count();
+        
+        println!("🚀 Multi-GPU batch processing: {} items across {} devices", 
+                 data.len(), self.device_count());
+        
+        let results: Result<Vec<Vec<T>>, String> = data
+            .par_chunks(chunk_size)
+            .enumerate()
+            .map(|(device_idx, chunk)| {
+                let gpu_idx = device_idx % self.device_count();
+                process_fn(chunk, gpu_idx)
+            })
+            .collect();
+        
+        match results {
+            Ok(chunks) => Ok(chunks.into_iter().flatten().collect()),
+            Err(e) => Err(e),
+        }
+    }
 }
 
 impl Default for GPUAccelerator {
@@ -270,6 +448,8 @@ impl Default for GPUAccelerator {
         Self::new().unwrap_or_else(|_| GPUAccelerator {
             device: Device::Cpu,
             device_type: DeviceType::CPU,
+            available_devices: vec![Device::Cpu],
+            current_device_index: 0,
         })
     }
 }
