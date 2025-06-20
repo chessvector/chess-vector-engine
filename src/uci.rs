@@ -448,7 +448,7 @@ impl UCIEngine {
         self.stop_search = false;
         
         let board = self.board;
-        let engine = self.engine.clone();
+        let mut engine = self.engine.clone(); // Clone the engine for threaded evaluation
         let start_time = Instant::now();
         
         // Spawn search thread
@@ -465,39 +465,69 @@ impl UCIEngine {
                 currmovenumber: None,
             };
             
-            // Get move recommendations from the engine
-            let recommendations = engine.recommend_legal_moves(&board, 5);
+            // PROPER CHESS ENGINE SEARCH: evaluate all legal moves using hybrid system
+            let legal_moves: Vec<ChessMove> = chess::MoveGen::new_legal(&board).collect();
             
-            if let Some(best_move) = recommendations.first() {
-                // Convert confidence to centipawns (rough approximation)
-                let score_cp = ((best_move.confidence - 0.5) * 200.0) as i32;
-                
-                search_info.score = SearchScore::Centipawns(score_cp);
-                search_info.pv = vec![best_move.chess_move];
-                search_info.time = start_time.elapsed().as_millis() as u64;
-                search_info.nodes = 1; // Simplified
-                search_info.nps = if search_info.time > 0 {
-                    (search_info.nodes * 1000) / search_info.time
-                } else {
-                    0
-                };
-                
-                // Send info
-                println!("info depth {} score cp {} time {} nodes {} nps {} pv {}", 
-                    search_info.depth,
-                    score_cp,
-                    search_info.time,
-                    search_info.nodes,
-                    search_info.nps,
-                    best_move.chess_move
-                );
-                
-                // Send best move
-                println!("bestmove {}", best_move.chess_move);
-            } else {
-                // No moves found, resign
-                println!("bestmove 0000");
+            if legal_moves.is_empty() {
+                println!("bestmove 0000"); // No legal moves - game over
+                return;
             }
+            
+            let mut best_move_result: Option<(ChessMove, f32)> = None;
+            let mut nodes_searched = 0;
+            
+            // Evaluate each legal move by making it and evaluating the resulting position
+            for chess_move in &legal_moves {
+                let temp_board = board.make_move_new(*chess_move);
+                nodes_searched += 1;
+                
+                // Use the engine's hybrid evaluation system (opening book + patterns + tactical)
+                if let Some(position_eval) = engine.evaluate_position(&temp_board) {
+                    // Flip evaluation for opponent's perspective
+                    let eval_for_us = if board.side_to_move() == chess::Color::White {
+                        position_eval
+                    } else {
+                        -position_eval
+                    };
+                    
+                    // Update best move if this is better
+                    if best_move_result.is_none() || eval_for_us > best_move_result.as_ref().unwrap().1 {
+                        best_move_result = Some((*chess_move, eval_for_us));
+                    }
+                }
+            }
+            
+            let (best_move, score_cp) = if let Some((mv, eval)) = best_move_result {
+                // Convert evaluation to centipawns (multiply by 100 for standard UCI format)
+                (mv, (eval * 100.0) as i32)
+            } else {
+                // Fallback: no evaluations worked, use first legal move
+                (legal_moves[0], 0)
+            };
+            
+            // Update search info
+            search_info.score = SearchScore::Centipawns(score_cp);
+            search_info.pv = vec![best_move];
+            search_info.time = start_time.elapsed().as_millis() as u64;
+            search_info.nodes = nodes_searched;
+            search_info.nps = if search_info.time > 0 {
+                (search_info.nodes * 1000) / search_info.time
+            } else {
+                0
+            };
+            
+            // Send UCI info with evaluation details
+            println!("info depth {} score cp {} time {} nodes {} nps {} pv {}", 
+                search_info.depth,
+                score_cp,
+                search_info.time,
+                search_info.nodes,
+                search_info.nps,
+                best_move
+            );
+            
+            // Send best move
+            println!("bestmove {}", best_move);
         });
     }
     

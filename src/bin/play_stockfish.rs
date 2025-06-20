@@ -44,7 +44,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     }
     
     // Initialize the chess vector engine with opening book and substantial knowledge base
-    let engine = create_engine_with_knowledge(rebuild_models);
+    let mut engine = create_engine_with_knowledge(rebuild_models);
     
     // Start Stockfish process
     let mut stockfish = Command::new("stockfish")
@@ -66,7 +66,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let mut move_number = 1;
     
     // Choose random opening for variety
-    let opening_move = choose_random_opening(&engine);
+    let opening_move = choose_random_opening(&mut engine);
     
     println!("\nGame begins! Vector Engine plays White, Stockfish plays Black");
     if let Some(opening) = opening_move {
@@ -84,7 +84,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         let mv = if current_board.side_to_move() == Color::White {
             // Vector engine's turn (White) - USE THE PROPER ENGINE API
             print!("{}. ", move_number);
-            let engine_move = get_engine_move_smart(&engine, &current_board)?;
+            let engine_move = get_engine_move_smart(&mut engine, &current_board)?;
             println!("{}", engine_move);
             engine_move
         } else {
@@ -220,7 +220,7 @@ fn print_usage() {
     println!("  cargo run --bin play_stockfish -- --convert-to-binary   # Convert JSON to binary format");
 }
 
-fn choose_random_opening(engine: &ChessVectorEngine) -> Option<ChessMove> {
+fn choose_random_opening(engine: &mut ChessVectorEngine) -> Option<ChessMove> {
     let starting_board = Board::default();
     
     // Try to get opening moves from the engine's opening book
@@ -259,43 +259,59 @@ fn choose_random_opening(engine: &ChessVectorEngine) -> Option<ChessMove> {
     }
 }
 
-fn get_engine_move_smart(engine: &ChessVectorEngine, board: &Board) -> Result<ChessMove, Box<dyn std::error::Error>> {
-    // THIS IS THE CORRECT WAY - Use the engine's sophisticated recommendation system
-    let recommendations = engine.recommend_legal_moves(board, 5);
+fn get_engine_move_smart(engine: &mut ChessVectorEngine, board: &Board) -> Result<ChessMove, Box<dyn std::error::Error>> {
+    // PROPER CHESS ENGINE APPROACH - Evaluate all legal moves using hybrid evaluation
+    let legal_moves: Vec<ChessMove> = MoveGen::new_legal(board).collect();
     
-    if recommendations.is_empty() {
-        // Fallback: generate any legal move
-        let legal_moves: Vec<ChessMove> = MoveGen::new_legal(board).collect();
-        if legal_moves.is_empty() {
-            return Err("No legal moves available".into());
-        }
-        return Ok(legal_moves[0]);
+    if legal_moves.is_empty() {
+        return Err("No legal moves available".into());
     }
     
-    // Debug output to see what the engine is thinking
-    if recommendations.len() > 1 {
-        println!("    Engine considering: {} moves", recommendations.len());
-        for (i, rec) in recommendations.iter().take(3).enumerate() {
-            println!("      {}. {} (confidence: {:.2}, from {} similar positions, avg outcome: {:.2})", 
-                     i + 1, rec.chess_move, rec.confidence, rec.from_similar_position_count, rec.average_outcome);
+    let mut best_move: Option<ChessMove> = None;
+    let mut best_evaluation: Option<f32> = None;
+    let mut move_evaluations = Vec::new();
+    
+    println!("    Engine evaluating {} legal moves using hybrid system...", legal_moves.len());
+    
+    // Evaluate each legal move
+    for chess_move in &legal_moves {
+        let temp_board = board.make_move_new(*chess_move);
+            // Use the engine's hybrid evaluation (opening book + patterns + tactical search)
+            if let Some(position_eval) = engine.evaluate_position(&temp_board) {
+                // Flip evaluation for opponent's perspective
+                let eval_for_us = if board.side_to_move() == Color::White {
+                    position_eval
+                } else {
+                    -position_eval
+                };
+                
+                move_evaluations.push((*chess_move, eval_for_us));
+                
+                // Update best move
+                if best_evaluation.is_none() || eval_for_us > best_evaluation.unwrap() {
+                    best_move = Some(*chess_move);
+                    best_evaluation = Some(eval_for_us);
+                }
+            }
+    }
+    
+    // Debug output showing top moves
+    if !move_evaluations.is_empty() {
+        move_evaluations.sort_by(|a, b| b.1.partial_cmp(&a.1).unwrap_or(std::cmp::Ordering::Equal));
+        println!("    Top moves by evaluation:");
+        for (i, (mv, eval)) in move_evaluations.iter().take(3).enumerate() {
+            println!("      {}. {} (eval: {:.3})", i + 1, mv, eval);
         }
     }
     
-    // Select move based on confidence, with some randomness for variety
-    let best_move = if recommendations[0].confidence > 0.6 {
-        // High confidence - take the best move
-        recommendations[0].chess_move
-    } else if recommendations.len() > 1 && recommendations[1].confidence > 0.3 {
-        // Medium confidence - choose between top 2 moves randomly
-        let top_two = &recommendations[0..2.min(recommendations.len())];
-        top_two.choose(&mut rand::thread_rng()).unwrap().chess_move
+    if let Some(best) = best_move {
+        println!("    Selected: {} (eval: {:.3})", best, best_evaluation.unwrap_or(0.0));
+        Ok(best)
     } else {
-        // Low confidence - add some randomness among top moves
-        let top_moves = &recommendations[0..3.min(recommendations.len())];
-        top_moves.choose(&mut rand::thread_rng()).unwrap().chess_move
-    };
-    
-    Ok(best_move)
+        // Fallback to first legal move if no evaluations worked
+        println!("    Warning: No position evaluations available, using first legal move");
+        Ok(legal_moves[0])
+    }
 }
 
 fn get_stockfish_move(

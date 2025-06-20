@@ -93,6 +93,10 @@ path = "src/bin/performance_benchmark.rs"
 name = "comprehensive_training"
 path = "src/bin/comprehensive_training.rs"
 
+[[bin]]
+name = "intelligent_curation"
+path = "src/bin/intelligent_curation.rs"
+
 [dependencies]
 # Chess game logic
 chess = "3.2"

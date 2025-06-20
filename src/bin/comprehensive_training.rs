@@ -47,6 +47,18 @@ enum Commands {
         /// Enable all optimizations (LSH, manifold learning, binary formats)
         #[arg(long, default_value = "true")]
         enable_optimizations: bool,
+        
+        /// Enable intelligent position curation to reduce dataset size
+        #[arg(long)]
+        enable_curation: bool,
+        
+        /// Target number of positions after curation
+        #[arg(long, default_value = "100000")]
+        curation_target: usize,
+        
+        /// Minimum tactical score for curation
+        #[arg(long, default_value = "0.3")]
+        curation_min_score: f32,
     },
     
     /// Run specific training phase only
@@ -121,7 +133,8 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     match cli.command {
         Commands::Complete { 
             games, iterations, puzzles, max_puzzles, output_dir, 
-            force_gpu, multi_gpu, enable_optimizations 
+            force_gpu, multi_gpu, enable_optimizations,
+            enable_curation, curation_target, curation_min_score
         } => {
             run_complete_training(ComprehensiveTrainingConfig {
                 games,
@@ -132,6 +145,9 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                 force_gpu,
                 multi_gpu,
                 enable_optimizations,
+                enable_curation,
+                curation_target,
+                curation_min_score,
             })
         }
         Commands::Phase { phase } => {
@@ -152,6 +168,9 @@ struct ComprehensiveTrainingConfig {
     force_gpu: bool,
     multi_gpu: bool,
     enable_optimizations: bool,
+    enable_curation: bool,
+    curation_target: usize,
+    curation_min_score: f32,
 }
 
 fn run_complete_training(config: ComprehensiveTrainingConfig) -> Result<(), Box<dyn std::error::Error>> {
@@ -172,7 +191,8 @@ fn run_complete_training(config: ComprehensiveTrainingConfig) -> Result<(), Box<
     
     // Initialize comprehensive progress tracking
     let multi_progress = Arc::new(MultiProgress::new());
-    let main_pb = multi_progress.add(ProgressBar::new(6));
+    let total_phases = if config.enable_curation { 7 } else { 6 };
+    let main_pb = multi_progress.add(ProgressBar::new(total_phases));
     main_pb.set_style(
         ProgressStyle::default_bar()
             .template("🎯 Overall Progress [{elapsed_precise}] [{bar:40.cyan/blue}] {pos}/{len} {msg}")?
@@ -185,6 +205,7 @@ fn run_complete_training(config: ComprehensiveTrainingConfig) -> Result<(), Box<
     println!("   - Iterations: {}", config.iterations);
     println!("   - Puzzles: {}", config.puzzles_file.as_ref().map_or("None", |s| s));
     println!("   - GPU: {} (Multi-GPU: {})", gpu.is_gpu_enabled(), config.multi_gpu);
+    println!("   - Curation: {} (Target: {})", config.enable_curation, config.curation_target);
     println!("   - Output: {}", config.output_dir);
     println!();
     
@@ -222,7 +243,16 @@ fn run_complete_training(config: ComprehensiveTrainingConfig) -> Result<(), Box<
     }
     main_pb.inc(1);
     
-    // Phase 4: Neural network optimizations
+    // Phase 4: Intelligent position curation (if enabled)
+    if config.enable_curation {
+        main_pb.set_message("Position curation");
+        println!("🧠 Running intelligent position curation");
+        
+        run_position_curation(&mut engine, &config)?;
+        main_pb.inc(1);
+    }
+    
+    // Phase 5: Neural network optimizations
     if config.enable_optimizations {
         main_pb.set_message("Neural optimizations");
         println!("🧠 Training neural networks (LSH + Manifold learning)");
@@ -231,14 +261,14 @@ fn run_complete_training(config: ComprehensiveTrainingConfig) -> Result<(), Box<
     }
     main_pb.inc(1);
     
-    // Phase 5: Export optimized models
+    // Phase 6: Export optimized models
     main_pb.set_message("Exporting models");
     println!("📦 Exporting optimized models and data");
     
     export_comprehensive_model(&engine, &config.output_dir)?;
     main_pb.inc(1);
     
-    // Phase 6: Validation and benchmarking
+    // Phase 7: Validation and benchmarking
     main_pb.set_message("Validation");
     println!("✅ Running validation and benchmarks");
     
@@ -344,6 +374,61 @@ fn run_tactical_training(
     // Load tactical training results
     if std::path::Path::new(&output_file).exists() {
         engine.load_training_data_incremental(&output_file)?;
+    }
+    
+    Ok(())
+}
+
+fn run_position_curation(
+    engine: &mut ChessVectorEngine,
+    config: &ComprehensiveTrainingConfig
+) -> Result<(), Box<dyn std::error::Error>> {
+    
+    let stats = engine.training_stats();
+    
+    // Only run curation if we have more positions than the target
+    if stats.total_positions > config.curation_target {
+        println!("📊 Running intelligent curation: {} → {} positions", 
+                 stats.total_positions, config.curation_target);
+        
+        // Export current training data
+        let temp_input = format!("{}/temp_positions_for_curation.json", config.output_dir);
+        let curated_output = format!("{}/curated_positions.json", config.output_dir);
+        
+        engine.save_training_data(&temp_input)?;
+        
+        // Run intelligent curation
+        let mut cmd = std::process::Command::new("cargo");
+        cmd.arg("run")
+           .arg("--bin")
+           .arg("intelligent_curation")
+           .arg("--")
+           .arg("--input")
+           .arg(&temp_input)
+           .arg("--output")
+           .arg(&curated_output)
+           .arg("--target-size")
+           .arg(&config.curation_target.to_string())
+           .arg("--min-tactical-score")
+           .arg(&config.curation_min_score.to_string());
+        
+        let status = cmd.status()?;
+        if !status.success() {
+            return Err("Intelligent curation failed".into());
+        }
+        
+        // Replace engine data with curated positions
+        *engine = ChessVectorEngine::new(1024);
+        engine.enable_opening_book();
+        engine.load_training_data_incremental(&curated_output)?;
+        
+        // Clean up temporary files
+        let _ = std::fs::remove_file(temp_input);
+        
+        println!("✅ Curation complete: retained {} high-quality positions", config.curation_target);
+    } else {
+        println!("ℹ️  Skipping curation: {} positions already under target of {}", 
+                 stats.total_positions, config.curation_target);
     }
     
     Ok(())
