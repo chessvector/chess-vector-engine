@@ -276,7 +276,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     // Test engine strength with a few sample positions
     println!("\n🧪 Testing engine with sample positions...");
-    test_engine_strength(&engine);
+    test_engine_strength(&mut engine);
 
     println!("\n🎉 Self-play training complete!");
     println!("\n🎮 You can now test the engine with:");
@@ -286,7 +286,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     Ok(())
 }
 
-fn test_engine_strength(engine: &ChessVectorEngine) {
+fn test_engine_strength(engine: &mut ChessVectorEngine) {
     use chess::Board;
     use std::str::FromStr;
 

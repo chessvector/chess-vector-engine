@@ -143,7 +143,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     if matches.get_flag("test") && !test_dataset.data.is_empty() {
         println!("📈 Testing engine accuracy against Stockfish...");
         let evaluator = EngineEvaluator::new(stockfish_depth);
-        let mae = evaluator.evaluate_accuracy(&engine, &test_dataset)?;
+        let mae = evaluator.evaluate_accuracy(&mut engine, &test_dataset)?;
         
         println!("📊 Engine Performance:");
         println!("   Mean Absolute Error: {:.3} pawns", mae);

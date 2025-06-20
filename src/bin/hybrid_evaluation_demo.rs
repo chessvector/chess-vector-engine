@@ -44,10 +44,10 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     println!("\n📚 Added {} training positions to knowledge base", engine.knowledge_base_size());
     
     // Test different types of positions
-    test_position_evaluations(&engine);
+    test_position_evaluations(&mut engine);
     
     // Test move recommendations with hybrid evaluation
-    test_move_recommendations(&engine);
+    test_move_recommendations(&mut engine);
     
     // Performance comparison
     test_performance_comparison(&mut engine);
@@ -81,7 +81,7 @@ fn add_training_positions(engine: &mut ChessVectorEngine) {
     }
 }
 
-fn test_position_evaluations(engine: &ChessVectorEngine) {
+fn test_position_evaluations(engine: &mut ChessVectorEngine) {
     println!("\n🎯 Testing Hybrid Evaluation on Different Position Types:\n");
     
     let test_positions = vec![
@@ -113,7 +113,7 @@ fn test_position_evaluations(engine: &ChessVectorEngine) {
     }
 }
 
-fn test_move_recommendations(engine: &ChessVectorEngine) {
+fn test_move_recommendations(engine: &mut ChessVectorEngine) {
     println!("\n♟️  Testing Move Recommendations with Hybrid Evaluation:\n");
     
     let test_positions = vec![

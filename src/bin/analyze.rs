@@ -22,12 +22,12 @@ fn main() {
     println!("Side to move: {:?}", board.side_to_move());
     
     // Initialize engine with intelligent architecture selection
-    let engine = initialize_analysis_engine();
+    let mut engine = initialize_analysis_engine();
     
     println!("\nKnowledge base loaded with {} positions", engine.knowledge_base_size());
     
     // Analyze the position
-    analyze_position(&engine, &board);
+    analyze_position(&mut engine, &board);
 }
 
 /// Initialize analysis engine with advanced features based on available data
@@ -113,7 +113,7 @@ fn load_opening_book(engine: &mut ChessVectorEngine) {
 }
 
 /// Comprehensive position analysis
-fn analyze_position(engine: &ChessVectorEngine, board: &Board) {
+fn analyze_position(engine: &mut ChessVectorEngine, board: &Board) {
     println!("\n=== Position Analysis ===");
     
     // Basic position info
