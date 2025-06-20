@@ -406,6 +406,7 @@ impl ChessVectorEngine {
     pub fn load_training_data_incremental<P: AsRef<std::path::Path>>(&mut self, path: P) -> Result<(), Box<dyn std::error::Error>> {
         use crate::training::TrainingDataset;
         use std::collections::HashSet;
+        use indicatif::{ProgressBar, ProgressStyle};
         
         let existing_size = self.knowledge_base_size();
         
@@ -417,7 +418,22 @@ impl ChessVectorEngine {
             return self.load_training_data_binary(binary_path);
         }
         
+        println!("📚 Loading training data from {}...", path_ref.display());
         let dataset = TrainingDataset::load(path)?;
+        
+        let total_positions = dataset.data.len();
+        if total_positions == 0 {
+            println!("⚠️  No positions found in dataset");
+            return Ok(());
+        }
+        
+        // Progress bar for duplicate checking phase
+        let dedup_pb = ProgressBar::new(total_positions as u64);
+        dedup_pb.set_style(
+            ProgressStyle::default_bar()
+                .template("🔍 Checking duplicates [{elapsed_precise}] [{bar:40.cyan/blue}] {pos}/{len} ({percent}%) {msg}")?
+                .progress_chars("██░")
+        );
         
         // Pre-allocate HashSet for O(1) duplicate checking
         let mut existing_boards: HashSet<_> = self.position_boards.iter().cloned().collect();
@@ -425,20 +441,45 @@ impl ChessVectorEngine {
         let mut new_evaluations = Vec::new();
         
         // Batch process to avoid repeated lookups
-        for data in dataset.data {
+        for (i, data) in dataset.data.into_iter().enumerate() {
             if !existing_boards.contains(&data.board) {
                 existing_boards.insert(data.board.clone());
                 new_positions.push(data.board);
                 new_evaluations.push(data.evaluation);
             }
+            
+            if i % 1000 == 0 || i == total_positions - 1 {
+                dedup_pb.set_position((i + 1) as u64);
+                dedup_pb.set_message(format!("{} new positions found", new_positions.len()));
+            }
         }
+        dedup_pb.finish_with_message(format!("✅ Found {} new positions", new_positions.len()));
+        
+        if new_positions.is_empty() {
+            println!("ℹ️  No new positions to add (all positions already exist)");
+            return Ok(());
+        }
+        
+        // Progress bar for adding positions
+        let add_pb = ProgressBar::new(new_positions.len() as u64);
+        add_pb.set_style(
+            ProgressStyle::default_bar()
+                .template("➕ Adding positions [{elapsed_precise}] [{bar:40.green/blue}] {pos}/{len} ({percent}%) {msg}")?
+                .progress_chars("██░")
+        );
         
         // Batch add all new positions
-        for (board, evaluation) in new_positions.into_iter().zip(new_evaluations.into_iter()) {
+        for (i, (board, evaluation)) in new_positions.into_iter().zip(new_evaluations.into_iter()).enumerate() {
             self.add_position(&board, evaluation);
+            
+            if i % 500 == 0 || i == add_pb.length().unwrap() as usize - 1 {
+                add_pb.set_position((i + 1) as u64);
+                add_pb.set_message(format!("vectors encoded"));
+            }
         }
+        add_pb.finish_with_message("✅ All positions added");
         
-        println!("Loaded {} new positions (total: {})", 
+        println!("🎯 Loaded {} new positions (total: {})", 
                 self.knowledge_base_size() - existing_size, 
                 self.knowledge_base_size());
         Ok(())
@@ -506,6 +547,7 @@ impl ChessVectorEngine {
     /// Load training data from optimized binary format (5-15x faster than JSON)
     pub fn load_training_data_binary<P: AsRef<std::path::Path>>(&mut self, path: P) -> Result<(), Box<dyn std::error::Error>> {
         use lz4_flex::decompress_size_prepended;
+        use indicatif::{ProgressBar, ProgressStyle};
         
         println!("📚 Loading training data from binary format...");
         
@@ -519,12 +561,34 @@ impl ChessVectorEngine {
         
         let existing_size = self.knowledge_base_size();
         
-        // Read and decompress file
+        // Read and decompress file with progress
+        let file_size = std::fs::metadata(&path)?.len();
+        println!("📦 Reading {} compressed file...", Self::format_bytes(file_size));
+        
         let compressed_data = std::fs::read(path)?;
+        println!("🔓 Decompressing data...");
         let serialized = decompress_size_prepended(&compressed_data)?;
         
-        // Deserialize with bincode
+        println!("📊 Deserializing binary data...");
         let binary_data: BinaryTrainingData = bincode::deserialize(&serialized)?;
+        
+        let total_positions = binary_data.positions.len();
+        if total_positions == 0 {
+            println!("⚠️  No positions found in binary file");
+            return Ok(());
+        }
+        
+        println!("🚀 Processing {} positions from binary format...", total_positions);
+        
+        // Progress bar for loading positions  
+        let pb = ProgressBar::new(total_positions as u64);
+        pb.set_style(
+            ProgressStyle::default_bar()
+                .template("⚡ Loading positions [{elapsed_precise}] [{bar:40.green/blue}] {pos}/{len} ({percent}%) {msg}")?
+                .progress_chars("██░")
+        );
+        
+        let mut added_count = 0;
         
         // Load positions into engine
         for (i, fen) in binary_data.positions.iter().enumerate() {
@@ -533,15 +597,36 @@ impl ChessVectorEngine {
                     // Skip duplicates
                     if !self.position_boards.contains(&board) {
                         self.add_position(&board, binary_data.evaluations[i]);
+                        added_count += 1;
                     }
                 }
             }
+            
+            if i % 1000 == 0 || i == total_positions - 1 {
+                pb.set_position((i + 1) as u64);
+                pb.set_message(format!("{} new positions", added_count));
+            }
         }
+        pb.finish_with_message(format!("✅ Loaded {} new positions", added_count));
         
-        println!("✅ Loaded {} new positions from binary file (total: {})", 
+        println!("🎯 Binary loading complete: {} new positions (total: {})", 
                  self.knowledge_base_size() - existing_size, 
                  self.knowledge_base_size());
         Ok(())
+    }
+    
+    /// Helper to format byte sizes for display
+    fn format_bytes(bytes: u64) -> String {
+        const UNITS: &[&str] = &["B", "KB", "MB", "GB"];
+        let mut size = bytes as f64;
+        let mut unit_index = 0;
+        
+        while size >= 1024.0 && unit_index < UNITS.len() - 1 {
+            size /= 1024.0;
+            unit_index += 1;
+        }
+        
+        format!("{:.1} {}", size, UNITS[unit_index])
     }
 
     /// Train from dataset incrementally (preserves existing engine state)
@@ -575,6 +660,8 @@ impl ChessVectorEngine {
 
     /// Auto-load training data from common file names if they exist
     pub fn auto_load_training_data(&mut self) -> Result<Vec<String>, Box<dyn std::error::Error>> {
+        use indicatif::{ProgressBar, ProgressStyle};
+        
         let common_files = vec![
             "training_data.json",
             "tactical_training_data.json", 
@@ -583,43 +670,71 @@ impl ChessVectorEngine {
             "my_training.json",
         ];
         
-        let mut loaded_files = Vec::new();
-        
-        for file_path in &common_files {
-            if std::path::Path::new(file_path).exists() {
-                match self.load_training_data_incremental(file_path) {
-                    Ok(_) => {
-                        loaded_files.push(file_path.to_string());
-                        println!("📚 Auto-loaded training data from {}", file_path);
-                    }
-                    Err(e) => {
-                        println!("⚠️  Could not load {}: {}", file_path, e);
-                    }
-                }
-            }
-        }
-        
-        // Also look for tactical puzzle files
         let tactical_files = vec![
             "tactical_puzzles.json",
             "lichess_puzzles.json",
             "my_puzzles.json",
         ];
         
-        for file_path in &tactical_files {
+        // Check which files exist
+        let mut available_files = Vec::new();
+        for file_path in &common_files {
             if std::path::Path::new(file_path).exists() {
-                match crate::training::TacticalPuzzleParser::load_tactical_puzzles(file_path) {
-                    Ok(puzzles) => {
-                        crate::training::TacticalPuzzleParser::load_into_engine_incremental(&puzzles, self);
-                        loaded_files.push(file_path.to_string());
-                        println!("🎯 Auto-loaded tactical puzzles from {}", file_path);
-                    }
-                    Err(e) => {
-                        println!("⚠️  Could not load tactical puzzles from {}: {}", file_path, e);
-                    }
-                }
+                available_files.push((file_path, "training"));
             }
         }
+        for file_path in &tactical_files {
+            if std::path::Path::new(file_path).exists() {
+                available_files.push((file_path, "tactical"));
+            }
+        }
+        
+        if available_files.is_empty() {
+            return Ok(Vec::new());
+        }
+        
+        println!("🔍 Found {} training files to auto-load", available_files.len());
+        
+        // Progress bar for file loading
+        let pb = ProgressBar::new(available_files.len() as u64);
+        pb.set_style(
+            ProgressStyle::default_bar()
+                .template("📂 Auto-loading files [{elapsed_precise}] [{bar:40.blue/cyan}] {pos}/{len} {msg}")?
+                .progress_chars("██░")
+        );
+        
+        let mut loaded_files = Vec::new();
+        
+        for (i, (file_path, file_type)) in available_files.iter().enumerate() {
+            pb.set_position(i as u64);
+            pb.set_message(format!("Loading {}", file_path));
+            
+            let result = match *file_type {
+                "training" => {
+                    self.load_training_data_incremental(file_path).map(|_| {
+                        loaded_files.push(file_path.to_string());
+                        println!("📚 Auto-loaded training data from {}", file_path);
+                    })
+                }
+                "tactical" => {
+                    crate::training::TacticalPuzzleParser::load_tactical_puzzles(file_path)
+                        .and_then(|puzzles| {
+                            crate::training::TacticalPuzzleParser::load_into_engine_incremental(&puzzles, self);
+                            loaded_files.push(file_path.to_string());
+                            println!("🎯 Auto-loaded tactical puzzles from {}", file_path);
+                            Ok(())
+                        })
+                }
+                _ => Ok(()),
+            };
+            
+            if let Err(e) = result {
+                println!("⚠️  Could not load {}: {}", file_path, e);
+            }
+        }
+        
+        pb.set_position(available_files.len() as u64);
+        pb.finish_with_message(format!("✅ Auto-loaded {} files", loaded_files.len()));
         
         Ok(loaded_files)
     }
@@ -647,6 +762,8 @@ impl ChessVectorEngine {
     /// Create a new chess vector engine with fast loading optimized for gameplay
     /// Prioritizes binary formats and skips expensive model rebuilding
     pub fn new_with_fast_load(vector_size: usize) -> Result<Self, Box<dyn std::error::Error>> {
+        use indicatif::{ProgressBar, ProgressStyle};
+        
         let mut engine = Self::new(vector_size);
         engine.enable_opening_book();
         
@@ -658,22 +775,43 @@ impl ChessVectorEngine {
             "chess_training.bin",
         ];
         
+        // Check which binary files exist
+        let existing_binary_files: Vec<_> = binary_files
+            .iter()
+            .filter(|&file_path| std::path::Path::new(file_path).exists())
+            .collect();
+        
         let mut loaded_count = 0;
-        for file_path in &binary_files {
-            if std::path::Path::new(file_path).exists() {
+        
+        if !existing_binary_files.is_empty() {
+            println!("⚡ Fast loading: Found {} binary files", existing_binary_files.len());
+            
+            // Progress bar for binary file loading
+            let pb = ProgressBar::new(existing_binary_files.len() as u64);
+            pb.set_style(
+                ProgressStyle::default_bar()
+                    .template("🚀 Fast loading [{elapsed_precise}] [{bar:40.green/cyan}] {pos}/{len} {msg}")?
+                    .progress_chars("██░")
+            );
+            
+            for (i, file_path) in existing_binary_files.iter().enumerate() {
+                pb.set_position(i as u64);
+                pb.set_message(format!("Loading {}", file_path));
+                
                 if let Ok(_) = engine.load_training_data_binary(file_path) {
                     loaded_count += 1;
                 }
             }
-        }
-        
-        // Fallback to JSON if no binary files found
-        if loaded_count == 0 {
+            
+            pb.set_position(existing_binary_files.len() as u64);
+            pb.finish_with_message(format!("✅ Loaded {} binary files", loaded_count));
+        } else {
+            println!("📦 No binary files found, falling back to JSON auto-loading...");
             let _ = engine.auto_load_training_data()?;
         }
         
         let stats = engine.training_stats();
-        println!("⚡ Fast engine ready with {} positions ({} files loaded)", 
+        println!("⚡ Fast engine ready with {} positions ({} binary files loaded)", 
                  stats.total_positions, loaded_count);
         
         Ok(engine)
@@ -681,6 +819,8 @@ impl ChessVectorEngine {
 
     /// Convert existing JSON training files to binary format for faster loading
     pub fn convert_json_to_binary() -> Result<Vec<String>, Box<dyn std::error::Error>> {
+        use indicatif::{ProgressBar, ProgressStyle};
+        
         let json_files = vec![
             "training_data.json",
             "tactical_training_data.json", 
@@ -688,25 +828,58 @@ impl ChessVectorEngine {
             "chess_training.json",
         ];
         
+        // Check which JSON files exist
+        let existing_json_files: Vec<_> = json_files
+            .iter()
+            .filter(|&file_path| std::path::Path::new(file_path).exists())
+            .collect();
+        
+        if existing_json_files.is_empty() {
+            println!("ℹ️  No JSON training files found to convert");
+            return Ok(Vec::new());
+        }
+        
+        println!("🔄 Converting {} JSON files to binary format...", existing_json_files.len());
+        
+        // Progress bar for conversion
+        let pb = ProgressBar::new(existing_json_files.len() as u64);
+        pb.set_style(
+            ProgressStyle::default_bar()
+                .template("📦 Converting [{elapsed_precise}] [{bar:40.yellow/blue}] {pos}/{len} {msg}")?
+                .progress_chars("██░")
+        );
+        
         let mut converted_files = Vec::new();
         
-        for json_file in &json_files {
-            if std::path::Path::new(json_file).exists() {
-                let binary_file = std::path::Path::new(json_file).with_extension("bin");
-                
-                // Load from JSON and save as binary
-                let mut temp_engine = Self::new(1024);
-                if let Ok(_) = temp_engine.load_training_data_incremental(json_file) {
-                    if let Ok(_) = temp_engine.save_training_data_binary(&binary_file) {
-                        converted_files.push(format!("{} -> {}", json_file, binary_file.display()));
-                        println!("✅ Converted {} to binary format", json_file);
-                    }
+        for (i, json_file) in existing_json_files.iter().enumerate() {
+            pb.set_position(i as u64);
+            pb.set_message(format!("Converting {}", json_file));
+            
+            let binary_file = std::path::Path::new(json_file).with_extension("bin");
+            
+            // Load from JSON and save as binary
+            let mut temp_engine = Self::new(1024);
+            if let Ok(_) = temp_engine.load_training_data_incremental(json_file) {
+                if let Ok(_) = temp_engine.save_training_data_binary(&binary_file) {
+                    converted_files.push(format!("{} -> {}", json_file, binary_file.display()));
+                    println!("✅ Converted {} to binary format", json_file);
+                } else {
+                    println!("❌ Failed to save binary file for {}", json_file);
                 }
+            } else {
+                println!("❌ Failed to load JSON file {}", json_file);
             }
         }
         
+        pb.set_position(existing_json_files.len() as u64);
+        pb.finish_with_message(format!("✅ Converted {} files", converted_files.len()));
+        
         if !converted_files.is_empty() {
             println!("🚀 Binary conversion complete! Startup will be 5-15x faster next time.");
+            println!("📊 Conversion summary:");
+            for conversion in &converted_files {
+                println!("   {}", conversion);
+            }
         }
         
         Ok(converted_files)

@@ -23,7 +23,9 @@ This is a **Rust library** and **UCI chess engine** (`chess-vector-engine`) that
 - `cargo run --bin performance_benchmark` - Benchmark new optimizations (Stockfish pool, DB batching, binary format)
 - `cargo run --bin tactical_training -- --puzzles <CSV_FILE>` - Train with Lichess puzzles
 - `cargo run --bin self_play_training --stockfish-level` - Ultra-fast self-play training (optimized: binary format, DB batching, Stockfish pool)
-- `cargo run --bin play_stockfish` - Play against Stockfish with the trained engine (memory optimized)
+- `cargo run --bin play_stockfish` - Play against Stockfish with the trained engine (FAST startup - seconds not minutes)
+- `cargo run --bin play_stockfish -- --convert-to-binary` - Convert JSON training files to binary format (5-15x faster loading)
+- `cargo run --bin play_stockfish -- --rebuild-models` - Play with model rebuilding (slower startup but complete retraining)
 
 ### Publishing
 - `cargo publish` - Publish library to crates.io (when ready)
@@ -63,10 +65,17 @@ Chess Position → PositionEncoder → Vector (1024d)
                GPU Acceleration → 10-100x speedup
 ```
 
-### Memory Optimization Features
+### Performance Optimization Features
 
-The engine includes comprehensive memory optimizations for manifold learning:
+The engine includes comprehensive optimizations for production-ready performance:
 
+#### Loading Performance Optimizations
+- **O(n²) → O(n) Duplicate Detection**: HashSet-based duplicate checking eliminates linear search bottleneck
+- **Binary Format Priority**: `new_with_fast_load()` tries binary files first (5-15x faster than JSON)
+- **Batch Processing**: Eliminates repeated individual position additions
+- **Smart Loading Strategy**: Fast loading by default, full loading only when rebuilding models
+
+#### Memory Optimization Features
 - **Streaming Training Data**: Direct `Array2::from_shape_fn()` eliminates 3+ dataset copies
 - **Sequential Batch Processing**: Processes one batch at a time instead of storing all batches in memory
 - **Memory-Efficient Iterators**: `iter_positions()` provides references instead of cloning vectors
@@ -88,6 +97,13 @@ This is designed as a library-first project with both pattern recognition and UC
 
 ### Basic Usage
 ```rust
+// Fast loading for gameplay (seconds not minutes)
+let mut engine = ChessVectorEngine::new_with_fast_load(1024)?;
+
+// Or convert JSON to binary format first for 5-15x faster loading
+ChessVectorEngine::convert_json_to_binary()?;
+
+// Standard usage
 let mut engine = ChessVectorEngine::new(1024);
 engine.add_position(&board, evaluation);
 let similar = engine.find_similar_positions(&board, 5);
@@ -127,6 +143,10 @@ run_uci_engine_with_config(config)?;
 
 ## Performance Characteristics
 
+### Loading Performance (30k positions)
+- **Before optimization**: Minutes to hours (O(n²) duplicate checking)
+- **After optimization**: Seconds (O(n) HashSet + binary format priority)
+
 ### Memory Usage (30k positions)
 - **Before optimization**: ~1GB (multiple dataset copies)
 - **After optimization**: ~150-200MB (75-80% reduction)
@@ -148,7 +168,7 @@ run_uci_engine_with_config(config)?;
 
 ### Performance Optimization Implementation Details
 
-The engine includes 6 major performance optimizations for production-ready performance:
+The engine includes 7 major performance optimizations for production-ready performance:
 
 1. **SIMD Vector Operations** (`similarity_search.rs:340-480`, `lsh.rs:380-520`): AVX2/SSE4.1/NEON optimized dot products for 2-4x similarity calculation speedup
 2. **Pre-computed Vector Norms** (`similarity_search.rs:8-14`): Cached `norm_squared` in `PositionEntry` for 3x faster cosine similarity
@@ -156,6 +176,7 @@ The engine includes 6 major performance optimizations for production-ready perfo
 4. **Dynamic LSH Hash Table Sizing** (`lsh.rs:27-55`): Adaptive capacity allocation and replacement strategy for 30% search improvement
 5. **Parallel Neural Network Training** (`manifold_learner.rs:203-276`): Concurrent batch processing with `train_parallel()` for 2-3x training speedup
 6. **Custom Transposition Tables** (`tactical_search.rs:9-53`): Fixed-size cache with replacement policy for 40% tactical search improvement
+7. **Ultra-Fast Position Loading** (`lib.rs:405-445`): O(n²) → O(n) duplicate detection with HashSet and binary format priority for startup time reduction from minutes/hours to seconds
 
 ### Memory Optimization Implementation Details
 
@@ -185,6 +206,7 @@ The performance optimizations are automatically enabled:
 - **Dynamic LSH**: Automatic sizing based on expected dataset size
 - **Parallel Training**: Enabled for datasets > 1000 positions
 - **Custom Transposition**: Always enabled with 64MB default size
+- **Fast Loading**: Use `new_with_fast_load()` for gameplay, `convert_json_to_binary()` for preprocessing
 
 ## Documentation Guidelines
 
