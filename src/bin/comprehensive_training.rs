@@ -317,6 +317,9 @@ fn run_self_play_training(
     
     let mut cmd = Command::new("cargo");
     cmd.arg("run")
+       .arg("--release")
+       .arg("--features")
+       .arg("cuda")
        .arg("--bin")
        .arg("self_play_training")
        .arg("--")
@@ -356,6 +359,9 @@ fn run_tactical_training(
     
     let mut cmd = Command::new("cargo");
     cmd.arg("run")
+       .arg("--release")
+       .arg("--features")
+       .arg("cuda")
        .arg("--bin")
        .arg("tactical_training")
        .arg("--")
@@ -400,6 +406,9 @@ fn run_position_curation(
         // Run intelligent curation
         let mut cmd = std::process::Command::new("cargo");
         cmd.arg("run")
+           .arg("--release")
+           .arg("--features")
+           .arg("cuda")
            .arg("--bin")
            .arg("intelligent_curation")
            .arg("--")
