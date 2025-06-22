@@ -29,7 +29,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     ];
     
     let mut total_file_positions = 0;
-    let mut all_file_fens = HashSet::new();
+    let mut all_file_fens: HashSet<String> = HashSet::new();
     
     for (file_path, description) in &training_files {
         if std::path::Path::new(file_path).exists() {

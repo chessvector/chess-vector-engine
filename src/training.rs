@@ -294,7 +294,8 @@ impl StockfishEvaluator {
             .stderr(Stdio::piped())
             .spawn()?;
 
-        let stdin = child.stdin.as_mut().unwrap();
+        let stdin = child.stdin.as_mut()
+            .ok_or("Failed to get stdin handle for Stockfish process")?;
         let fen = board.to_string();
         
         // Send UCI commands
@@ -336,10 +337,10 @@ impl StockfishEvaluator {
     /// Batch evaluate multiple positions
     pub fn evaluate_batch(&self, positions: &mut [TrainingData]) -> Result<(), Box<dyn std::error::Error>> {
         let pb = ProgressBar::new(positions.len() as u64);
-        pb.set_style(ProgressStyle::default_bar()
-            .template("{spinner:.green} [{elapsed_precise}] [{bar:40.cyan/blue}] {pos}/{len} ({eta})")
-            .unwrap()
-            .progress_chars("#>-"));
+        if let Ok(style) = ProgressStyle::default_bar()
+            .template("{spinner:.green} [{elapsed_precise}] [{bar:40.cyan/blue}] {pos}/{len} ({eta})") {
+            pb.set_style(style.progress_chars("#>-"));
+        }
 
         for (i, data) in positions.iter_mut().enumerate() {
             match self.evaluate_position(&data.board) {
@@ -362,10 +363,10 @@ impl StockfishEvaluator {
     /// Evaluate multiple positions in parallel using concurrent Stockfish instances
     pub fn evaluate_batch_parallel(&self, positions: &mut [TrainingData], num_threads: usize) -> Result<(), Box<dyn std::error::Error>> {
         let pb = ProgressBar::new(positions.len() as u64);
-        pb.set_style(ProgressStyle::default_bar()
-            .template("{spinner:.green} [{elapsed_precise}] [{bar:40.cyan/blue}] {pos}/{len} Parallel evaluation")
-            .unwrap()
-            .progress_chars("#>-"));
+        if let Ok(style) = ProgressStyle::default_bar()
+            .template("{spinner:.green} [{elapsed_precise}] [{bar:40.cyan/blue}] {pos}/{len} Parallel evaluation") {
+            pb.set_style(style.progress_chars("#>-"));
+        }
 
         // Set the thread pool size
         let pool = rayon::ThreadPoolBuilder::new().num_threads(num_threads).build()?;
@@ -408,8 +409,10 @@ impl StockfishProcess {
             .stderr(Stdio::piped())
             .spawn()?;
 
-        let stdin = BufWriter::new(child.stdin.take().unwrap());
-        let stdout = BufReader::new(child.stdout.take().unwrap());
+        let stdin = BufWriter::new(child.stdin.take()
+            .ok_or("Failed to get stdin handle for Stockfish process")?);
+        let stdout = BufReader::new(child.stdout.take()
+            .ok_or("Failed to get stdout handle for Stockfish process")?);
         
         let mut process = Self { child, stdin, stdout, depth };
         
@@ -509,7 +512,7 @@ impl StockfishPool {
                     processes.push(process);
                     if i % 2 == 1 {
                         print!(".");
-                        std::io::stdout().flush().unwrap();
+                        let _ = std::io::stdout().flush(); // Ignore flush errors
                     }
                 }
                 Err(e) => {
@@ -1087,10 +1090,10 @@ impl SelfPlayTrainer {
         
         println!("🎮 Starting self-play training with {} games...", self.config.games_per_iteration);
         let pb = ProgressBar::new(self.config.games_per_iteration as u64);
-        pb.set_style(ProgressStyle::default_bar()
-            .template("{spinner:.green} [{elapsed_precise}] [{bar:40.cyan/blue}] {pos}/{len} ({eta})")
-            .unwrap()
-            .progress_chars("#>-"));
+        if let Ok(style) = ProgressStyle::default_bar()
+            .template("{spinner:.green} [{elapsed_precise}] [{bar:40.cyan/blue}] {pos}/{len} ({eta})") {
+            pb.set_style(style.progress_chars("#>-"));
+        }
         
         for _ in 0..self.config.games_per_iteration {
             let game_data = self.play_single_game(engine);

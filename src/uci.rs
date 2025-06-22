@@ -136,8 +136,8 @@ impl UCIEngine {
                 Ok(command) => {
                     let response = self.process_command(&command.trim());
                     if !response.is_empty() {
-                        writeln!(stdout, "{}", response).unwrap();
-                        stdout.flush().unwrap();
+                        let _ = writeln!(stdout, "{}", response);
+                        let _ = stdout.flush();
                     }
                     
                     if command.trim() == "quit" {
@@ -146,7 +146,7 @@ impl UCIEngine {
                 }
                 Err(e) => {
                     if self.debug {
-                        writeln!(stdout, "info string Error reading input: {}", e).unwrap();
+                        let _ = writeln!(stdout, "info string Error reading input: {}", e);
                     }
                     break;
                 }
@@ -491,7 +491,7 @@ impl UCIEngine {
                     };
                     
                     // Update best move if this is better
-                    if best_move_result.is_none() || eval_for_us > best_move_result.as_ref().unwrap().1 {
+                    if best_move_result.is_none() || eval_for_us > best_move_result.as_ref().map(|(_, eval)| *eval).unwrap_or(f32::NEG_INFINITY) {
                         best_move_result = Some((*chess_move, eval_for_us));
                     }
                 }

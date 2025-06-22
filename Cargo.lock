@@ -373,6 +373,8 @@ dependencies = [
  "safetensors",
  "serde",
  "serde_json",
+ "shakmaty 0.25.0",
+ "shakmaty-syzygy",
  "tempfile",
  "tokio",
  "vampirc-uci",
@@ -1453,6 +1455,12 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "72ef4a56884ca558e5ddb05a1d1e7e1bfd9a68d9ed024c21704cc98872dae1bb"
 
 [[package]]
+name = "nohash-hasher"
+version = "0.2.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "2bf50223579dc7cdcfb3bfcacf7069ff68243f8c363f62ffa99cf000a6b9c451"
+
+[[package]]
 name = "num"
 version = "0.4.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1693,7 +1701,7 @@ dependencies = [
  "btoi",
  "circular",
  "memchr",
- "shakmaty",
+ "shakmaty 0.23.1",
 ]
 
 [[package]]
@@ -2075,6 +2083,12 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "989e6739f80c4ad5b13e0fd7fe89531180375b18520cc8c82080e4dc4035b84f"
 
 [[package]]
+name = "rustc-hash"
+version = "2.1.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "357703d41365b4b27c590e3ed91eabb1b663f07c4c084095e60cbed4362dff0d"
+
+[[package]]
 name = "rustix"
 version = "1.0.7"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2182,6 +2196,46 @@ dependencies = [
  "arrayvec 0.7.6",
  "bitflags 1.3.2",
  "btoi",
+]
+
+[[package]]
+name = "shakmaty"
+version = "0.25.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "3423f7235d679251bb3a4014ab286d3a724efa130a3ac00d4e85916231f5ed30"
+dependencies = [
+ "arrayvec 0.7.6",
+ "bitflags 2.9.1",
+ "btoi",
+]
+
+[[package]]
+name = "shakmaty"
+version = "0.27.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "f414cadc4e727893d1a3b0dca62aaef4c1c821dcbd969f0b10a92e12d684d53a"
+dependencies = [
+ "arrayvec 0.7.6",
+ "bitflags 2.9.1",
+ "btoi",
+ "nohash-hasher",
+ "serde",
+]
+
+[[package]]
+name = "shakmaty-syzygy"
+version = "0.25.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "c029d0ba61da1e7767d5b4e190b6adb9e9c6f72dc01e690e68aede6889d05c2d"
+dependencies = [
+ "arrayvec 0.7.6",
+ "bitflags 2.9.1",
+ "byteorder",
+ "libc",
+ "once_cell",
+ "rustc-hash",
+ "shakmaty 0.27.3",
+ "tracing",
 ]
 
 [[package]]

@@ -10,6 +10,7 @@ pub mod opening_book;
 pub mod persistence;
 pub mod gpu_acceleration;
 pub mod tactical_search;
+// pub mod tablebase; // Temporarily disabled due to version conflicts
 pub mod uci;
 
 pub use position_encoder::PositionEncoder;
@@ -23,6 +24,7 @@ pub use training::{TrainingData, TrainingDataset, GameExtractor, EngineEvaluator
 pub use persistence::{Database, PositionData, LSHTableData};
 pub use gpu_acceleration::{GPUAccelerator, DeviceType};
 pub use tactical_search::{TacticalSearch, TacticalConfig, TacticalResult};
+// pub use tablebase::{TablebaseProber, TablebaseResult, WdlValue};
 pub use uci::{UCIEngine, UCIConfig, run_uci_engine, run_uci_engine_with_config};
 
 use chess::{Board, ChessMove};
@@ -108,6 +110,8 @@ pub struct ChessVectorEngine {
     database: Option<Database>,
     /// Tactical search engine for position refinement
     tactical_search: Option<TacticalSearch>,
+    // /// Syzygy tablebase for perfect endgame evaluation  
+    // tablebase: Option<TablebaseProber>,
     /// Hybrid evaluation configuration
     hybrid_config: HybridConfig,
 }
@@ -130,6 +134,7 @@ impl Clone for ChessVectorEngine {
             opening_book: self.opening_book.clone(),
             database: None, // Database connection cannot be cloned
             tactical_search: self.tactical_search.clone(),
+            // tablebase: self.tablebase.clone(),
             hybrid_config: self.hybrid_config.clone(),
         }
     }
@@ -154,6 +159,7 @@ impl ChessVectorEngine {
             opening_book: None,
             database: None,
             tactical_search: None,
+            // tablebase: None,
             hybrid_config: HybridConfig::default(),
         }
     }
@@ -208,6 +214,7 @@ impl ChessVectorEngine {
             opening_book: None,
             database: None,
             tactical_search: None,
+            // tablebase: None,
             hybrid_config: HybridConfig::default(),
         }
     }
@@ -261,26 +268,31 @@ impl ChessVectorEngine {
         let query_vector = self.encoder.encode(board);
         
         // Use manifold space if available and trained
-        if self.use_manifold && self.manifold_learner.is_some() {
-            let compressed_query = self.manifold_learner.as_ref().unwrap().encode(&query_vector);
-            
-            // Use LSH in manifold space if available
-            if let Some(ref lsh) = self.manifold_lsh_index {
-                return lsh.query(&compressed_query, k);
-            }
-            
-            // Fall back to linear search in manifold space
-            if let Some(ref search) = self.manifold_similarity_search {
-                return search.search(&compressed_query, k);
+        if self.use_manifold {
+            if let Some(ref manifold_learner) = self.manifold_learner {
+                let compressed_query = manifold_learner.encode(&query_vector);
+                
+                // Use LSH in manifold space if available
+                if let Some(ref lsh) = self.manifold_lsh_index {
+                    return lsh.query(&compressed_query, k);
+                }
+                
+                // Fall back to linear search in manifold space
+                if let Some(ref search) = self.manifold_similarity_search {
+                    return search.search(&compressed_query, k);
+                }
             }
         }
         
         // Use original space with LSH if enabled
-        if self.use_lsh && self.lsh_index.is_some() {
-            self.lsh_index.as_ref().unwrap().query(&query_vector, k)
-        } else {
-            self.similarity_search.search(&query_vector, k)
+        if self.use_lsh {
+            if let Some(ref lsh_index) = self.lsh_index {
+                return lsh_index.query(&query_vector, k);
+            }
         }
+        
+        // Fall back to linear search
+        self.similarity_search.search(&query_vector, k)
     }
     
     /// Find similar positions with indices for move recommendation
@@ -306,7 +318,14 @@ impl ChessVectorEngine {
 
     /// Get evaluation for a position using hybrid approach (opening book + pattern evaluation + tactical search)
     pub fn evaluate_position(&mut self, board: &Board) -> Option<f32> {
-        // First check opening book - highest priority
+        // // First check tablebase for perfect endgame evaluation - highest priority
+        // if let Some(ref tablebase) = self.tablebase {
+        //     if let Some(tb_eval) = tablebase.get_evaluation(board) {
+        //         return Some(tb_eval);
+        //     }
+        // }
+        
+        // Second check opening book
         if let Some(entry) = self.get_opening_entry(board) {
             return Some(entry.evaluation);
         }
@@ -348,17 +367,26 @@ impl ChessVectorEngine {
             && self.tactical_search.is_some();
 
         if use_tactical {
-            // Get tactical evaluation
-            let tactical_result = self.tactical_search.as_mut().unwrap().search(board);
-            
-            // Blend pattern and tactical evaluations
-            let pattern_weight = self.hybrid_config.pattern_weight * pattern_confidence;
-            let tactical_weight = 1.0 - pattern_weight;
-            
-            let hybrid_evaluation = (pattern_evaluation * pattern_weight) + 
-                                  (tactical_result.evaluation * tactical_weight);
-            
-            Some(hybrid_evaluation)
+            // Get tactical evaluation (use parallel search if enabled)
+            if let Some(ref mut tactical_search) = self.tactical_search {
+                let tactical_result = if tactical_search.config.enable_parallel_search {
+                    tactical_search.search_parallel(board)
+                } else {
+                    tactical_search.search(board)
+                };
+                
+                // Blend pattern and tactical evaluations
+                let pattern_weight = self.hybrid_config.pattern_weight * pattern_confidence;
+                let tactical_weight = 1.0 - pattern_weight;
+                
+                let hybrid_evaluation = (pattern_evaluation * pattern_weight) + 
+                                      (tactical_result.evaluation * tactical_weight);
+                
+                Some(hybrid_evaluation)
+            } else {
+                // Tactical search not available, fall back to pattern only
+                Some(pattern_evaluation)
+            }
         } else {
             // Use pattern evaluation only
             Some(pattern_evaluation)
@@ -1667,7 +1695,19 @@ impl ChessVectorEngine {
     
     /// Get move recommendations based on similar positions and opening book
     pub fn recommend_moves(&self, board: &Board, num_recommendations: usize) -> Vec<MoveRecommendation> {
-        // First check opening book
+        // // First check tablebase for perfect endgame moves
+        // if let Some(ref tablebase) = self.tablebase {
+        //     if let Some(best_move) = tablebase.get_best_move(board) {
+        //         return vec![MoveRecommendation {
+        //             chess_move: best_move,
+        //             confidence: 1.0, // Perfect knowledge
+        //             from_similar_position_count: 1,
+        //             average_outcome: tablebase.get_evaluation(board).unwrap_or(0.0),
+        //         }];
+        //     }
+        // }
+        
+        // Second check opening book
         if let Some(entry) = self.get_opening_entry(board) {
             let mut recommendations = Vec::new();
             
@@ -1950,6 +1990,41 @@ impl ChessVectorEngine {
     pub fn is_tactical_search_enabled(&self) -> bool {
         self.tactical_search.is_some()
     }
+
+    /// Enable parallel tactical search with specified number of threads
+    pub fn enable_parallel_search(&mut self, num_threads: usize) {
+        if let Some(ref mut tactical_search) = self.tactical_search {
+            tactical_search.config.enable_parallel_search = true;
+            tactical_search.config.num_threads = num_threads;
+            println!("🧵 Parallel tactical search enabled with {} threads", num_threads);
+        }
+    }
+
+    /// Check if parallel search is enabled
+    pub fn is_parallel_search_enabled(&self) -> bool {
+        self.tactical_search.as_ref()
+            .map(|ts| ts.config.enable_parallel_search)
+            .unwrap_or(false)
+    }
+
+    // /// Enable Syzygy tablebase support for perfect endgame evaluation
+    // pub fn enable_tablebase<P: AsRef<std::path::Path>>(&mut self, path: P) -> Result<(), Box<dyn std::error::Error>> {
+    //     let mut prober = TablebaseProber::new();
+    //     prober.initialize(path)?;
+    //     self.tablebase = Some(prober);
+    //     println!("🗄️  Syzygy tablebase enabled for perfect endgame evaluation");
+    //     Ok(())
+    // }
+
+    // /// Check if tablebase is enabled
+    // pub fn is_tablebase_enabled(&self) -> bool {
+    //     self.tablebase.as_ref().map(|tb| tb.is_enabled()).unwrap_or(false)
+    // }
+
+    // /// Get tablebase max pieces supported
+    // pub fn tablebase_max_pieces(&self) -> Option<usize> {
+    //     self.tablebase.as_ref().map(|tb| tb.max_pieces())
+    // }
 
     /// Get current hybrid configuration
     pub fn hybrid_config(&self) -> &HybridConfig {
