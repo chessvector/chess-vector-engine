@@ -10,6 +10,8 @@ pub mod opening_book;
 pub mod persistence;
 pub mod gpu_acceleration;
 pub mod tactical_search;
+pub mod auto_discovery;
+pub mod streaming_loader;
 // pub mod tablebase; // Temporarily disabled due to version conflicts
 pub mod uci;
 
@@ -24,6 +26,8 @@ pub use training::{TrainingData, TrainingDataset, GameExtractor, EngineEvaluator
 pub use persistence::{Database, PositionData, LSHTableData};
 pub use gpu_acceleration::{GPUAccelerator, DeviceType};
 pub use tactical_search::{TacticalSearch, TacticalConfig, TacticalResult};
+pub use auto_discovery::{AutoDiscovery, TrainingFile, FormatPriority};
+pub use streaming_loader::StreamingLoader;
 // pub use tablebase::{TablebaseProber, TablebaseResult, WdlValue};
 pub use uci::{UCIEngine, UCIConfig, run_uci_engine, run_uci_engine_with_config};
 
@@ -1031,11 +1035,10 @@ impl ChessVectorEngine {
         Ok(engine)
     }
 
-    /// Ultra-fast instant loading combining all optimizations
-    /// This is the fastest possible loading method for regular users
-    /// Priority: Memory-mapped → MessagePack → Zstd → Binary → Streaming JSON → Regular JSON
-    pub fn new_with_instant_load(vector_size: usize) -> Result<Self, Box<dyn std::error::Error>> {
-        println!("🚀 Initializing engine with INSTANT loading optimizations...");
+    /// Create a new engine with automatic file discovery and smart format selection
+    /// Automatically discovers training data files and loads the optimal format
+    pub fn new_with_auto_discovery(vector_size: usize) -> Result<Self, Box<dyn std::error::Error>> {
+        println!("🚀 Initializing engine with AUTO-DISCOVERY and format consolidation...");
         let mut engine = Self::new(vector_size);
         engine.enable_opening_book();
         
@@ -1044,102 +1047,166 @@ impl ChessVectorEngine {
             println!("⚠️  Could not enable database persistence: {}", e);
         }
         
-        // Define possible file paths to try (in priority order)
-        let possible_files = [
-            "training_data_a100.mmap",     // A100 data - Memory-mapped binary
-            "training_data_a100.msgpack",  // A100 data - MessagePack binary
-            "training_data_a100.zst",      // A100 data - Zstd compressed
-            "training_data_a100.bin",      // A100 data - LZ4 compressed binary
-            "training_data_a100.json.zst", // A100 data - Zstd compressed JSON
-            "training_data_a100.json",     // A100 data - Standard JSON
-            "training_data.mmap",          // Memory-mapped binary
-            "training_data.msgpack",       // MessagePack binary
-            "training_data.zst",           // Zstd compressed
-            "training_data.bin",           // LZ4 compressed binary
-            "training_data.json.zst",      // Zstd compressed JSON
-            "training_data.json",          // Standard JSON
-            "tactical_training_data.mmap", // Tactical data - memory-mapped
-            "tactical_training_data.msgpack", // Tactical data - MessagePack
-            "tactical_training_data.zst",  // Tactical data - Zstd compressed
-            "tactical_training_data.bin",  // Tactical data - LZ4 compressed
-            "tactical_training_data.json.zst", // Tactical data - Zstd compressed JSON
-            "tactical_training_data.json", // Tactical data - JSON
-        ];
+        // Auto-discover training data files
+        let discovered_files = AutoDiscovery::discover_training_files(".", true)?;
         
-        let mut loaded_any = false;
-        
-        for file_path in &possible_files {
-            let path = std::path::Path::new(file_path);
-            if path.exists() {
-                println!("📁 Found training data: {}", file_path);
-                
-                let load_result = match file_path {
-                    f if f.ends_with(".mmap") => {
-                        println!("⚡ Using MEMORY-MAPPED loading (instant startup)");
-                        engine.load_training_data_mmap(path)
-                    },
-                    f if f.ends_with(".msgpack") => {
-                        println!("⚡ Using MessagePack loading (ultra-fast binary)");
-                        engine.load_training_data_msgpack(path)
-                    },
-                    f if f.ends_with(".zst") => {
-                        println!("⚡ Using Zstd compressed loading (high compression)");
-                        engine.load_training_data_compressed(path)
-                    },
-                    f if f.ends_with(".bin") => {
-                        println!("⚡ Using LZ4 binary loading (fast and proven)");
-                        engine.load_training_data_binary(path)
-                    },
-                    f if f.ends_with(".json.zst") => {
-                        println!("⚡ Using Zstd compressed JSON loading");
-                        engine.load_training_data_compressed(path)
-                    },
-                    f if f.ends_with(".json") => {
-                        println!("⚡ Using parallel streaming JSON loading");
-                        engine.load_training_data_streaming_json(path)
-                    },
-                    _ => {
-                        println!("⚠️  Unknown format, trying incremental loading");
-                        engine.load_training_data_incremental(path)
-                    }
-                };
-                
-                match load_result {
-                    Ok(()) => {
-                        loaded_any = true;
-                        println!("✅ Successfully loaded {}", file_path);
-                    },
-                    Err(e) => {
-                        println!("⚠️  Failed to load {}: {}", file_path, e);
-                        continue;
-                    }
-                }
-            }
-        }
-        
-        if !loaded_any {
+        if discovered_files.is_empty() {
             println!("ℹ️  No training data found. Use convert methods to create optimized files.");
-            println!("   Available converters:");
-            println!("   - convert_to_msgpack() for MessagePack format");
-            println!("   - convert_to_zstd() for Zstd compression");
-            println!("   - convert_to_mmap() for memory-mapped files");
+            return Ok(engine);
         }
         
-        // Try to load pre-trained manifold models for fast compressed similarity search
+        // Group by base name and load best format for each
+        let consolidated = AutoDiscovery::consolidate_by_base_name(discovered_files.clone());
+        
+        let mut total_loaded = 0;
+        for (base_name, best_file) in &consolidated {
+            println!("📚 Loading {} ({})", base_name, best_file.format);
+            
+            let initial_size = engine.knowledge_base_size();
+            engine.load_file_by_format(&best_file.path, &best_file.format)?;
+            let loaded_count = engine.knowledge_base_size() - initial_size;
+            total_loaded += loaded_count;
+            
+            println!("   ✅ Loaded {} positions", loaded_count);
+        }
+        
+        // Clean up old formats (dry run first to show what would be removed)
+        let cleanup_candidates = AutoDiscovery::get_cleanup_candidates(&discovered_files);
+        if !cleanup_candidates.is_empty() {
+            println!("🧹 Found {} old format files that can be cleaned up:", cleanup_candidates.len());
+            AutoDiscovery::cleanup_old_formats(&cleanup_candidates, true)?; // Dry run
+            
+            println!("   💡 To actually remove old files, run: cargo run --bin cleanup_formats");
+        }
+        
+        // Try to load pre-trained manifold models
         if let Err(e) = engine.load_manifold_models() {
             println!("⚠️  No pre-trained manifold models found ({})", e);
-            println!("   Use --rebuild-models flag to train new models");
         }
         
-        // Show performance stats
-        let total_positions = engine.knowledge_base_size();
-        println!("🎯 Engine ready: {} positions loaded", total_positions);
-        if total_positions > 0 {
-            println!("   Instant startup achieved! Ready for chess analysis.");
-        }
-        
+        println!("🎯 Engine ready: {} positions loaded from {} datasets", total_loaded, consolidated.len());
         Ok(engine)
     }
+    
+    /// Ultra-fast instant loading - loads best available format without consolidation
+    /// This is the fastest possible loading method for production use
+    pub fn new_with_instant_load(vector_size: usize) -> Result<Self, Box<dyn std::error::Error>> {
+        println!("🚀 Initializing engine with INSTANT loading...");
+        let mut engine = Self::new(vector_size);
+        engine.enable_opening_book();
+        
+        // Enable database persistence for manifold model loading
+        if let Err(e) = engine.enable_persistence("chess_vector_engine.db") {
+            println!("⚠️  Could not enable database persistence: {}", e);
+        }
+        
+        // Auto-discover and select best format
+        let discovered_files = AutoDiscovery::discover_training_files(".", false)?;
+        
+        if discovered_files.is_empty() {
+            println!("ℹ️  No training data found, starting with empty engine");
+            return Ok(engine);
+        }
+        
+        // Select best overall format (prioritizes MMAP)
+        if let Some(best_file) = discovered_files.first() {
+            println!("⚡ Loading {} format: {}", best_file.format, best_file.path.display());
+            engine.load_file_by_format(&best_file.path, &best_file.format)?;
+            println!("✅ Loaded {} positions from {} format", engine.knowledge_base_size(), best_file.format);
+        }
+        
+        // Try to load pre-trained manifold models
+        if let Err(e) = engine.load_manifold_models() {
+            println!("⚠️  No pre-trained manifold models found ({})", e);
+        }
+        
+        println!("🎯 Engine ready: {} positions loaded", engine.knowledge_base_size());
+        Ok(engine)
+    }
+    
+    /// Load file by detected format
+    fn load_file_by_format(&mut self, path: &std::path::Path, format: &str) -> Result<(), Box<dyn std::error::Error>> {
+        match format {
+            "MMAP" => self.load_training_data_mmap(path),
+            "MSGPACK" => self.load_training_data_msgpack(path),
+            "BINARY" => self.load_training_data_streaming_binary(path),
+            "ZSTD" => self.load_training_data_compressed(path),
+            "JSON" => self.load_training_data_streaming_json_v2(path),
+            _ => Err(format!("Unknown format: {}", format).into()),
+        }
+    }
+    
+    /// Ultra-fast streaming binary loader for massive datasets (900k+ positions)
+    /// Uses streaming processing to handle arbitrarily large datasets
+    pub fn load_training_data_streaming_binary<P: AsRef<std::path::Path>>(&mut self, path: P) -> Result<(), Box<dyn std::error::Error>> {
+        let mut loader = StreamingLoader::new();
+        loader.stream_load_binary(path, self)?;
+        
+        println!("📊 Streaming binary load complete:");
+        println!("   Loaded: {} new positions", loader.loaded_count);
+        println!("   Duplicates skipped: {}", loader.duplicate_count);
+        println!("   Total processed: {}", loader.total_processed);
+        
+        Ok(())
+    }
+    
+    /// Ultra-fast streaming JSON loader for massive datasets (900k+ positions)
+    /// Uses streaming processing with minimal memory footprint
+    pub fn load_training_data_streaming_json_v2<P: AsRef<std::path::Path>>(&mut self, path: P) -> Result<(), Box<dyn std::error::Error>> {
+        let mut loader = StreamingLoader::new();
+        
+        // Use larger batch size for massive datasets
+        let batch_size = if std::fs::metadata(path.as_ref())?.len() > 100_000_000 { // > 100MB
+            20000 // Large batches for big files
+        } else {
+            5000  // Smaller batches for normal files
+        };
+        
+        loader.stream_load_json(path, self, batch_size)?;
+        
+        println!("📊 Streaming JSON load complete:");
+        println!("   Loaded: {} new positions", loader.loaded_count);
+        println!("   Duplicates skipped: {}", loader.duplicate_count);
+        println!("   Total processed: {}", loader.total_processed);
+        
+        Ok(())
+    }
+    
+    /// Create engine optimized for massive datasets (100k-1M+ positions)
+    /// Uses streaming loading and minimal memory footprint
+    pub fn new_for_massive_datasets(vector_size: usize) -> Result<Self, Box<dyn std::error::Error>> {
+        println!("🚀 Initializing engine for MASSIVE datasets (100k-1M+ positions)...");
+        let mut engine = Self::new(vector_size);
+        engine.enable_opening_book();
+        
+        // Discover training files
+        let discovered_files = AutoDiscovery::discover_training_files(".", false)?;
+        
+        if discovered_files.is_empty() {
+            println!("ℹ️  No training data found");
+            return Ok(engine);
+        }
+        
+        // Find the largest file to load (likely the main dataset)
+        let largest_file = discovered_files.iter()
+            .max_by_key(|f| f.size_bytes)
+            .unwrap();
+            
+        println!("🎯 Loading largest dataset: {} ({} bytes)", 
+                 largest_file.path.display(), 
+                 largest_file.size_bytes);
+        
+        // Use appropriate streaming loader based on format
+        match largest_file.format.as_str() {
+            "BINARY" | "MMAP" => engine.load_training_data_streaming_binary(&largest_file.path)?,
+            "JSON" => engine.load_training_data_streaming_json_v2(&largest_file.path)?,
+            _ => engine.load_file_by_format(&largest_file.path, &largest_file.format)?,
+        }
+        
+        println!("🎯 Engine ready: {} positions loaded", engine.knowledge_base_size());
+        Ok(engine)
+    }
+    
 
     /// Convert existing JSON training data to ultra-fast MessagePack format
     /// MessagePack is typically 10-20% faster than bincode with smaller file sizes

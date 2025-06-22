@@ -105,6 +105,14 @@ path = "src/bin/ultra_fast_converter.rs"
 name = "instant_load_test"
 path = "src/bin/instant_load_test.rs"
 
+[[bin]]
+name = "cleanup_formats"
+path = "src/bin/cleanup_formats.rs"
+
+[[bin]]
+name = "massive_loader_test"
+path = "src/bin/massive_loader_test.rs"
+
 
 
 [dependencies]
