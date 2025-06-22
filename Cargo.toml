@@ -97,6 +97,16 @@ path = "src/bin/comprehensive_training.rs"
 name = "intelligent_curation"
 path = "src/bin/intelligent_curation.rs"
 
+[[bin]]
+name = "ultra_fast_converter"
+path = "src/bin/ultra_fast_converter.rs"
+
+[[bin]]
+name = "instant_load_test"
+path = "src/bin/instant_load_test.rs"
+
+
+
 [dependencies]
 # Chess game logic
 chess = "3.2"
@@ -108,6 +118,7 @@ ndarray-rand = "0.15"
 # Machine learning framework
 candle-core = { version = "0.9", features = [] }
 candle-nn = "0.9"
+safetensors = "0.4"
 
 # Serialization for saving/loading models
 serde = { version = "1.0", features = ["derive"] }
@@ -145,6 +156,13 @@ bincode = "1.3"
 
 # Compression for fast training data
 lz4_flex = "0.11"
+
+# Ultra-fast loading optimizations
+memmap2 = "0.9"       # Memory-mapped files for instant loading
+rmp-serde = "1.1"     # MessagePack binary format (faster than bincode)
+zstd = "0.13"         # High-performance compression
+crossbeam = "0.8"     # Lock-free data structures
+dashmap = "5.5"       # Concurrent hash map for parallel loading
 
 [features]
 default = []

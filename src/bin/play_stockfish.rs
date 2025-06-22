@@ -17,6 +17,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     
     let rebuild_models = args.contains(&"--rebuild-models".to_string());
     let convert_to_binary = args.contains(&"--convert-to-binary".to_string());
+    let force_training_files = args.contains(&"--force-training-files".to_string());
     
     // Handle binary conversion and exit
     if convert_to_binary {
@@ -44,7 +45,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     }
     
     // Initialize the chess vector engine with opening book and substantial knowledge base
-    let mut engine = create_engine_with_knowledge(rebuild_models);
+    let mut engine = create_engine_with_knowledge(rebuild_models || force_training_files);
     
     // Start Stockfish process
     let mut stockfish = Command::new("stockfish")
@@ -127,6 +128,10 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     println!("\nPGN Format:");
     generate_pgn(&game);
     
+    // Save game data to database for future learning
+    println!("\n💾 Saving game data to database for future learning...");
+    save_game_to_database(&mut engine, &game);
+    
     // Clean up Stockfish
     writeln!(stockfish_stdin, "quit")?;
     stockfish.wait()?;
@@ -135,19 +140,45 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 }
 
 fn create_engine_with_knowledge(rebuild_models: bool) -> ChessVectorEngine {
-    println!("🚀 Initializing Chess Vector Engine with fast-loading for gameplay...");
+    println!("🚀 Initializing Chess Vector Engine for gameplay...");
     
-    // Use fast loading to prioritize binary formats and optimize startup time
+    // Smart loading strategy: Check database first, fallback to training files
     let engine_result = if rebuild_models {
-        // Full loading when rebuilding models
+        println!("🔄 Rebuild flag detected - loading from training files and retraining models");
         ChessVectorEngine::new_with_auto_load(1024)
     } else {
-        // Fast loading for gameplay - prioritizes binary formats
-        ChessVectorEngine::new_with_fast_load(1024)
+        // Check if we have sufficient data in database first
+        let mut engine = ChessVectorEngine::new(1024);
+        engine.enable_opening_book();
+        
+        match engine.enable_persistence("chess_vector_engine.db") {
+            Ok(_) => {
+                match engine.load_from_database() {
+                    Ok(_) => {
+                        let stats = engine.training_stats();
+                        if stats.total_positions >= 1000 {
+                            println!("📊 Found {} positions in database - using fast database-only loading", stats.total_positions);
+                            Ok(engine)
+                        } else {
+                            println!("📊 Database has only {} positions - loading training files to supplement", stats.total_positions);
+                            ChessVectorEngine::new_with_fast_load(1024)
+                        }
+                    }
+                    Err(_) => {
+                        println!("📦 No existing database found - loading from training files");
+                        ChessVectorEngine::new_with_fast_load(1024)
+                    }
+                }
+            }
+            Err(_) => {
+                println!("⚠️  Could not access database - loading from training files");
+                ChessVectorEngine::new_with_fast_load(1024)
+            }
+        }
     };
     
     match engine_result {
-        Ok(engine) => {
+        Ok(mut engine) => {
             let stats = engine.training_stats();
             println!("🎯 Engine initialized with {} total positions", stats.total_positions);
             
@@ -160,6 +191,15 @@ fn create_engine_with_knowledge(rebuild_models: bool) -> ChessVectorEngine {
                 println!("📖 Opening book: {} positions with {} ECO classifications", 
                          book_stats.total_positions, book_stats.eco_classifications);
             }
+            
+            // Ensure database persistence is enabled for saving game data
+            if engine.enable_persistence("chess_vector_engine.db").is_err() {
+                println!("⚠️  Could not enable database persistence");
+            }
+            
+            // Enable tactical search for better chess play
+            engine.enable_tactical_search_default();
+            println!("⚔️  Tactical search enabled for strategic gameplay");
             
             // Enable LSH for large datasets to maintain game speed
             let mut engine = engine;
@@ -208,11 +248,17 @@ fn print_usage() {
     println!("Usage: cargo run --bin play_stockfish [OPTIONS]");
     println!();
     println!("Options:");
-    println!("  --rebuild-models      Force rebuild of LSH and manifold learning models");
-    println!("                        (normally models are pre-built to avoid startup delay)");
-    println!("  --convert-to-binary   Convert JSON training files to binary format");
-    println!("                        (provides 5-15x faster loading for future runs)");
-    println!("  --help               Show this help message");
+    println!("  --rebuild-models        Force rebuild of LSH and manifold learning models");
+    println!("                          (normally models are pre-built to avoid startup delay)");
+    println!("  --force-training-files  Force loading from training files instead of database");
+    println!("                          (useful for getting fresh training data)");
+    println!("  --convert-to-binary     Convert JSON training files to binary format");
+    println!("                          (provides 5-15x faster loading for future runs)");
+    println!("  --help                  Show this help message");
+    println!();
+    println!("Loading Strategy:");
+    println!("  1st run: Loads from training files, saves to database");
+    println!("  Later runs: Uses database (much faster), saves new game data");
     println!();
     println!("Examples:");
     println!("  cargo run --bin play_stockfish                        # Fast startup with optimized loading");
@@ -455,4 +501,54 @@ fn square_to_algebraic(square: chess::Square) -> String {
     let file = (square.get_file().to_index() as u8 + b'a') as char;
     let rank = (square.get_rank().to_index() + 1).to_string();
     format!("{}{}", file, rank)
+}
+
+/// Save game positions and moves to database for future learning
+fn save_game_to_database(engine: &mut ChessVectorEngine, game: &Game) {
+    let mut board = Board::default();
+    let moves = game.actions();
+    
+    // Determine game outcome for learning
+    let final_board = game.current_position();
+    let game_outcome = match final_board.status() {
+        chess::BoardStatus::Checkmate => {
+            if final_board.side_to_move() == Color::White {
+                -1.0 // Black (Stockfish) won
+            } else {
+                1.0  // White (Vector Engine) won
+            }
+        }
+        chess::BoardStatus::Stalemate => 0.0, // Draw
+        _ => 0.0, // Other endings treated as draw
+    };
+    
+    println!("    Analyzing {} moves for learning...", moves.len());
+    
+    // Process each position in the game
+    for (i, action) in moves.iter().enumerate() {
+        if let chess::Action::MakeMove(chess_move) = action {
+            // Calculate position evaluation based on game outcome and move number
+            // Early game moves are less decisive than late game moves
+            let move_weight = (i as f32 + 1.0) / moves.len() as f32;
+            let position_eval = game_outcome * move_weight * 0.1; // Scale down for training
+            
+            // Add position with the move and outcome
+            let move_outcome = if i % 2 == 0 { 
+                game_outcome  // White move
+            } else { 
+                -game_outcome // Black move (flip perspective)
+            };
+            
+            engine.add_position_with_move(&board, position_eval, Some(*chess_move), Some(move_outcome));
+            
+            // Move to next position
+            board = board.make_move_new(*chess_move);
+        }
+    }
+    
+    // Save to database
+    match engine.save_to_database() {
+        Ok(_) => println!("    ✅ Game data saved successfully"),
+        Err(e) => println!("    ⚠️  Failed to save game data: {}", e),
+    }
 }

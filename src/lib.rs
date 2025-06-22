@@ -26,10 +26,13 @@ pub use tactical_search::{TacticalSearch, TacticalConfig, TacticalResult};
 pub use uci::{UCIEngine, UCIConfig, run_uci_engine, run_uci_engine_with_config};
 
 use chess::{Board, ChessMove};
-use ndarray::{Array1, Array2};
+use ndarray::{Array1, Array2}; 
 use std::collections::HashMap;
 use std::path::Path;
 use std::str::FromStr;
+use std::sync::Arc;
+use serde_json::Value;
+
 
 /// Move recommendation data
 #[derive(Debug, Clone)]
@@ -614,6 +617,177 @@ impl ChessVectorEngine {
                  self.knowledge_base_size());
         Ok(())
     }
+
+    /// Ultra-fast memory-mapped loading for instant startup
+    /// Uses memory-mapped files to load training data with zero-copy access
+    pub fn load_training_data_mmap<P: AsRef<Path>>(&mut self, path: P) -> Result<(), Box<dyn std::error::Error>> {
+        use memmap2::Mmap;
+        use std::fs::File;
+        
+        let path_ref = path.as_ref();
+        println!("🚀 Loading training data via memory mapping: {}", path_ref.display());
+        
+        let file = File::open(path_ref)?;
+        let mmap = unsafe { Mmap::map(&file)? };
+        
+        // Try MessagePack format first (faster than bincode)
+        if let Ok(data) = rmp_serde::from_slice::<Vec<(String, f32)>>(&mmap) {
+            println!("📦 Detected MessagePack format");
+            return self.load_positions_from_tuples(data);
+        }
+        
+        // Fall back to bincode
+        if let Ok(data) = bincode::deserialize::<Vec<(String, f32)>>(&mmap) {
+            println!("📦 Detected bincode format");
+            return self.load_positions_from_tuples(data);
+        }
+        
+        // Fall back to LZ4 compressed bincode
+        let decompressed = lz4_flex::decompress_size_prepended(&mmap)?;
+        let data: Vec<(String, f32)> = bincode::deserialize(&decompressed)?;
+        println!("📦 Detected LZ4+bincode format");
+        self.load_positions_from_tuples(data)
+    }
+
+    /// Ultra-fast MessagePack binary format loading
+    /// MessagePack is typically 10-20% faster than bincode
+    pub fn load_training_data_msgpack<P: AsRef<Path>>(&mut self, path: P) -> Result<(), Box<dyn std::error::Error>> {
+        use std::fs::File;
+        use std::io::BufReader;
+        
+        let path_ref = path.as_ref();
+        println!("🚀 Loading MessagePack training data: {}", path_ref.display());
+        
+        let file = File::open(path_ref)?;
+        let reader = BufReader::new(file);
+        let data: Vec<(String, f32)> = rmp_serde::from_read(reader)?;
+        
+        println!("📦 MessagePack data loaded: {} positions", data.len());
+        self.load_positions_from_tuples(data)
+    }
+
+    /// Ultra-fast streaming JSON loader with parallel processing
+    /// Processes JSON in chunks with multiple threads for better performance
+    pub fn load_training_data_streaming_json<P: AsRef<Path>>(&mut self, path: P) -> Result<(), Box<dyn std::error::Error>> {
+        use std::fs::File;
+        use std::io::{BufRead, BufReader};
+        use rayon::prelude::*;
+        use dashmap::DashMap;
+        use std::sync::Arc;
+        
+        let path_ref = path.as_ref();
+        println!("🚀 Loading JSON with streaming parallel processing: {}", path_ref.display());
+        
+        let file = File::open(path_ref)?;
+        let reader = BufReader::new(file);
+        
+        // Read file in chunks and process in parallel
+        let chunk_size = 10000;
+        let position_map = Arc::new(DashMap::new());
+        
+        let lines: Vec<String> = reader.lines().collect::<Result<Vec<_>, _>>()?;
+        let total_lines = lines.len();
+        
+        // Process chunks in parallel
+        lines.par_chunks(chunk_size).for_each(|chunk| {
+            for line in chunk {
+                if let Ok(data) = serde_json::from_str::<serde_json::Value>(line) {
+                    if let (Some(fen), Some(eval)) = (data.get("fen").and_then(|v| v.as_str()),
+                                                     data.get("evaluation").and_then(|v| v.as_f64())) {
+                        position_map.insert(fen.to_string(), eval as f32);
+                    }
+                }
+            }
+        });
+        
+        println!("📦 Parallel JSON processing complete: {} positions from {} lines", 
+                 position_map.len(), total_lines);
+        
+        // Convert to Vec for final loading
+        // Convert DashMap to Vec - need to extract values from Arc
+        let data: Vec<(String, f32)> = match Arc::try_unwrap(position_map) {
+            Ok(map) => map.into_iter().collect(),
+            Err(arc_map) => {
+                // Fallback: clone if there are multiple references
+                arc_map.iter().map(|entry| (entry.key().clone(), *entry.value())).collect()
+            }
+        };
+        self.load_positions_from_tuples(data)
+    }
+
+    /// Ultra-fast compressed loading with zstd
+    /// Zstd typically provides better compression ratios than LZ4 with similar speed
+    pub fn load_training_data_compressed<P: AsRef<Path>>(&mut self, path: P) -> Result<(), Box<dyn std::error::Error>> {
+        use std::fs::File;
+        use std::io::BufReader;
+        
+        let path_ref = path.as_ref();
+        println!("🚀 Loading zstd compressed training data: {}", path_ref.display());
+        
+        let file = File::open(path_ref)?;
+        let reader = BufReader::new(file);
+        let decoder = zstd::stream::Decoder::new(reader)?;
+        
+        // Try MessagePack first for maximum speed
+        if let Ok(data) = rmp_serde::from_read::<_, Vec<(String, f32)>>(decoder) {
+            println!("📦 Zstd+MessagePack data loaded: {} positions", data.len());
+            return self.load_positions_from_tuples(data);
+        }
+        
+        // Fall back to bincode
+        let file = File::open(path_ref)?;
+        let reader = BufReader::new(file);
+        let decoder = zstd::stream::Decoder::new(reader)?;
+        let data: Vec<(String, f32)> = bincode::deserialize_from(decoder)?;
+        
+        println!("📦 Zstd+bincode data loaded: {} positions", data.len());
+        self.load_positions_from_tuples(data)
+    }
+
+    /// Helper method to load positions from (FEN, evaluation) tuples
+    /// Used by all the ultra-fast loading methods
+    fn load_positions_from_tuples(&mut self, data: Vec<(String, f32)>) -> Result<(), Box<dyn std::error::Error>> {
+        use std::collections::HashSet;
+        use indicatif::{ProgressBar, ProgressStyle};
+        
+        let existing_size = self.knowledge_base_size();
+        let mut seen_positions = HashSet::new();
+        let mut loaded_count = 0;
+        
+        // Create progress bar
+        let pb = ProgressBar::new(data.len() as u64);
+        pb.set_style(ProgressStyle::with_template(
+            "{spinner:.green} [{elapsed_precise}] [{bar:40.cyan/blue}] {pos}/{len} ({per_sec}) {msg}"
+        )?);
+        
+        for (fen, evaluation) in data {
+            pb.inc(1);
+            
+            // Skip duplicates using O(1) HashSet lookup
+            if seen_positions.contains(&fen) {
+                continue;
+            }
+            seen_positions.insert(fen.clone());
+            
+            // Parse and add position
+            if let Ok(board) = Board::from_str(&fen) {
+                self.add_position(&board, evaluation);
+                loaded_count += 1;
+                
+                if loaded_count % 1000 == 0 {
+                    pb.set_message(format!("Loaded {} positions", loaded_count));
+                }
+            }
+        }
+        
+        pb.finish_with_message(format!("✅ Loaded {} new positions", loaded_count));
+        
+        println!("🎯 Ultra-fast loading complete: {} new positions (total: {})", 
+                 self.knowledge_base_size() - existing_size, 
+                 self.knowledge_base_size());
+        
+        Ok(())
+    }
     
     /// Helper to format byte sizes for display
     fn format_bytes(bytes: u64) -> String {
@@ -767,8 +941,14 @@ impl ChessVectorEngine {
         let mut engine = Self::new(vector_size);
         engine.enable_opening_book();
         
+        // Enable database persistence for manifold model loading
+        if let Err(e) = engine.enable_persistence("chess_vector_engine.db") {
+            println!("⚠️  Could not enable database persistence: {}", e);
+        }
+        
         // Try to load binary formats first for maximum speed
         let binary_files = vec![
+            "training_data_a100.bin",        // A100 training data (priority)
             "training_data.bin",
             "tactical_training_data.bin", 
             "engine_training.bin",
@@ -810,11 +990,415 @@ impl ChessVectorEngine {
             let _ = engine.auto_load_training_data()?;
         }
         
+        // Try to load pre-trained manifold models for fast compressed similarity search
+        if let Err(e) = engine.load_manifold_models() {
+            println!("⚠️  No pre-trained manifold models found ({})", e);
+            println!("   Use --rebuild-models flag to train new models");
+        }
+        
         let stats = engine.training_stats();
         println!("⚡ Fast engine ready with {} positions ({} binary files loaded)", 
                  stats.total_positions, loaded_count);
         
         Ok(engine)
+    }
+
+    /// Ultra-fast instant loading combining all optimizations
+    /// This is the fastest possible loading method for regular users
+    /// Priority: Memory-mapped → MessagePack → Zstd → Binary → Streaming JSON → Regular JSON
+    pub fn new_with_instant_load(vector_size: usize) -> Result<Self, Box<dyn std::error::Error>> {
+        println!("🚀 Initializing engine with INSTANT loading optimizations...");
+        let mut engine = Self::new(vector_size);
+        engine.enable_opening_book();
+        
+        // Enable database persistence for manifold model loading
+        if let Err(e) = engine.enable_persistence("chess_vector_engine.db") {
+            println!("⚠️  Could not enable database persistence: {}", e);
+        }
+        
+        // Define possible file paths to try (in priority order)
+        let possible_files = [
+            "training_data_a100.mmap",     // A100 data - Memory-mapped binary
+            "training_data_a100.msgpack",  // A100 data - MessagePack binary
+            "training_data_a100.zst",      // A100 data - Zstd compressed
+            "training_data_a100.bin",      // A100 data - LZ4 compressed binary
+            "training_data_a100.json.zst", // A100 data - Zstd compressed JSON
+            "training_data_a100.json",     // A100 data - Standard JSON
+            "training_data.mmap",          // Memory-mapped binary
+            "training_data.msgpack",       // MessagePack binary
+            "training_data.zst",           // Zstd compressed
+            "training_data.bin",           // LZ4 compressed binary
+            "training_data.json.zst",      // Zstd compressed JSON
+            "training_data.json",          // Standard JSON
+            "tactical_training_data.mmap", // Tactical data - memory-mapped
+            "tactical_training_data.msgpack", // Tactical data - MessagePack
+            "tactical_training_data.zst",  // Tactical data - Zstd compressed
+            "tactical_training_data.bin",  // Tactical data - LZ4 compressed
+            "tactical_training_data.json.zst", // Tactical data - Zstd compressed JSON
+            "tactical_training_data.json", // Tactical data - JSON
+        ];
+        
+        let mut loaded_any = false;
+        
+        for file_path in &possible_files {
+            let path = std::path::Path::new(file_path);
+            if path.exists() {
+                println!("📁 Found training data: {}", file_path);
+                
+                let load_result = match file_path {
+                    f if f.ends_with(".mmap") => {
+                        println!("⚡ Using MEMORY-MAPPED loading (instant startup)");
+                        engine.load_training_data_mmap(path)
+                    },
+                    f if f.ends_with(".msgpack") => {
+                        println!("⚡ Using MessagePack loading (ultra-fast binary)");
+                        engine.load_training_data_msgpack(path)
+                    },
+                    f if f.ends_with(".zst") => {
+                        println!("⚡ Using Zstd compressed loading (high compression)");
+                        engine.load_training_data_compressed(path)
+                    },
+                    f if f.ends_with(".bin") => {
+                        println!("⚡ Using LZ4 binary loading (fast and proven)");
+                        engine.load_training_data_binary(path)
+                    },
+                    f if f.ends_with(".json.zst") => {
+                        println!("⚡ Using Zstd compressed JSON loading");
+                        engine.load_training_data_compressed(path)
+                    },
+                    f if f.ends_with(".json") => {
+                        println!("⚡ Using parallel streaming JSON loading");
+                        engine.load_training_data_streaming_json(path)
+                    },
+                    _ => {
+                        println!("⚠️  Unknown format, trying incremental loading");
+                        engine.load_training_data_incremental(path)
+                    }
+                };
+                
+                match load_result {
+                    Ok(()) => {
+                        loaded_any = true;
+                        println!("✅ Successfully loaded {}", file_path);
+                    },
+                    Err(e) => {
+                        println!("⚠️  Failed to load {}: {}", file_path, e);
+                        continue;
+                    }
+                }
+            }
+        }
+        
+        if !loaded_any {
+            println!("ℹ️  No training data found. Use convert methods to create optimized files.");
+            println!("   Available converters:");
+            println!("   - convert_to_msgpack() for MessagePack format");
+            println!("   - convert_to_zstd() for Zstd compression");
+            println!("   - convert_to_mmap() for memory-mapped files");
+        }
+        
+        // Try to load pre-trained manifold models for fast compressed similarity search
+        if let Err(e) = engine.load_manifold_models() {
+            println!("⚠️  No pre-trained manifold models found ({})", e);
+            println!("   Use --rebuild-models flag to train new models");
+        }
+        
+        // Show performance stats
+        let total_positions = engine.knowledge_base_size();
+        println!("🎯 Engine ready: {} positions loaded", total_positions);
+        if total_positions > 0 {
+            println!("   Instant startup achieved! Ready for chess analysis.");
+        }
+        
+        Ok(engine)
+    }
+
+    /// Convert existing JSON training data to ultra-fast MessagePack format
+    /// MessagePack is typically 10-20% faster than bincode with smaller file sizes
+    pub fn convert_to_msgpack() -> Result<(), Box<dyn std::error::Error>> {
+        use std::fs::File;
+        use std::io::{BufReader, BufWriter};
+        use serde_json::Value;
+        
+        // First convert A100 binary to JSON if it exists
+        if std::path::Path::new("training_data_a100.bin").exists() {
+            Self::convert_a100_binary_to_json()?;
+        }
+        
+        let input_files = ["training_data.json", "tactical_training_data.json", "training_data_a100.json"];
+        
+        for input_file in &input_files {
+            let input_path = std::path::Path::new(input_file);
+            if !input_path.exists() {
+                continue;
+            }
+            
+            let output_file_path = input_file.replace(".json", ".msgpack");
+            println!("🔄 Converting {} → {} (MessagePack format)", input_file, output_file_path);
+            
+            // Load JSON data and handle both formats
+            let file = File::open(input_path)?;
+            let reader = BufReader::new(file);
+            let json_value: Value = serde_json::from_reader(reader)?;
+            
+            let data: Vec<(String, f32)> = match json_value {
+                // Handle tuple format: [(fen, evaluation), ...]
+                Value::Array(arr) if !arr.is_empty() => {
+                    if let Some(first) = arr.first() {
+                        if first.is_array() {
+                            // Tuple format: [[fen, evaluation], ...]
+                            arr.into_iter()
+                                .filter_map(|item| {
+                                    if let Value::Array(tuple) = item {
+                                        if tuple.len() >= 2 {
+                                            let fen = tuple[0].as_str()?.to_string();
+                                            let eval = tuple[1].as_f64()? as f32;
+                                            Some((fen, eval))
+                                        } else {
+                                            None
+                                        }
+                                    } else {
+                                        None
+                                    }
+                                })
+                                .collect()
+                        } else if first.is_object() {
+                            // Object format: [{fen: "...", evaluation: ...}, ...]
+                            arr.into_iter()
+                                .filter_map(|item| {
+                                    if let Value::Object(obj) = item {
+                                        let fen = obj.get("fen")?.as_str()?.to_string();
+                                        let eval = obj.get("evaluation")?.as_f64()? as f32;
+                                        Some((fen, eval))
+                                    } else {
+                                        None
+                                    }
+                                })
+                                .collect()
+                        } else {
+                            return Err(format!("Unsupported JSON format in {}", input_file).into());
+                        }
+                    } else {
+                        Vec::new()
+                    }
+                },
+                _ => return Err(format!("Expected JSON array in {}", input_file).into()),
+            };
+            
+            if data.is_empty() {
+                println!("⚠️  No valid data found in {}", input_file);
+                continue;
+            }
+            
+            // Save as MessagePack
+            let output_file = File::create(&output_file_path)?;
+            let mut writer = BufWriter::new(output_file);
+            rmp_serde::encode::write(&mut writer, &data)?;
+            
+            let input_size = input_path.metadata()?.len();
+            let output_size = std::path::Path::new(&output_file_path).metadata()?.len();
+            let ratio = input_size as f64 / output_size as f64;
+            
+            println!("✅ Converted: {} → {} ({:.1}x size reduction, {} positions)", 
+                     Self::format_bytes(input_size),
+                     Self::format_bytes(output_size), 
+                     ratio,
+                     data.len());
+        }
+        
+        Ok(())
+    }
+
+    /// Convert A100 binary training data to JSON format for use with other converters
+    pub fn convert_a100_binary_to_json() -> Result<(), Box<dyn std::error::Error>> {
+        use std::fs::File;
+        use std::io::BufWriter;
+        
+        let binary_path = "training_data_a100.bin";
+        let json_path = "training_data_a100.json";
+        
+        if !std::path::Path::new(binary_path).exists() {
+            println!("⚠️  A100 binary file not found: {}", binary_path);
+            return Ok(());
+        }
+        
+        println!("🔄 Converting A100 binary data {} → {} (JSON format)", binary_path, json_path);
+        
+        // Load binary data using the existing binary loader
+        let mut engine = ChessVectorEngine::new(1024);
+        engine.load_training_data_binary(binary_path)?;
+        
+        // Extract data in JSON-compatible format
+        let mut data = Vec::new();
+        for (i, board) in engine.position_boards.iter().enumerate() {
+            if i < engine.position_evaluations.len() {
+                data.push(serde_json::json!({
+                    "fen": board.to_string(),
+                    "evaluation": engine.position_evaluations[i],
+                    "depth": 15,
+                    "game_id": i
+                }));
+            }
+        }
+        
+        // Save as JSON
+        let file = File::create(json_path)?;
+        let writer = BufWriter::new(file);
+        serde_json::to_writer(writer, &data)?;
+        
+        println!("✅ Converted A100 data: {} positions → {}", data.len(), json_path);
+        Ok(())
+    }
+
+    /// Convert existing training data to ultra-compressed Zstd format
+    /// Zstd provides excellent compression with fast decompression
+    pub fn convert_to_zstd() -> Result<(), Box<dyn std::error::Error>> {
+        use std::fs::File;
+        use std::io::{BufReader, BufWriter};
+        
+        // First convert A100 binary to JSON if it exists
+        if std::path::Path::new("training_data_a100.bin").exists() {
+            Self::convert_a100_binary_to_json()?;
+        }
+        
+        let input_files = [
+            ("training_data.json", "training_data.zst"),
+            ("tactical_training_data.json", "tactical_training_data.zst"),
+            ("training_data_a100.json", "training_data_a100.zst"),
+            ("training_data.bin", "training_data.bin.zst"),
+            ("tactical_training_data.bin", "tactical_training_data.bin.zst"),
+            ("training_data_a100.bin", "training_data_a100.bin.zst"),
+        ];
+        
+        for (input_file, output_file) in &input_files {
+            let input_path = std::path::Path::new(input_file);
+            if !input_path.exists() {
+                continue;
+            }
+            
+            println!("🔄 Converting {} → {} (Zstd compression)", input_file, output_file);
+            
+            let input_file = File::open(input_path)?;
+            let output_file_handle = File::create(output_file)?;
+            let writer = BufWriter::new(output_file_handle);
+            let mut encoder = zstd::stream::Encoder::new(writer, 9)?; // Level 9 for best compression
+            
+            std::io::copy(&mut BufReader::new(input_file), &mut encoder)?;
+            encoder.finish()?;
+            
+            let input_size = input_path.metadata()?.len();
+            let output_size = std::path::Path::new(output_file).metadata()?.len();
+            let ratio = input_size as f64 / output_size as f64;
+            
+            println!("✅ Compressed: {} → {} ({:.1}x size reduction)", 
+                     Self::format_bytes(input_size),
+                     Self::format_bytes(output_size), 
+                     ratio);
+        }
+        
+        Ok(())
+    }
+
+    /// Convert existing training data to memory-mapped format for instant loading
+    /// This creates a file that can be loaded with zero-copy access
+    pub fn convert_to_mmap() -> Result<(), Box<dyn std::error::Error>> {
+        use std::fs::File;
+        use std::io::{BufReader, BufWriter};
+        
+        // First convert A100 binary to JSON if it exists
+        if std::path::Path::new("training_data_a100.bin").exists() {
+            Self::convert_a100_binary_to_json()?;
+        }
+        
+        let input_files = [
+            ("training_data.json", "training_data.mmap"),
+            ("tactical_training_data.json", "tactical_training_data.mmap"),
+            ("training_data_a100.json", "training_data_a100.mmap"),
+            ("training_data.msgpack", "training_data.mmap"),
+            ("tactical_training_data.msgpack", "tactical_training_data.mmap"),
+            ("training_data_a100.msgpack", "training_data_a100.mmap"),
+        ];
+        
+        for (input_file, output_file) in &input_files {
+            let input_path = std::path::Path::new(input_file);
+            if !input_path.exists() {
+                continue;
+            }
+            
+            println!("🔄 Converting {} → {} (Memory-mapped format)", input_file, output_file);
+            
+            // Load data based on input format
+            let data: Vec<(String, f32)> = if input_file.ends_with(".json") {
+                let file = File::open(input_path)?;
+                let reader = BufReader::new(file);
+                let json_value: Value = serde_json::from_reader(reader)?;
+                
+                match json_value {
+                    // Handle tuple format: [(fen, evaluation), ...]
+                    Value::Array(arr) if !arr.is_empty() => {
+                        if let Some(first) = arr.first() {
+                            if first.is_array() {
+                                // Tuple format: [[fen, evaluation], ...]
+                                arr.into_iter()
+                                    .filter_map(|item| {
+                                        if let Value::Array(tuple) = item {
+                                            if tuple.len() >= 2 {
+                                                let fen = tuple[0].as_str()?.to_string();
+                                                let eval = tuple[1].as_f64()? as f32;
+                                                Some((fen, eval))
+                                            } else {
+                                                None
+                                            }
+                                        } else {
+                                            None
+                                        }
+                                    })
+                                    .collect()
+                            } else if first.is_object() {
+                                // Object format: [{fen: "...", evaluation: ...}, ...]
+                                arr.into_iter()
+                                    .filter_map(|item| {
+                                        if let Value::Object(obj) = item {
+                                            let fen = obj.get("fen")?.as_str()?.to_string();
+                                            let eval = obj.get("evaluation")?.as_f64()? as f32;
+                                            Some((fen, eval))
+                                        } else {
+                                            None
+                                        }
+                                    })
+                                    .collect()
+                            } else {
+                                return Err(format!("Unsupported JSON format in {}", input_file).into());
+                            }
+                        } else {
+                            Vec::new()
+                        }
+                    },
+                    _ => return Err(format!("Expected JSON array in {}", input_file).into()),
+                }
+            } else if input_file.ends_with(".msgpack") {
+                let file = File::open(input_path)?;
+                let reader = BufReader::new(file);
+                rmp_serde::from_read(reader)?
+            } else {
+                return Err("Unsupported input format for memory mapping".into());
+            };
+            
+            // Save as MessagePack (best format for memory mapping)
+            let output_file_handle = File::create(output_file)?;
+            let mut writer = BufWriter::new(output_file_handle);
+            rmp_serde::encode::write(&mut writer, &data)?;
+            
+            let input_size = input_path.metadata()?.len();
+            let output_size = std::path::Path::new(output_file).metadata()?.len();
+            
+            println!("✅ Memory-mapped file created: {} → {} ({} positions)", 
+                     Self::format_bytes(input_size),
+                     Self::format_bytes(output_size),
+                     data.len());
+        }
+        
+        Ok(())
     }
 
     /// Convert existing JSON training files to binary format for faster loading
@@ -1009,6 +1593,34 @@ impl ChessVectorEngine {
     /// Get manifold learning compression ratio
     pub fn manifold_compression_ratio(&self) -> Option<f32> {
         self.manifold_learner.as_ref().map(|l| l.compression_ratio())
+    }
+    
+    /// Load pre-trained manifold models from database
+    /// This enables compressed similarity search without retraining
+    pub fn load_manifold_models(&mut self) -> Result<(), Box<dyn std::error::Error>> {
+        if let Some(ref db) = self.database {
+            match crate::manifold_learner::ManifoldLearner::load_from_database(db)? {
+                Some(learner) => {
+                    let compression_ratio = learner.compression_ratio();
+                    println!("🧠 Loaded pre-trained manifold learner (compression: {:.1}x)", compression_ratio);
+                    
+                    // Enable manifold learning and rebuild indices
+                    self.manifold_learner = Some(learner);
+                    self.use_manifold = true;
+                    
+                    // Rebuild compressed similarity search indices
+                    self.rebuild_manifold_indices()?;
+                    
+                    println!("✅ Manifold learning enabled with compressed vectors");
+                    Ok(())
+                }
+                None => {
+                    Err("No pre-trained manifold models found in database".into())
+                }
+            }
+        } else {
+            Err("Database not initialized - cannot load manifold models".into())
+        }
     }
     
     /// Enable opening book with standard openings
