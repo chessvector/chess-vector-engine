@@ -2,116 +2,58 @@
 name = "chess-vector-engine"
 version = "0.1.0"
 edition = "2021"
-description = "A vector-based chess position analysis engine using similarity search"
+authors = ["Justin <your-email@example.com>"]
+description = "Open-core chess engine with hybrid vector-based position analysis, advanced tactical search, and NNUE evaluation"
+documentation = "https://docs.rs/chess-vector-engine"
+homepage = "https://chessvector.ai"
+repository = "https://github.com/chessvector/chess-vector-engine"
 license = "MIT OR Apache-2.0"
-repository = "https://github.com/yourusername/chess-vector-engine"
-keywords = ["chess", "ai", "similarity", "vector", "manifold"]
-categories = ["games", "algorithms"]
+keywords = ["chess", "engine", "ai", "vector", "nnue"]
+categories = ["games", "algorithms", "simulation"]
+readme = "README.md"
+exclude = [
+    "training_data/*.bin",
+    "training_data/*.mmap", 
+    "training_data/*.msgpack",
+    "training_data/*.zst",
+    "test_*",
+    "benchmark_*",
+    "*.db",
+    "*.db;",
+    ".vscode/",
+    "target/",
+    ".gitea/"
+]
 
 [lib]
 name = "chess_vector_engine"
 path = "src/lib.rs"
 
-# Example binaries
+# Essential example binaries for public release
 [[bin]]
 name = "demo"
 path = "src/bin/demo.rs"
-
-[[bin]]
-name = "benchmark"
-path = "src/bin/benchmark.rs"
-
-[[bin]]
-name = "analyze"
-path = "src/bin/analyze.rs"
-
-[[bin]]
-name = "lsh_benchmark"
-path = "src/bin/lsh_benchmark.rs"
-
-[[bin]]
-name = "manifold_demo"
-path = "src/bin/manifold_demo.rs"
-
-[[bin]]
-name = "move_recommendation_demo"
-path = "src/bin/move_recommendation_demo.rs"
-
-[[bin]]
-name = "train"
-path = "src/bin/train.rs"
-
-[[bin]]
-name = "multithreading_demo"
-path = "src/bin/multithreading_demo.rs"
-
-[[bin]]
-name = "tactical_training"
-path = "src/bin/tactical_training.rs"
-
-[[bin]]
-name = "incremental_training_example"
-path = "src/bin/incremental_training_example.rs"
-
-[[bin]]
-name = "incremental_puzzle_example"
-path = "src/bin/incremental_puzzle_example.rs"
-
-[[bin]]
-name = "persistence_demo"
-path = "src/bin/persistence_demo.rs"
-
-[[bin]]
-name = "persistence_test"
-path = "src/bin/persistence_test.rs"
-
-[[bin]]
-name = "hybrid_evaluation_demo"
-path = "src/bin/hybrid_evaluation_demo.rs"
-
-[[bin]]
-name = "self_play_training"
-path = "src/bin/self_play_training.rs"
 
 [[bin]]
 name = "uci_engine"
 path = "src/bin/uci_engine.rs"
 
 [[bin]]
-name = "nnue_pvs_demo"
-path = "src/bin/nnue_pvs_demo.rs"
+name = "analyze"
+path = "src/bin/analyze.rs"
 
 [[bin]]
-name = "play_stockfish"
-path = "src/bin/play_stockfish.rs"
+name = "benchmark"
+path = "src/bin/benchmark.rs"
 
 [[bin]]
-name = "performance_benchmark"
-path = "src/bin/performance_benchmark.rs"
+name = "feature_demo"
+path = "src/bin/feature_demo.rs"
 
 [[bin]]
-name = "comprehensive_training"
-path = "src/bin/comprehensive_training.rs"
+name = "license_demo"
+path = "src/bin/license_demo.rs"
 
-[[bin]]
-name = "intelligent_curation"
-path = "src/bin/intelligent_curation.rs"
-
-[[bin]]
-name = "ultra_fast_converter"
-path = "src/bin/ultra_fast_converter.rs"
-
-[[bin]]
-name = "instant_load_test"
-path = "src/bin/instant_load_test.rs"
-
-[[bin]]
-name = "cleanup_formats"
-path = "src/bin/cleanup_formats.rs"
-
-[[bin]]
-name = "massive_loader_test"
-path = "src/bin/massive_loader_test.rs"
 
 
 

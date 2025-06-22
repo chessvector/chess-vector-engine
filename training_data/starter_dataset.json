@@ -1,0 +1,434 @@
+[
+  {
+    "fen": "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1",
+    "evaluation": 0.0,
+    "best_move": null,
+    "depth": 6,
+    "game_result": "1/2-1/2",
+    "opening": "Starting position",
+    "game_id": "starter_0"
+  },
+  {
+    "fen": "rnbqkbnr/pppppppp/8/8/4P3/8/PPPP1PPP/RNBQKBNR b KQkq e3 0 1",
+    "evaluation": 0.2,
+    "best_move": null,
+    "depth": 6,
+    "game_result": "1/2-1/2",
+    "opening": "King's Pawn opening",
+    "game_id": "starter_1"
+  },
+  {
+    "fen": "rnbqkbnr/pppp1ppp/8/4p3/4P3/8/PPPP1PPP/RNBQKBNR w KQkq e6 0 2",
+    "evaluation": 0.0,
+    "best_move": null,
+    "depth": 6,
+    "game_result": "1/2-1/2",
+    "opening": "King's Pawn Game",
+    "game_id": "starter_2"
+  },
+  {
+    "fen": "rnbqkbnr/pppp1ppp/8/4p3/4P3/5N2/PPPP1PPP/RNBQKB1R b KQkq - 1 2",
+    "evaluation": 0.1,
+    "best_move": null,
+    "depth": 6,
+    "game_result": "1/2-1/2",
+    "opening": "King's Knight",
+    "game_id": "starter_3"
+  },
+  {
+    "fen": "r1bqkbnr/pppp1ppp/2n5/4p3/4P3/5N2/PPPP1PPP/RNBQKB1R w KQkq - 2 3",
+    "evaluation": 0.0,
+    "best_move": null,
+    "depth": 6,
+    "game_result": "1/2-1/2",
+    "opening": "Italian Game setup",
+    "game_id": "starter_4"
+  },
+  {
+    "fen": "rnbqkbnr/pp1ppppp/8/2p5/4P3/8/PPPP1PPP/RNBQKBNR w KQkq c6 0 2",
+    "evaluation": 0.3,
+    "best_move": null,
+    "depth": 6,
+    "game_result": "1/2-1/2",
+    "opening": "Sicilian Defense",
+    "game_id": "starter_5"
+  },
+  {
+    "fen": "rnbqkbnr/pp1ppppp/8/2p5/4P3/5N2/PPPP1PPP/RNBQKB1R b KQkq - 1 2",
+    "evaluation": 0.2,
+    "best_move": null,
+    "depth": 6,
+    "game_result": "1/2-1/2",
+    "opening": "Sicilian Defense - Nf3",
+    "game_id": "starter_6"
+  },
+  {
+    "fen": "r1bqkbnr/pp1ppppp/2n5/2p5/4P3/5N2/PPPP1PPP/RNBQKB1R w KQkq - 2 3",
+    "evaluation": 0.1,
+    "best_move": null,
+    "depth": 6,
+    "game_result": "1/2-1/2",
+    "opening": "Sicilian Defense - Nc6",
+    "game_id": "starter_7"
+  },
+  {
+    "fen": "rnbqkbnr/pppp1ppp/4p3/8/4P3/8/PPPP1PPP/RNBQKBNR w KQkq - 0 2",
+    "evaluation": -0.1,
+    "best_move": null,
+    "depth": 6,
+    "game_result": "1/2-1/2",
+    "opening": "French Defense",
+    "game_id": "starter_8"
+  },
+  {
+    "fen": "rnbqkbnr/pppp1ppp/4p3/8/4P3/2N5/PPPP1PPP/R1BQKBNR b KQkq - 1 2",
+    "evaluation": 0.0,
+    "best_move": null,
+    "depth": 6,
+    "game_result": "1/2-1/2",
+    "opening": "French Defense - Nc3",
+    "game_id": "starter_9"
+  },
+  {
+    "fen": "rnbqkbnr/pp1ppppp/2p5/8/4P3/8/PPPP1PPP/RNBQKBNR w KQkq - 0 2",
+    "evaluation": 0.0,
+    "best_move": null,
+    "depth": 6,
+    "game_result": "1/2-1/2",
+    "opening": "Caro-Kann Defense",
+    "game_id": "starter_10"
+  },
+  {
+    "fen": "rnbqkbnr/pp1ppppp/2p5/8/3PP3/8/PPP2PPP/RNBQKBNR b KQkq d3 0 2",
+    "evaluation": 0.1,
+    "best_move": null,
+    "depth": 6,
+    "game_result": "1/2-1/2",
+    "opening": "Caro-Kann - d4",
+    "game_id": "starter_11"
+  },
+  {
+    "fen": "rnbqkbnr/pppppppp/8/8/2P5/8/PP1PPPPP/RNBQKBNR b KQkq c3 0 1",
+    "evaluation": 0.1,
+    "best_move": null,
+    "depth": 6,
+    "game_result": "1/2-1/2",
+    "opening": "English Opening",
+    "game_id": "starter_12"
+  },
+  {
+    "fen": "rnbqkbnr/pppp1ppp/4p3/8/2P5/8/PP1PPPPP/RNBQKBNR w KQkq - 0 2",
+    "evaluation": 0.0,
+    "best_move": null,
+    "depth": 6,
+    "game_result": "1/2-1/2",
+    "opening": "English vs French setup",
+    "game_id": "starter_13"
+  },
+  {
+    "fen": "rnbqkbnr/pppppppp/8/8/3P4/8/PPP1PPPP/RNBQKBNR b KQkq d3 0 1",
+    "evaluation": 0.2,
+    "best_move": null,
+    "depth": 6,
+    "game_result": "1/2-1/2",
+    "opening": "Queen's Pawn",
+    "game_id": "starter_14"
+  },
+  {
+    "fen": "rnbqkbnr/ppp1pppp/8/3p4/3P4/8/PPP1PPPP/RNBQKBNR w KQkq d6 0 2",
+    "evaluation": 0.0,
+    "best_move": null,
+    "depth": 6,
+    "game_result": "1/2-1/2",
+    "opening": "Queen's Pawn Game",
+    "game_id": "starter_15"
+  },
+  {
+    "fen": "rnbqkbnr/ppp1pppp/8/3p4/2PP4/8/PP2PPPP/RNBQKBNR b KQkq c3 0 2",
+    "evaluation": 0.3,
+    "best_move": null,
+    "depth": 6,
+    "game_result": "1/2-1/2",
+    "opening": "Queen's Gambit",
+    "game_id": "starter_16"
+  },
+  {
+    "fen": "rnbqkbnr/ppp2ppp/4p3/3p4/2PP4/8/PP2PPPP/RNBQKBNR w KQkq - 0 3",
+    "evaluation": 0.2,
+    "best_move": null,
+    "depth": 6,
+    "game_result": "1/2-1/2",
+    "opening": "Queen's Gambit Declined",
+    "game_id": "starter_17"
+  },
+  {
+    "fen": "r1bqkb1r/pppp1ppp/2n2n2/4p3/2B1P3/3P1N2/PPP2PPP/RNBQK2R b KQkq - 0 4",
+    "evaluation": 0.0,
+    "best_move": null,
+    "depth": 6,
+    "game_result": "1/2-1/2",
+    "opening": "Italian Game middlegame",
+    "game_id": "starter_18"
+  },
+  {
+    "fen": "r1bqk2r/pppp1ppp/2n2n2/2b1p3/2B1P3/3P1N2/PPP2PPP/RNBQK2R w KQkq - 4 5",
+    "evaluation": -0.1,
+    "best_move": null,
+    "depth": 6,
+    "game_result": "1/2-1/2",
+    "opening": "Italian Game - Be7",
+    "game_id": "starter_19"
+  },
+  {
+    "fen": "r1bqk1nr/pppp1ppp/2n5/2b1p3/2B1P3/5N2/PPPP1PPP/RNBQK2R w KQkq - 4 4",
+    "evaluation": 0.0,
+    "best_move": null,
+    "depth": 6,
+    "game_result": "1/2-1/2",
+    "opening": "Italian Game - Bc5",
+    "game_id": "starter_20"
+  },
+  {
+    "fen": "r1bqkb1r/pppp1ppp/2n2n2/4p3/2B1P3/5N2/PPPP1PPP/RNBQK2R b KQkq - 3 4",
+    "evaluation": 0.1,
+    "best_move": null,
+    "depth": 6,
+    "game_result": "1/2-1/2",
+    "opening": "Pin development",
+    "game_id": "starter_21"
+  },
+  {
+    "fen": "r1bqk2r/pppp1ppp/2n2n2/2b1p3/2B1P3/5N2/PPPP1PPP/RNBQK2R w KQkq - 4 5",
+    "evaluation": -0.2,
+    "best_move": null,
+    "depth": 6,
+    "game_result": "1/2-1/2",
+    "opening": "Bishop pair vs Knights",
+    "game_id": "starter_22"
+  },
+  {
+    "fen": "8/8/8/8/8/8/4K3/4k3 w - - 0 1",
+    "evaluation": 0.0,
+    "best_move": null,
+    "depth": 8,
+    "game_result": "1/2-1/2",
+    "opening": "King vs King draw",
+    "game_id": "starter_23"
+  },
+  {
+    "fen": "8/8/8/8/8/8/4KP2/4k3 w - - 0 1",
+    "evaluation": 1.0,
+    "best_move": null,
+    "depth": 8,
+    "game_result": "1-0",
+    "opening": "King and Pawn vs King",
+    "game_id": "starter_24"
+  },
+  {
+    "fen": "8/8/8/8/8/8/4K3/4kR2 w - - 0 1",
+    "evaluation": 5.0,
+    "best_move": null,
+    "depth": 8,
+    "game_result": "1-0",
+    "opening": "King and Rook vs King",
+    "game_id": "starter_25"
+  },
+  {
+    "fen": "8/8/8/8/8/8/4K3/4kQ2 w - - 0 1",
+    "evaluation": 8.0,
+    "best_move": null,
+    "depth": 8,
+    "game_result": "1-0",
+    "opening": "King and Queen vs King",
+    "game_id": "starter_26"
+  },
+  {
+    "fen": "r1bqk2r/pppp1ppp/2n2n2/2b1p3/2B1P3/3P1N2/PPP2PPP/RNBQ1RK1 b kq - 0 5",
+    "evaluation": -0.3,
+    "best_move": null,
+    "depth": 6,
+    "game_result": "0-1",
+    "opening": "Castled safety",
+    "game_id": "starter_27"
+  },
+  {
+    "fen": "r1bq1rk1/pppp1ppp/2n2n2/2b1p3/2B1P3/3P1N2/PPP2PPP/RNBQ1RK1 w - - 1 6",
+    "evaluation": 0.2,
+    "best_move": null,
+    "depth": 6,
+    "game_result": "1/2-1/2",
+    "opening": "Both sides castled",
+    "game_id": "starter_28"
+  },
+  {
+    "fen": "rnbqkb1r/pppppppp/5n2/8/4P3/8/PPPP1PPP/RNBQKBNR w KQkq - 1 2",
+    "evaluation": -0.1,
+    "best_move": null,
+    "depth": 6,
+    "game_result": "1/2-1/2",
+    "opening": "Early knight development",
+    "game_id": "starter_29"
+  },
+  {
+    "fen": "rnbqkb1r/pppp1ppp/4pn2/8/4P3/5N2/PPPP1PPP/RNBQKB1R w KQkq - 2 3",
+    "evaluation": 0.0,
+    "best_move": null,
+    "depth": 6,
+    "game_result": "1/2-1/2",
+    "opening": "Symmetrical development",
+    "game_id": "starter_30"
+  },
+  {
+    "fen": "rnbqkbnr/ppp2ppp/4p3/3p4/3P4/5N2/PPP1PPPP/RNBQKB1R w KQkq - 0 3",
+    "evaluation": 0.1,
+    "best_move": null,
+    "depth": 6,
+    "game_result": "1/2-1/2",
+    "opening": "Central pawn tension",
+    "game_id": "starter_31"
+  },
+  {
+    "fen": "rnbqkbnr/ppp2ppp/4p3/8/3pP3/5N2/PPP1PPPP/RNBQKB1R w KQkq - 0 4",
+    "evaluation": -0.2,
+    "best_move": null,
+    "depth": 6,
+    "game_result": "1/2-1/2",
+    "opening": "Central pawn capture",
+    "game_id": "starter_32"
+  },
+  {
+    "fen": "r1bqkb1r/pppp1ppp/2n2n2/1B2p3/4P3/5N2/PPPP1PPP/RNBQK2R b KQkq - 3 4",
+    "evaluation": -0.4,
+    "best_move": null,
+    "depth": 6,
+    "game_result": "0-1",
+    "opening": "Spanish Opening - Bb5",
+    "game_id": "starter_33"
+  },
+  {
+    "fen": "r1bqkb1r/pppp1ppp/5n2/1B2p3/4P3/5N2/PPPP1PPP/RNBQK2R b KQkq - 3 4",
+    "evaluation": -0.2,
+    "best_move": null,
+    "depth": 6,
+    "game_result": "1/2-1/2",
+    "opening": "Spanish - a6 delayed",
+    "game_id": "starter_34"
+  },
+  {
+    "fen": "rnbqk2r/pppp1ppp/5n2/2b1p3/2B1P3/5N2/PPPP1PPP/RNBQK2R w KQkq - 4 4",
+    "evaluation": 0.0,
+    "best_move": null,
+    "depth": 6,
+    "game_result": "1/2-1/2",
+    "opening": "Italian Game main line",
+    "game_id": "starter_35"
+  },
+  {
+    "fen": "rnbqk2r/pppp1ppp/5n2/2b1p3/2B1P3/3P1N2/PPP2PPP/RNBQK2R b KQkq - 0 4",
+    "evaluation": 0.1,
+    "best_move": null,
+    "depth": 6,
+    "game_result": "1/2-1/2",
+    "opening": "Italian with d3",
+    "game_id": "starter_36"
+  },
+  {
+    "fen": "rnbqkbnr/pppp1ppp/8/4p3/4P3/8/PPPPNPPP/RNBQKB1R b KQkq - 1 2",
+    "evaluation": -0.1,
+    "best_move": null,
+    "depth": 6,
+    "game_result": "1/2-1/2",
+    "opening": "Knight for Bishop trade prep",
+    "game_id": "starter_37"
+  },
+  {
+    "fen": "rnbqkb1r/pppp1ppp/5n2/4p3/4P3/5N2/PPPP1PPP/RNBQKB1R w KQkq - 2 3",
+    "evaluation": 0.0,
+    "best_move": null,
+    "depth": 6,
+    "game_result": "1/2-1/2",
+    "opening": "Knights developed",
+    "game_id": "starter_38"
+  },
+  {
+    "fen": "rnbqkbnr/ppp1pppp/8/3p4/4P3/8/PPPP1PPP/RNBQKBNR w KQkq d6 0 2",
+    "evaluation": 0.1,
+    "best_move": null,
+    "depth": 6,
+    "game_result": "1/2-1/2",
+    "opening": "Center pawn confrontation",
+    "game_id": "starter_39"
+  },
+  {
+    "fen": "rnbqkbnr/ppp1pppp/8/8/3pP3/8/PPPP1PPP/RNBQKBNR w KQkq - 0 3",
+    "evaluation": -0.2,
+    "best_move": null,
+    "depth": 6,
+    "game_result": "1/2-1/2",
+    "opening": "Central capture advantage",
+    "game_id": "starter_40"
+  },
+  {
+    "fen": "r1bqkb1r/pppp1ppp/2n5/1B2p3/4P3/5n2/PPPP1PPP/RNBQK2R w KQkq - 4 4",
+    "evaluation": -0.3,
+    "best_move": null,
+    "depth": 6,
+    "game_result": "0-1",
+    "opening": "Active vs passive pieces",
+    "game_id": "starter_41"
+  },
+  {
+    "fen": "r1bqkb1r/pppp1ppp/2n5/4p3/2B1P3/5n2/PPPP1PPP/RNBQK2R w KQkq - 4 4",
+    "evaluation": 0.0,
+    "best_move": null,
+    "depth": 6,
+    "game_result": "1/2-1/2",
+    "opening": "Balanced activity",
+    "game_id": "starter_42"
+  },
+  {
+    "fen": "8/8/8/8/8/3K4/8/3k4 w - - 0 1",
+    "evaluation": 0.0,
+    "best_move": null,
+    "depth": 8,
+    "game_result": "1/2-1/2",
+    "opening": "Basic king endgame",
+    "game_id": "endgame_0"
+  },
+  {
+    "fen": "8/8/8/8/8/3K4/3P4/3k4 w - - 0 1",
+    "evaluation": 2.0,
+    "best_move": null,
+    "depth": 8,
+    "game_result": "1-0",
+    "opening": "King and pawn advantage",
+    "game_id": "endgame_1"
+  },
+  {
+    "fen": "8/8/8/8/8/3K4/8/3kR3 w - - 0 1",
+    "evaluation": 5.0,
+    "best_move": null,
+    "depth": 8,
+    "game_result": "1-0",
+    "opening": "Rook endgame technique",
+    "game_id": "endgame_2"
+  },
+  {
+    "fen": "8/8/8/8/3k4/8/3K4/3Q4 w - - 0 1",
+    "evaluation": 8.0,
+    "best_move": null,
+    "depth": 8,
+    "game_result": "1-0",
+    "opening": "Queen endgame mate",
+    "game_id": "endgame_3"
+  },
+  {
+    "fen": "8/8/8/8/3k4/8/2K5/2B1N3 w - - 0 1",
+    "evaluation": 6.0,
+    "best_move": null,
+    "depth": 8,
+    "game_result": "1-0",
+    "opening": "Bishop and knight mate",
+    "game_id": "endgame_4"
+  }
+]

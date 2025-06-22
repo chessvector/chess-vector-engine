@@ -12,6 +12,9 @@ pub mod gpu_acceleration;
 pub mod tactical_search;
 pub mod auto_discovery;
 pub mod streaming_loader;
+pub mod ultra_fast_loader;
+pub mod features;
+pub mod license;
 // pub mod tablebase; // Temporarily disabled due to version conflicts
 pub mod uci;
 
@@ -28,6 +31,9 @@ pub use gpu_acceleration::{GPUAccelerator, DeviceType};
 pub use tactical_search::{TacticalSearch, TacticalConfig, TacticalResult};
 pub use auto_discovery::{AutoDiscovery, TrainingFile, FormatPriority};
 pub use streaming_loader::StreamingLoader;
+pub use ultra_fast_loader::{UltraFastLoader, LoadingStats};
+pub use features::{FeatureTier, FeatureChecker, FeatureRegistry, FeatureError};
+pub use license::{LicenseVerifier, LicensedFeatureChecker, LicenseKey, LicenseStatus, LicenseError};
 // pub use tablebase::{TablebaseProber, TablebaseResult, WdlValue};
 pub use uci::{UCIEngine, UCIConfig, run_uci_engine, run_uci_engine_with_config};
 
@@ -88,7 +94,7 @@ impl Default for HybridConfig {
     }
 }
 
-/// Main chess vector engine
+/// Main chess vector engine with feature-gated capabilities
 pub struct ChessVectorEngine {
     encoder: PositionEncoder,
     similarity_search: SimilaritySearch,
@@ -102,6 +108,10 @@ pub struct ChessVectorEngine {
     manifold_similarity_search: Option<SimilaritySearch>,
     /// LSH index for compressed vectors
     manifold_lsh_index: Option<LSH>,
+    /// Feature access control
+    feature_checker: FeatureChecker,
+    /// License-based feature access control
+    licensed_feature_checker: Option<LicensedFeatureChecker>,
     /// Store position vectors for reverse lookup
     position_vectors: Vec<Array1<f32>>,
     /// Store boards for move generation
@@ -132,6 +142,8 @@ impl Clone for ChessVectorEngine {
             position_moves: self.position_moves.clone(),
             manifold_similarity_search: self.manifold_similarity_search.clone(),
             manifold_lsh_index: self.manifold_lsh_index.clone(),
+            feature_checker: self.feature_checker.clone(),
+            licensed_feature_checker: None, // License checker cannot be cloned
             position_vectors: self.position_vectors.clone(),
             position_boards: self.position_boards.clone(),
             position_evaluations: self.position_evaluations.clone(),
@@ -157,6 +169,8 @@ impl ChessVectorEngine {
             position_moves: HashMap::new(),
             manifold_similarity_search: None,
             manifold_lsh_index: None,
+            feature_checker: FeatureChecker::new(FeatureTier::OpenSource), // Default to open source
+            licensed_feature_checker: None,
             position_vectors: Vec::new(),
             position_boards: Vec::new(),
             position_evaluations: Vec::new(),
@@ -166,6 +180,33 @@ impl ChessVectorEngine {
             // tablebase: None,
             hybrid_config: HybridConfig::default(),
         }
+    }
+    
+    /// Create new engine with specific feature tier
+    pub fn new_with_tier(vector_size: usize, tier: FeatureTier) -> Self {
+        let mut engine = Self::new(vector_size);
+        engine.feature_checker = FeatureChecker::new(tier);
+        engine
+    }
+    
+    /// Get current feature tier
+    pub fn get_feature_tier(&self) -> &FeatureTier {
+        self.feature_checker.get_current_tier()
+    }
+    
+    /// Upgrade feature tier (for license activation)
+    pub fn upgrade_tier(&mut self, new_tier: FeatureTier) {
+        self.feature_checker.upgrade_tier(new_tier);
+    }
+    
+    /// Check if a feature is available
+    pub fn is_feature_available(&self, feature: &str) -> bool {
+        self.feature_checker.check_feature(feature).is_ok()
+    }
+    
+    /// Require a feature (returns error if not available)
+    pub fn require_feature(&self, feature: &str) -> Result<(), FeatureError> {
+        self.feature_checker.require_feature(feature)
     }
 
     /// Create a new chess vector engine with intelligent architecture selection
@@ -212,6 +253,8 @@ impl ChessVectorEngine {
             position_moves: HashMap::new(),
             manifold_similarity_search: None,
             manifold_lsh_index: None,
+            feature_checker: FeatureChecker::new(FeatureTier::OpenSource),
+            licensed_feature_checker: None,
             position_vectors: Vec::new(),
             position_boards: Vec::new(),
             position_evaluations: Vec::new(),
@@ -651,8 +694,11 @@ impl ChessVectorEngine {
     }
 
     /// Ultra-fast memory-mapped loading for instant startup
-    /// Uses memory-mapped files to load training data with zero-copy access
+    /// Uses memory-mapped files to load training data with zero-copy access (PREMIUM FEATURE)
     pub fn load_training_data_mmap<P: AsRef<Path>>(&mut self, path: P) -> Result<(), Box<dyn std::error::Error>> {
+        // Feature gate: require premium tier for memory-mapped files
+        self.require_feature("memory_mapped_files")?;
+        
         use memmap2::Mmap;
         use std::fs::File;
         
@@ -1104,7 +1150,14 @@ impl ChessVectorEngine {
         let discovered_files = AutoDiscovery::discover_training_files(".", false)?;
         
         if discovered_files.is_empty() {
-            println!("ℹ️  No training data found, starting with empty engine");
+            // No user training data found, load starter dataset
+            println!("ℹ️  No user training data found, loading starter dataset...");
+            if let Err(e) = engine.load_starter_dataset() {
+                println!("⚠️  Could not load starter dataset: {}", e);
+                println!("ℹ️  Starting with empty engine");
+            } else {
+                println!("✅ Loaded starter dataset with {} positions", engine.knowledge_base_size());
+            }
             return Ok(engine);
         }
         
@@ -1124,8 +1177,96 @@ impl ChessVectorEngine {
         Ok(engine)
     }
     
-    /// Load file by detected format
+    /// Create engine with license verification system
+    pub fn new_with_license(vector_size: usize, license_url: String) -> Self {
+        let mut engine = Self::new(vector_size);
+        engine.licensed_feature_checker = Some(LicensedFeatureChecker::new(license_url));
+        engine
+    }
+    
+    /// Create engine with offline license verification
+    pub fn new_with_offline_license(vector_size: usize) -> Self {
+        let mut engine = Self::new(vector_size);
+        engine.licensed_feature_checker = Some(LicensedFeatureChecker::new_offline());
+        engine
+    }
+    
+    /// Activate license key
+    pub async fn activate_license(&mut self, key: &str) -> Result<FeatureTier, LicenseError> {
+        if let Some(ref mut checker) = self.licensed_feature_checker {
+            let tier = checker.activate_license(key).await?;
+            // Update the basic feature checker to match the licensed tier
+            self.feature_checker.upgrade_tier(tier.clone());
+            Ok(tier)
+        } else {
+            Err(LicenseError::InvalidFormat("No license checker initialized".to_string()))
+        }
+    }
+    
+    /// Check if feature is licensed (async version with license verification)
+    pub async fn check_licensed_feature(&mut self, feature: &str) -> Result<(), FeatureError> {
+        if let Some(ref mut checker) = self.licensed_feature_checker {
+            checker.check_feature(feature).await
+        } else {
+            // Fall back to basic feature checking
+            self.feature_checker.check_feature(feature)
+        }
+    }
+    
+    /// Load license cache from disk
+    pub fn load_license_cache<P: AsRef<std::path::Path>>(&mut self, path: P) -> Result<(), Box<dyn std::error::Error>> {
+        if let Some(ref mut checker) = self.licensed_feature_checker {
+            checker.load_cache(path)?;
+        }
+        Ok(())
+    }
+    
+    /// Save license cache to disk
+    pub fn save_license_cache<P: AsRef<std::path::Path>>(&self, path: P) -> Result<(), Box<dyn std::error::Error>> {
+        if let Some(ref checker) = self.licensed_feature_checker {
+            checker.save_cache(path)?;
+        }
+        Ok(())
+    }
+    
+    /// Load starter dataset for open source users
+    pub fn load_starter_dataset(&mut self) -> Result<(), Box<dyn std::error::Error>> {
+        // Try to load from embedded starter dataset
+        const STARTER_DATASET: &str = include_str!("../training_data/starter_dataset.json");
+        
+        let training_data: Vec<serde_json::Value> = serde_json::from_str(STARTER_DATASET)?;
+        
+        for entry in training_data {
+            if let (Some(fen), Some(evaluation)) = (entry.get("fen"), entry.get("evaluation")) {
+                if let (Some(fen_str), Some(eval_f64)) = (fen.as_str(), evaluation.as_f64()) {
+                    match chess::Board::from_str(fen_str) {
+                        Ok(board) => {
+                            self.add_position(&board, eval_f64 as f32);
+                        }
+                        Err(_) => {
+                            // Skip invalid positions
+                            continue;
+                        }
+                    }
+                }
+            }
+        }
+        
+        Ok(())
+    }
+    
+    /// Load file by detected format - uses ultra-fast loader for large files
     fn load_file_by_format(&mut self, path: &std::path::Path, format: &str) -> Result<(), Box<dyn std::error::Error>> {
+        // Check file size to determine loading strategy
+        let file_size = std::fs::metadata(path)?.len();
+        
+        // For files > 10MB, use ultra-fast loader
+        if file_size > 10_000_000 {
+            println!("📊 Large file detected ({:.1} MB) - using ultra-fast loader", file_size as f64 / 1_000_000.0);
+            return self.ultra_fast_load_any_format(path);
+        }
+        
+        // For smaller files, use standard loaders
         match format {
             "MMAP" => self.load_training_data_mmap(path),
             "MSGPACK" => self.load_training_data_msgpack(path),
@@ -1134,6 +1275,24 @@ impl ChessVectorEngine {
             "JSON" => self.load_training_data_streaming_json_v2(path),
             _ => Err(format!("Unknown format: {}", format).into()),
         }
+    }
+    
+    /// Ultra-fast loader for any format - optimized for massive datasets (PREMIUM FEATURE)
+    pub fn ultra_fast_load_any_format<P: AsRef<std::path::Path>>(&mut self, path: P) -> Result<(), Box<dyn std::error::Error>> {
+        // Feature gate: require premium tier
+        self.require_feature("ultra_fast_loading")?;
+        
+        let mut loader = UltraFastLoader::new_for_massive_datasets();
+        loader.ultra_load_binary(path, self)?;
+        
+        let stats = loader.get_stats();
+        println!("📊 Ultra-fast loading complete:");
+        println!("   ✅ Loaded: {} positions", stats.loaded);
+        println!("   🔄 Duplicates: {}", stats.duplicates);
+        println!("   ❌ Errors: {}", stats.errors);
+        println!("   📈 Success rate: {:.1}%", stats.success_rate() * 100.0);
+        
+        Ok(())
     }
     
     /// Ultra-fast streaming binary loader for massive datasets (900k+ positions)
@@ -1196,12 +1355,8 @@ impl ChessVectorEngine {
                  largest_file.path.display(), 
                  largest_file.size_bytes);
         
-        // Use appropriate streaming loader based on format
-        match largest_file.format.as_str() {
-            "BINARY" | "MMAP" => engine.load_training_data_streaming_binary(&largest_file.path)?,
-            "JSON" => engine.load_training_data_streaming_json_v2(&largest_file.path)?,
-            _ => engine.load_file_by_format(&largest_file.path, &largest_file.format)?,
-        }
+        // Use ultra-fast loader for massive datasets
+        engine.ultra_fast_load_any_format(&largest_file.path)?;
         
         println!("🎯 Engine ready: {} positions loaded", engine.knowledge_base_size());
         Ok(engine)
