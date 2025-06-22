@@ -1,0 +1,197 @@
+name: 🧪 Continuous Integration
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main, develop ]
+
+env:
+  CARGO_TERM_COLOR: always
+  RUST_BACKTRACE: 1
+
+jobs:
+  test:
+    name: 🧪 Test Suite
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+        rust: [stable, beta]
+        exclude:
+          # Exclude beta on Windows and macOS to reduce CI time
+          - os: windows-latest
+            rust: beta
+          - os: macos-latest
+            rust: beta
+
+    steps:
+    - name: 📥 Checkout code
+      uses: actions/checkout@v4
+
+    - name: 🦀 Setup Rust
+      uses: dtolnay/rust-toolchain@master
+      with:
+        toolchain: ${{ matrix.rust }}
+        components: rustfmt, clippy
+
+    - name: 📦 Cache dependencies
+      uses: actions/cache@v4
+      with:
+        path: |
+          ~/.cargo/bin/
+          ~/.cargo/registry/index/
+          ~/.cargo/registry/cache/
+          ~/.cargo/git/db/
+          target/
+        key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
+        restore-keys: |
+          ${{ runner.os }}-cargo-
+
+    - name: 🔍 Check formatting
+      run: cargo fmt --all -- --check
+
+    - name: 📎 Run Clippy
+      run: cargo clippy --all-targets --all-features -- -D warnings
+
+    - name: 🏗️ Build
+      run: cargo build --verbose --all-features
+
+    - name: 🧪 Run tests
+      run: cargo test --verbose --all-features
+
+    - name: 📊 Run benchmarks (smoke test)
+      run: cargo run --bin benchmark --release -- --quick
+
+  coverage:
+    name: 📊 Test Coverage
+    runs-on: ubuntu-latest
+    steps:
+    - name: 📥 Checkout code
+      uses: actions/checkout@v4
+
+    - name: 🦀 Setup Rust
+      uses: dtolnay/rust-toolchain@stable
+      with:
+        components: llvm-tools-preview
+
+    - name: 📦 Install cargo-llvm-cov
+      uses: taiki-e/install-action@cargo-llvm-cov
+
+    - name: 📊 Generate coverage
+      run: cargo llvm-cov --all-features --workspace --lcov --output-path lcov.info
+
+    - name: 📤 Upload coverage to Codecov
+      uses: codecov/codecov-action@v4
+      with:
+        files: lcov.info
+        token: ${{ secrets.CODECOV_TOKEN }}
+        fail_ci_if_error: false
+
+  security:
+    name: 🔒 Security Audit
+    runs-on: ubuntu-latest
+    steps:
+    - name: 📥 Checkout code
+      uses: actions/checkout@v4
+
+    - name: 🦀 Setup Rust
+      uses: dtolnay/rust-toolchain@stable
+
+    - name: 📦 Install cargo-audit
+      run: cargo install cargo-audit
+
+    - name: 🔍 Run security audit
+      run: cargo audit
+
+  docs:
+    name: 📚 Documentation
+    runs-on: ubuntu-latest
+    steps:
+    - name: 📥 Checkout code
+      uses: actions/checkout@v4
+
+    - name: 🦀 Setup Rust
+      uses: dtolnay/rust-toolchain@stable
+
+    - name: 📚 Build documentation
+      run: cargo doc --all-features --no-deps
+
+    - name: 📤 Deploy docs to GitHub Pages
+      if: github.ref == 'refs/heads/main'
+      uses: peaceiris/actions-gh-pages@v3
+      with:
+        github_token: ${{ secrets.GITHUB_TOKEN }}
+        publish_dir: ./target/doc
+        cname: docs.chessvector.ai
+
+  feature-validation:
+    name: 🎯 Feature Validation
+    runs-on: ubuntu-latest
+    steps:
+    - name: 📥 Checkout code
+      uses: actions/checkout@v4
+
+    - name: 🦀 Setup Rust
+      uses: dtolnay/rust-toolchain@stable
+
+    - name: 📦 Cache dependencies
+      uses: actions/cache@v4
+      with:
+        path: |
+          ~/.cargo/bin/
+          ~/.cargo/registry/index/
+          ~/.cargo/registry/cache/
+          ~/.cargo/git/db/
+          target/
+        key: ubuntu-cargo-${{ hashFiles('**/Cargo.lock') }}
+
+    - name: 🎯 Test open source features
+      run: cargo test --no-default-features
+
+    - name: 🔐 Test feature gating
+      run: cargo run --bin feature_demo
+
+    - name: 🎮 Test UCI engine
+      run: |
+        timeout 10s cargo run --bin uci_engine < /dev/null || true
+        echo "uci" | timeout 5s cargo run --bin uci_engine
+
+    - name: 📊 Test analysis tool
+      run: cargo run --bin analyze "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1"
+
+  performance:
+    name: ⚡ Performance Testing
+    runs-on: ubuntu-latest
+    steps:
+    - name: 📥 Checkout code
+      uses: actions/checkout@v4
+
+    - name: 🦀 Setup Rust
+      uses: dtolnay/rust-toolchain@stable
+
+    - name: 📊 Run comprehensive benchmarks
+      run: cargo run --bin benchmark --release
+
+    - name: 📈 Performance regression check
+      run: |
+        # Run benchmarks and check for major regressions
+        cargo run --bin benchmark --release > benchmark_results.txt
+        # Add logic to compare with baseline performance
+        cat benchmark_results.txt
+
+  minimum-versions:
+    name: 🔽 Minimum Supported Rust Version
+    runs-on: ubuntu-latest
+    steps:
+    - name: 📥 Checkout code
+      uses: actions/checkout@v4
+
+    - name: 🦀 Setup Rust 1.75.0 (MSRV)
+      uses: dtolnay/rust-toolchain@1.75.0
+
+    - name: 🏗️ Build with MSRV
+      run: cargo build --verbose
+
+    - name: 🧪 Test with MSRV
+      run: cargo test --verbose

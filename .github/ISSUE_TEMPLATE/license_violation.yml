@@ -1,0 +1,196 @@
+name: ⚖️ License Violation Report
+description: Report suspected license violations or unauthorized use of premium features
+title: "[LEGAL] License Violation - "
+labels: ["legal", "license-violation", "security"]
+assignees: []
+
+body:
+  - type: markdown
+    attributes:
+      value: |
+        ## ⚖️ License Violation Report
+        
+        Thank you for helping protect Chess Vector Engine's intellectual property. This form is for reporting suspected violations of our license terms or unauthorized use of premium features.
+        
+        **⚠️ Important:** False reports may have legal consequences. Please ensure you have reasonable evidence before submitting.
+
+  - type: checkboxes
+    id: verification
+    attributes:
+      label: Reporter Verification
+      description: Please confirm the following before proceeding
+      options:
+        - label: I have reasonable evidence of a license violation
+          required: true
+        - label: I understand that false reports may have legal consequences
+          required: true
+        - label: I am reporting this in good faith
+          required: true
+
+  - type: dropdown
+    id: violation_type
+    attributes:
+      label: Type of Violation
+      description: What type of license violation are you reporting?
+      options:
+        - License bypass/circumvention
+        - Unauthorized premium feature distribution
+        - Copyright infringement
+        - Trademark violation
+        - Unauthorized commercial use
+        - Modified open source redistribution
+        - Other (specify in description)
+    validations:
+      required: true
+
+  - type: textarea
+    id: violation_description
+    attributes:
+      label: Violation Description
+      description: Provide a clear description of the suspected violation
+      placeholder: |
+        Describe what you observed that indicates a license violation...
+        - What premium features are being used without authorization?
+        - How is the license being bypassed?
+        - What evidence do you have?
+    validations:
+      required: true
+
+  - type: textarea
+    id: infringing_content
+    attributes:
+      label: Infringing Content Location
+      description: Where is the infringing content located?
+      placeholder: |
+        - Repository URL: https://github.com/user/repo
+        - Package URL: https://crates.io/crates/package-name
+        - Website URL: https://example.com
+        - Binary download link: https://example.com/download
+        - Other location: (specify)
+    validations:
+      required: true
+
+  - type: textarea
+    id: evidence
+    attributes:
+      label: Evidence
+      description: What evidence do you have of the violation?
+      placeholder: |
+        - Screenshots of code showing license removal
+        - Links to commits that bypass license checks
+        - Documentation of commercial use without license
+        - Evidence of premium feature redistribution
+        - Other evidence (describe)
+
+  - type: textarea
+    id: copyright_owner
+    attributes:
+      label: Copyright/License Information
+      description: Are you the copyright owner or authorized to act on behalf of the owner?
+      placeholder: |
+        - I am the copyright owner
+        - I am authorized to act on behalf of the copyright owner
+        - I am reporting on behalf of the community
+        - Other (specify relationship)
+    validations:
+      required: true
+
+  - type: textarea
+    id: contact_info
+    attributes:
+      label: Contact Information
+      description: How can we reach you for follow-up? (This will be kept confidential)
+      placeholder: |
+        - Email: your.email@example.com
+        - GitHub: @yourusername
+        - Phone: +1-xxx-xxx-xxxx (if urgent)
+        - Preferred contact method: Email
+    validations:
+      required: true
+
+  - type: dropdown
+    id: urgency
+    attributes:
+      label: Urgency Level
+      description: How urgent is this violation?
+      options:
+        - Low - Documentation/minor issue
+        - Medium - Active redistribution
+        - High - Commercial exploitation
+        - Critical - Large-scale infringement
+    validations:
+      required: true
+
+  - type: textarea
+    id: impact
+    attributes:
+      label: Impact Assessment
+      description: What is the potential impact of this violation?
+      placeholder: |
+        - Financial impact to Chess Vector
+        - Community impact
+        - Technical security implications
+        - Brand/reputation damage
+        - Other concerns
+
+  - type: textarea
+    id: requested_action
+    attributes:
+      label: Requested Action
+      description: What action would you like to see taken?
+      placeholder: |
+        - Contact the violator for clarification
+        - Request voluntary compliance
+        - DMCA takedown notice
+        - Legal action
+        - Other (specify)
+
+  - type: checkboxes
+    id: previous_contact
+    attributes:
+      label: Previous Contact
+      description: Have you contacted the alleged violator directly?
+      options:
+        - label: I have contacted the violator directly
+        - label: I received a response from the violator
+        - label: The violator has refused to comply
+        - label: I have not contacted the violator
+
+  - type: textarea
+    id: additional_info
+    attributes:
+      label: Additional Information
+      description: Any other relevant information
+      placeholder: |
+        - Related violations or patterns
+        - Timeline of events
+        - Community discussions about this violation
+        - Other relevant context
+
+  - type: checkboxes
+    id: confidentiality
+    attributes:
+      label: Confidentiality Preferences
+      description: How should we handle your report?
+      options:
+        - label: Keep my identity confidential
+        - label: I'm willing to be contacted by the alleged violator
+        - label: This report can be made public (without personal details)
+        - label: I may be willing to assist with legal proceedings
+
+  - type: markdown
+    attributes:
+      value: |
+        ## ⚖️ Legal Notice
+        
+        By submitting this report, you acknowledge that:
+        
+        - You have a good faith belief that the reported use is not authorized
+        - The information provided is accurate to the best of your knowledge
+        - You understand that perjury may result in legal consequences
+        - Chess Vector may contact you for additional information
+        - This report may be forwarded to legal counsel
+        
+        **Response Time:** We aim to acknowledge reports within 24 hours and provide an initial assessment within 72 hours.
+        
+        **Contact:** For urgent legal matters, email legal@chessvector.ai directly.

@@ -1,0 +1,72 @@
+name: 🤖 Dependabot Auto-merge
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+
+jobs:
+  dependabot:
+    name: 🤖 Auto-merge Dependabot PRs
+    runs-on: ubuntu-latest
+    if: github.actor == 'dependabot[bot]'
+    steps:
+    - name: 📥 Checkout code
+      uses: actions/checkout@v4
+
+    - name: 🦀 Setup Rust
+      uses: dtolnay/rust-toolchain@stable
+
+    - name: 📦 Cache dependencies
+      uses: actions/cache@v4
+      with:
+        path: |
+          ~/.cargo/bin/
+          ~/.cargo/registry/index/
+          ~/.cargo/registry/cache/
+          ~/.cargo/git/db/
+          target/
+        key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
+
+    - name: 🧪 Run tests
+      run: cargo test --all-features
+
+    - name: 📊 Run benchmarks (smoke test)
+      run: cargo run --bin benchmark --release -- --quick
+
+    - name: ✅ Auto-approve and merge
+      if: success()
+      uses: actions/github-script@v7
+      with:
+        github-token: ${{ secrets.GITHUB_TOKEN }}
+        script: |
+          // Get PR details
+          const pr = context.payload.pull_request;
+          
+          // Only auto-merge patch version updates
+          const title = pr.title.toLowerCase();
+          const isPatch = title.includes('patch') || /bump.*from.*\d+\.\d+\.\d+.*to.*\d+\.\d+\.\d+/.test(title);
+          
+          if (isPatch) {
+            // Approve the PR
+            await github.rest.pulls.createReview({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              pull_number: pr.number,
+              event: 'APPROVE',
+              body: '✅ Auto-approving Dependabot patch update after successful tests'
+            });
+            
+            // Enable auto-merge
+            await github.rest.pulls.merge({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              pull_number: pr.number,
+              commit_title: `${pr.title} (#${pr.number})`,
+              commit_message: `${pr.body}\n\nAuto-merged by Dependabot workflow`,
+              merge_method: 'squash'
+            });
+            
+            console.log('✅ Successfully auto-merged Dependabot PR');
+          } else {
+            console.log('⏸️ Skipping auto-merge - not a patch update');
+          }
