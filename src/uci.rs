@@ -17,6 +17,9 @@ pub struct UCIEngine {
     options: HashMap<String, UCIOption>,
     thinking: bool,
     stop_search: bool,
+    pondering: bool,
+    ponder_move: Option<ChessMove>,
+    ponder_board: Option<Board>,
 }
 
 /// UCI option types
@@ -114,6 +117,11 @@ impl UCIEngine {
             value: true,
         });
         
+        options.insert("Ponder".to_string(), UCIOption::Check {
+            default: true,
+            value: true,
+        });
+        
         Self {
             engine,
             board: Board::default(),
@@ -123,6 +131,9 @@ impl UCIEngine {
             options,
             thinking: false,
             stop_search: false,
+            pondering: false,
+            ponder_move: None,
+            ponder_board: None,
         }
     }
     
@@ -171,7 +182,7 @@ impl UCIEngine {
             "position" => self.handle_position(&parts),
             "go" => self.handle_go(&parts),
             "stop" => self.handle_stop(),
-            "ponderhit" => String::new(), // Not implemented
+            "ponderhit" => self.handle_ponderhit(),
             "quit" => String::new(),
             _ => {
                 if self.debug {
@@ -375,6 +386,7 @@ impl UCIEngine {
         let mut _nodes: Option<u64> = None;
         let mut movetime = None;
         let mut infinite = false;
+        let mut ponder = false;
         
         let mut i = 1;
         while i < parts.len() {
@@ -415,6 +427,10 @@ impl UCIEngine {
                     infinite = true;
                     i += 1;
                 }
+                "ponder" => {
+                    ponder = true;
+                    i += 1;
+                }
                 _ => i += 1,
             }
         }
@@ -438,7 +454,11 @@ impl UCIEngine {
         };
         
         // Start search in separate thread
-        self.start_search(search_time, depth);
+        if ponder {
+            self.start_ponder_search(search_time, depth);
+        } else {
+            self.start_search(search_time, depth);
+        }
         
         String::new()
     }
@@ -450,6 +470,13 @@ impl UCIEngine {
         let board = self.board;
         let mut engine = self.engine.clone(); // Clone the engine for threaded evaluation
         let start_time = Instant::now();
+        
+        // Get MultiPV setting
+        let multi_pv = if let Some(UCIOption::Spin { value, .. }) = self.options.get("MultiPV") {
+            *value as usize
+        } else {
+            1
+        };
         
         // Spawn search thread
         thread::spawn(move || {
@@ -473,7 +500,7 @@ impl UCIEngine {
                 return;
             }
             
-            let mut best_move_result: Option<(ChessMove, f32)> = None;
+            let mut move_evaluations: Vec<(ChessMove, f32)> = Vec::new();
             let mut nodes_searched = 0;
             
             // Evaluate each legal move by making it and evaluating the resulting position
@@ -490,24 +517,22 @@ impl UCIEngine {
                         -position_eval
                     };
                     
-                    // Update best move if this is better
-                    if best_move_result.is_none() || eval_for_us > best_move_result.as_ref().map(|(_, eval)| *eval).unwrap_or(f32::NEG_INFINITY) {
-                        best_move_result = Some((*chess_move, eval_for_us));
-                    }
+                    move_evaluations.push((*chess_move, eval_for_us));
                 }
             }
             
-            let (best_move, score_cp) = if let Some((mv, eval)) = best_move_result {
-                // Convert evaluation to centipawns (multiply by 100 for standard UCI format)
-                (mv, (eval * 100.0) as i32)
+            // Sort moves by evaluation (best first)
+            move_evaluations.sort_by(|a, b| b.1.partial_cmp(&a.1).unwrap_or(std::cmp::Ordering::Equal));
+            
+            // Get the best move for the final output
+            let (best_move, _) = if !move_evaluations.is_empty() {
+                move_evaluations[0]
             } else {
                 // Fallback: no evaluations worked, use first legal move
-                (legal_moves[0], 0)
+                (legal_moves[0], 0.0)
             };
             
-            // Update search info
-            search_info.score = SearchScore::Centipawns(score_cp);
-            search_info.pv = vec![best_move];
+            // Update common search info
             search_info.time = start_time.elapsed().as_millis() as u64;
             search_info.nodes = nodes_searched;
             search_info.nps = if search_info.time > 0 {
@@ -516,24 +541,169 @@ impl UCIEngine {
                 0
             };
             
-            // Send UCI info with evaluation details
-            println!("info depth {} score cp {} time {} nodes {} nps {} pv {}", 
-                search_info.depth,
-                score_cp,
-                search_info.time,
-                search_info.nodes,
-                search_info.nps,
-                best_move
-            );
+            // Output multiple PV lines
+            let pv_count = move_evaluations.len().min(multi_pv);
+            for (pv_index, (chess_move, eval)) in move_evaluations.iter().take(pv_count).enumerate() {
+                let score_cp = (*eval * 100.0) as i32;
+                
+                // Send UCI info for this PV line
+                if multi_pv == 1 {
+                    // Single PV (standard format)
+                    println!("info depth {} score cp {} time {} nodes {} nps {} pv {}", 
+                        search_info.depth,
+                        score_cp,
+                        search_info.time,
+                        search_info.nodes,
+                        search_info.nps,
+                        chess_move
+                    );
+                } else {
+                    // Multi-PV format (include multipv field)
+                    println!("info depth {} multipv {} score cp {} time {} nodes {} nps {} pv {}", 
+                        search_info.depth,
+                        pv_index + 1,
+                        score_cp,
+                        search_info.time,
+                        search_info.nodes,
+                        search_info.nps,
+                        chess_move
+                    );
+                }
+            }
             
             // Send best move
             println!("bestmove {}", best_move);
         });
     }
     
+    /// Start pondering search (thinking on opponent's time)
+    fn start_ponder_search(&mut self, _max_time: Duration, _max_depth: Option<u32>) {
+        // Check if pondering is enabled
+        if let Some(UCIOption::Check { value, .. }) = self.options.get("Ponder") {
+            if !value {
+                return; // Pondering disabled
+            }
+        } else {
+            return; // No ponder option
+        }
+        
+        self.pondering = true;
+        self.thinking = true;
+        self.stop_search = false;
+        
+        // Find a likely opponent move to ponder on
+        if let Some(ponder_move) = self.get_expected_opponent_move() {
+            self.ponder_move = Some(ponder_move);
+            self.ponder_board = Some(self.board.make_move_new(ponder_move));
+            
+            if self.debug {
+                println!("info string Starting to ponder on move {}", ponder_move);
+            }
+            
+            // Start pondering in background thread
+            let ponder_board = self.ponder_board.unwrap();
+            let mut engine = self.engine.clone();
+            let debug = self.debug;
+            
+            thread::spawn(move || {
+                // Perform deep search on pondered position
+                if let Some(eval) = engine.evaluate_position(&ponder_board) {
+                    if debug {
+                        println!("info string Ponder evaluation: {:.2}", eval);
+                    }
+                }
+                
+                // In a full implementation, we would:
+                // 1. Run full tactical search on ponder position
+                // 2. Analyze multiple candidate moves
+                // 3. Store results for quick retrieval on ponderhit
+                // 4. Continue until stop or ponderhit
+            });
+        }
+    }
+    
+    /// Get the most likely opponent move for pondering
+    fn get_expected_opponent_move(&mut self) -> Option<ChessMove> {
+        use chess::MoveGen;
+        
+        // Simple strategy: pick the first legal move
+        // In a real engine, this would use:
+        // - Principal variation from previous search
+        // - Opening book moves
+        // - Most common moves in this position
+        let legal_moves: Vec<ChessMove> = MoveGen::new_legal(&self.board).collect();
+        
+        if !legal_moves.is_empty() {
+            // Use engine evaluation to pick most likely move
+            let mut best_move = legal_moves[0];
+            let mut best_eval = f32::NEG_INFINITY;
+            
+            for chess_move in legal_moves.iter().take(5) { // Check top 5 moves
+                let new_board = self.board.make_move_new(*chess_move);
+                if let Some(eval) = self.engine.evaluate_position(&new_board) {
+                    // From opponent's perspective (flip evaluation)
+                    let opponent_eval = -eval;
+                    if opponent_eval > best_eval {
+                        best_eval = opponent_eval;
+                        best_move = *chess_move;
+                    }
+                }
+            }
+            
+            Some(best_move)
+        } else {
+            None
+        }
+    }
+    
+    /// Handle ponderhit command (opponent played the expected move)
+    fn handle_ponderhit(&mut self) -> String {
+        if self.pondering {
+            self.pondering = false;
+            
+            if self.debug {
+                println!("info string Ponderhit received - converting ponder to normal search");
+            }
+            
+            // Convert pondering to normal search
+            // In a full implementation, we would:
+            // 1. Use cached ponder results 
+            // 2. Continue search with time limits
+            // 3. Output bestmove when search completes
+            
+            // For now, just output a quick result
+            if let Some(ponder_board) = self.ponder_board {
+                let legal_moves: Vec<ChessMove> = chess::MoveGen::new_legal(&ponder_board).collect();
+                if !legal_moves.is_empty() {
+                    let best_move = legal_moves[0]; // Simple fallback
+                    thread::spawn(move || {
+                        println!("bestmove {}", best_move);
+                    });
+                }
+            }
+            
+            self.ponder_move = None;
+            self.ponder_board = None;
+        }
+        
+        String::new()
+    }
+    
     fn handle_stop(&mut self) -> String {
         self.stop_search = true;
         self.thinking = false;
+        
+        // Stop pondering if active
+        if self.pondering {
+            self.pondering = false;
+            self.ponder_move = None;
+            self.ponder_board = None;
+            
+            if self.debug {
+                println!("info string Pondering stopped");
+            }
+        }
+        
         String::new()
     }
 }
@@ -661,5 +831,130 @@ mod tests {
         
         engine.handle_debug(&["debug", "off"]);
         assert!(!engine.debug);
+    }
+    
+    #[test]
+    fn test_pondering_option() {
+        let engine = UCIEngine::new();
+        
+        // Check that Ponder option exists and is enabled by default
+        if let Some(UCIOption::Check { value, .. }) = engine.options.get("Ponder") {
+            assert!(*value); // Should be enabled by default
+        } else {
+            panic!("Ponder option should be available");
+        }
+    }
+    
+    #[test]
+    fn test_ponder_command_parsing() {
+        let mut engine = UCIEngine::new();
+        
+        // Test "go ponder" command
+        let response = engine.process_command("go ponder");
+        assert_eq!(response, ""); // Should return empty string
+        
+        // Pondering should be active (may be set asynchronously)
+        // We don't assert on engine.pondering here due to threading
+    }
+    
+    #[test]
+    fn test_ponderhit_command() {
+        let mut engine = UCIEngine::new();
+        
+        // Start pondering first
+        engine.pondering = true;
+        engine.ponder_move = Some(ChessMove::from_str("e2e4").unwrap());
+        
+        // Send ponderhit
+        let response = engine.handle_ponderhit();
+        assert_eq!(response, "");
+        
+        // Pondering should be stopped
+        assert!(!engine.pondering);
+        assert!(engine.ponder_move.is_none());
+    }
+    
+    #[test]
+    fn test_stop_during_pondering() {
+        let mut engine = UCIEngine::new();
+        
+        // Start pondering
+        engine.pondering = true;
+        engine.ponder_move = Some(ChessMove::from_str("e2e4").unwrap());
+        
+        // Send stop command
+        let response = engine.handle_stop();
+        assert_eq!(response, "");
+        
+        // Pondering should be stopped
+        assert!(!engine.pondering);
+        assert!(!engine.thinking);
+        assert!(engine.ponder_move.is_none());
+    }
+    
+    #[test]
+    fn test_expected_opponent_move() {
+        let mut engine = UCIEngine::new();
+        
+        // Test getting expected opponent move from starting position
+        let expected_move = engine.get_expected_opponent_move();
+        assert!(expected_move.is_some());
+        
+        // Should be a legal move
+        let legal_moves: Vec<ChessMove> = chess::MoveGen::new_legal(&engine.board).collect();
+        if let Some(mv) = expected_move {
+            assert!(legal_moves.contains(&mv));
+        }
+    }
+    
+    #[test]
+    fn test_multi_pv_option() {
+        let engine = UCIEngine::new();
+        
+        // Check that MultiPV option exists and has correct default
+        if let Some(UCIOption::Spin { default, min, max, value }) = engine.options.get("MultiPV") {
+            assert_eq!(*default, 1);
+            assert_eq!(*min, 1);
+            assert_eq!(*max, 10);
+            assert_eq!(*value, 1);
+        } else {
+            panic!("MultiPV option should be available");
+        }
+    }
+    
+    #[test]
+    fn test_multi_pv_setting() {
+        let mut engine = UCIEngine::new();
+        
+        // Test setting MultiPV option
+        let response = engine.process_command("setoption name MultiPV value 3");
+        assert_eq!(response, "");
+        
+        // Check that option was set
+        if let Some(UCIOption::Spin { value, .. }) = engine.options.get("MultiPV") {
+            assert_eq!(*value, 3);
+        } else {
+            panic!("MultiPV option should exist");
+        }
+    }
+    
+    #[test]
+    fn test_single_pv_vs_multi_pv() {
+        let mut engine = UCIEngine::new();
+        
+        // Test that engine accepts both single and multi-PV modes
+        // (We can't easily test the actual output format in unit tests due to threading)
+        
+        // Set to single PV
+        engine.process_command("setoption name MultiPV value 1");
+        if let Some(UCIOption::Spin { value, .. }) = engine.options.get("MultiPV") {
+            assert_eq!(*value, 1);
+        }
+        
+        // Set to multi-PV
+        engine.process_command("setoption name MultiPV value 5");
+        if let Some(UCIOption::Spin { value, .. }) = engine.options.get("MultiPV") {
+            assert_eq!(*value, 5);
+        }
     }
 }
