@@ -1,54 +1,24 @@
 # Chess Vector Engine
 
-A **production-ready Rust library** and **UCI chess engine** that provides hybrid chess evaluation combining vector-based pattern recognition with advanced tactical search. Features GPU acceleration, NNUE neural networks, and open-core architecture with both open-source and commercial tiers.
+A **production-ready Rust chess engine** that revolutionizes position evaluation by combining vector-based pattern recognition with advanced tactical search. Encode positions as high-dimensional vectors, search through millions of patterns, and leverage sophisticated neural networks for cutting-edge chess AI.
 
 [![Tests](https://img.shields.io/badge/tests-105%20passing-brightgreen)](#testing)
 [![Rust](https://img.shields.io/badge/rust-stable-orange)](https://www.rust-lang.org/)
 [![GPU](https://img.shields.io/badge/GPU-CUDA%2FMetal%2FCPU-blue)](#gpu-acceleration)
 [![UCI](https://img.shields.io/badge/UCI-compliant-green)](#uci-engine)
-[![License](https://img.shields.io/badge/license-Open--Core-blue)](#licensing)
-
-## 🏗️ Open-Core Architecture
-
-**Chess Vector Engine** uses an **open-core business model** providing both open-source and commercial features:
-
-### 🆓 **Open Source Features** (MIT/Apache-2.0)
-- Basic position encoding and similarity search
-- Standard UCI engine functionality 
-- Opening book with 50+ openings
-- Basic tactical search (6 ply)
-- JSON training data support
-- Local database persistence
-- Command-line tools and examples
-
-### 💎 **Premium Features** (Commercial License)
-- Advanced NNUE neural network evaluation
-- GPU acceleration (CUDA/Metal) 
-- Ultra-fast loading (memory-mapped files)
-- Advanced tactical search (10+ ply)
-- Pondering and Multi-PV analysis
-- Advanced pruning techniques
-- Parallel/multi-threaded search
-
-### 🏢 **Enterprise Features** (Enterprise License)
-- Distributed training across multiple machines
-- Cloud deployment tools and infrastructure
-- Enterprise analytics and reporting
-- Custom algorithm development
-- Unlimited training position support
-- Dedicated support and consulting
+[![Crates.io](https://img.shields.io/crates/v/chess-vector-engine)](https://crates.io/crates/chess-vector-engine)
 
 ## 🚀 Features
 
 ### 🧠 **Hybrid Intelligence**
 - **🎯 Hybrid Evaluation** - Combines pattern recognition with advanced tactical search for optimal accuracy
-- **⚡ Advanced Tactical Search** - 6-10+ ply search with PVS, iterative deepening, and sophisticated pruning techniques
-- **🧠 NNUE Integration** - Efficiently Updatable Neural Networks for fast position evaluation (Premium+)
+- **⚡ Advanced Tactical Search** - 6-14+ ply search with PVS, iterative deepening, and sophisticated pruning techniques
+- **🧠 NNUE Integration** - Efficiently Updatable Neural Networks for fast position evaluation
 - **🔍 Pattern Confidence Assessment** - Intelligently decides when to use patterns vs tactical calculation
 - **📊 Configurable Blending** - Adjustable weights between pattern, NNUE, and tactical evaluations
 - **🎮 Full UCI Compliance** - Complete chess engine with pondering, Multi-PV, and all standard UCI features
 
-### 🖥️ **GPU Acceleration** (Premium+)
+### 🖥️ **GPU Acceleration**
 - **🚀 Intelligent Device Detection** - Auto-detects CUDA → Metal → CPU with seamless fallback
 - **⚡ 10-100x Speedup Potential** - GPU-accelerated similarity search for large datasets
 - **🎛️ Adaptive Performance** - Uses optimal compute strategy based on dataset size
@@ -56,12 +26,12 @@ A **production-ready Rust library** and **UCI chess engine** that provides hybri
 
 ### 🔬 **Advanced Analytics**
 - **📐 Vector Position Encoding** - Convert chess positions to 1024-dimensional vectors capturing piece positions, game state, and strategic features
-- **🔍 Multi-tier Similarity Search** - GPU/parallel/sequential search with automatic method selection (Premium+)
+- **🔍 Multi-tier Similarity Search** - GPU/parallel/sequential search with automatic method selection
 - **🧠 Memory-Optimized Neural Networks** - Sequential batch processing eliminates memory explosion during training
 - **🤖 Neural Compression** - 8:1 to 32:1 compression ratios (1024d → 128d/32d) with 95%+ accuracy retention and 75% less memory usage
 - **📖 Opening Book** - Comprehensive opening book with 50+ chess openings and 45+ ECO codes for fast lookup
 
-### 🎯 **Advanced Search & Pruning** (Premium+)
+### 🎯 **Advanced Search & Pruning**
 - **⚔️ Principal Variation Search (PVS)** - Advanced search algorithm with 20-40% speedup over alpha-beta
 - **✂️ Sophisticated Pruning** - Futility pruning, razoring, extended futility pruning for 2-5x search speedup
 - **🧠 Enhanced LMR** - Improved Late Move Reductions with depth and move-based reduction formulas
@@ -74,8 +44,8 @@ A **production-ready Rust library** and **UCI chess engine** that provides hybri
 ### ⚡ **Performance & Scalability**
 - **🚀 Production Optimizations** - 7 major performance optimizations for 2-5x overall improvement
 - **⚡ Ultra-Fast Loading** - O(n²) → O(n) duplicate detection with binary format priority (seconds instead of minutes/hours)
-- **🖥️ Multi-GPU Acceleration** - Automatic detection and utilization of multiple GPUs (4x A100 support) with CPU fallback (Premium+)
-- **💻 SIMD Vector Operations** - AVX2/SSE4.1/NEON optimized similarity calculations for 2-4x speedup (Premium+)
+- **🖥️ Multi-GPU Acceleration** - Automatic detection and utilization of multiple GPUs with CPU fallback
+- **💻 SIMD Vector Operations** - AVX2/SSE4.1/NEON optimized similarity calculations for 2-4x speedup
 - **🧠 Pre-computed Vector Norms** - 3x faster similarity search with cached norm calculations
 - **📊 Dynamic Hash Table Sizing** - 30% LSH performance improvement with adaptive memory allocation
 - **⚡ Reference-based Search** - 50% memory reduction with zero-copy search results
@@ -85,7 +55,6 @@ A **production-ready Rust library** and **UCI chess engine** that provides hybri
 ### Cargo (Recommended)
 
 ```bash
-# Open source version
 cargo install chess-vector-engine
 
 # Or add to your Cargo.toml
@@ -103,17 +72,17 @@ cargo build --release
 
 ## 🎯 Quick Start
 
-### Open Source Usage
+### Basic Engine Usage
 
 ```rust
-use chess_vector_engine::{ChessVectorEngine, FeatureTier};
+use chess_vector_engine::ChessVectorEngine;
 use chess::Board;
 use std::str::FromStr;
 
-// Create open source engine
+// Create the engine
 let mut engine = ChessVectorEngine::new(1024);
 
-// Enable available open source features
+// Enable features
 engine.enable_opening_book();
 
 // Analyze positions
@@ -121,30 +90,34 @@ let board = Board::from_str("rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq 
 let evaluation = engine.evaluate_position(&board);
 let similar_positions = engine.find_similar_positions(&board, 5);
 
-println!("Position evaluation: {}", evaluation);
+println!("Position evaluation: {:?}", evaluation);
 ```
 
-### Premium Usage (License Required)
+### Advanced Usage with Neural Networks
 
 ```rust
-use chess_vector_engine::{ChessVectorEngine, FeatureTier};
+use chess_vector_engine::{ChessVectorEngine, TacticalConfig};
 
-// Create engine with license verification
-let mut engine = ChessVectorEngine::new_with_offline_license(1024);
+// Create engine with advanced features
+let mut engine = ChessVectorEngine::new(1024);
 
-// Activate premium license
-engine.activate_license("PREMIUM-YOUR-LICENSE-KEY").await?;
-
-// Enable premium features
-engine.enable_gpu_acceleration()?;  // Requires Premium+
+// Configure strong tactical search
+let tactical_config = TacticalConfig {
+    max_depth: 12,
+    max_time_ms: 5000,
+    enable_parallel_search: true,
+    num_threads: 8,
+    ..Default::default()
+};
+engine.enable_tactical_search(tactical_config);
 engine.configure_hybrid_evaluation(HybridConfig {
     pattern_confidence_threshold: 0.75,
     pattern_weight: 0.6,
     ..Default::default()
 });
 
-// Ultra-fast loading for large datasets
-engine.ultra_fast_load_any_format("massive_training_data.bin")?;  // Premium+
+// Load training data for pattern recognition
+engine.auto_load_training_data()?;
 
 // Advanced evaluation with all features
 let evaluation = engine.evaluate_position(&board);
@@ -162,118 +135,92 @@ chess-vector-engine-uci
 # In your chess GUI, configure engine path to the binary
 ```
 
-## 🔐 Licensing and Commercial Features
-
-### License Verification System
-
-The engine includes a built-in license verification system that enables premium features based on your subscription tier:
+### Training Data Loading
 
 ```rust
-// Offline license verification (cache-based)
-let mut engine = ChessVectorEngine::new_with_offline_license(1024);
+// Auto-load training data (detects format automatically)
+engine.auto_load_training_data()?;
 
-// Online license verification (API-based)
-let mut engine = ChessVectorEngine::new_with_license(1024, "https://api.yourdomain.com/license".to_string());
+// Load specific format
+engine.load_training_data("training_data.json")?;
 
-// Activate your license
-match engine.activate_license("YOUR-LICENSE-KEY").await {
-    Ok(tier) => println!("Activated {:?} tier", tier),
-    Err(e) => println!("License error: {}", e),
-}
-
-// Check feature availability
-if engine.is_feature_available("gpu_acceleration") {
-    engine.enable_gpu_acceleration()?;
+// Load chess puzzles for tactical training
+if std::path::Path::new("lichess_puzzles.csv").exists() {
+    engine.load_lichess_puzzles_basic("lichess_puzzles.csv", 10000)?;
 }
 ```
 
-### Feature Gating
+## 🔧 Command Line Tools
 
-All premium features are protected by runtime feature checks:
+The engine includes several demonstration and utility programs:
 
-```rust
-// This will fail if you don't have the appropriate license
-engine.ultra_fast_load_any_format("data.bin")?;  // Requires Premium+
-engine.enable_distributed_training()?;            // Requires Enterprise
+```bash
+# Basic engine demonstration
+cargo run --bin demo
+
+# UCI engine for chess GUIs
+cargo run --bin uci_engine
+
+# Position analysis tool
+cargo run --bin analyze "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1"
+
+# Performance benchmarking
+cargo run --bin benchmark
+
+# Feature system demonstration
+cargo run --bin feature_demo
 ```
 
-### Subscription Tiers
+## 🧪 Architecture
 
-| Feature | Open Source | Premium | Enterprise |
-|---------|-------------|---------|------------|
-| Basic UCI Engine | ✅ | ✅ | ✅ |
-| Opening Book | ✅ | ✅ | ✅ |
-| 6-ply Tactical Search | ✅ | ✅ | ✅ |
-| GPU Acceleration | ❌ | ✅ | ✅ |
-| NNUE Networks | ❌ | ✅ | ✅ |
-| 10+ ply Search | ❌ | ✅ | ✅ |
-| Multi-threading | ❌ | ✅ | ✅ |
-| Memory-mapped Files | ❌ | ✅ | ✅ |
-| Distributed Training | ❌ | ❌ | ✅ |
-| Enterprise Analytics | ❌ | ❌ | ✅ |
-| Custom Algorithms | ❌ | ❌ | ✅ |
+### Core Components
 
-## 🏢 Business Model and Release Strategy
+1. **PositionEncoder** - Converts chess positions to 1024-dimensional vectors
+2. **SimilaritySearch** - K-NN search through position vectors using cosine similarity  
+3. **TacticalSearch** - Advanced minimax search with PVS and sophisticated pruning
+4. **NNUE** - Neural network evaluation with incremental updates
+5. **OpeningBook** - Fast hash-map lookup for 50+ openings with ECO codes
+6. **UCIEngine** - Full UCI protocol implementation with pondering and Multi-PV
+7. **HybridEvaluator** - Intelligent blending of pattern, neural, and tactical evaluation
 
-### Development Workflow
+### Hybrid Evaluation Pipeline
 
-```mermaid
-graph LR
-    A[Open Source Repo] --> B[Feature Development]
-    B --> C[Open Source Core]
-    B --> D[Premium Features]
-    D --> E[License Verification]
-    C --> F[Public Cargo Release]
-    D --> G[Commercial Distribution]
-    E --> G
 ```
-
-### Repository Structure
-
-- **This Repository** - Complete open-core codebase with feature gating
-- **Public Cargo Release** - Open source features only, automatically published
-- **Commercial Distribution** - Full feature set with license keys via web platform
-- **Web Platform** (Separate Repo) - Nuxt.js + TailwindCSS frontend for license management
-- **Backend API** (Separate Repo) - Axum-based license server with Stripe integration
-
-### Release Process
-
-1. **Development** - All features developed in this single repository
-2. **Feature Gating** - Premium features protected by license verification
-3. **Open Source Release** - `cargo publish` with only open source features exposed
-4. **Commercial Distribution** - Full binary with all features, distributed via web platform
-5. **License Management** - Web platform handles subscriptions, key generation, and distribution
-
-### Version Synchronization
-
-Both open source and commercial versions share the same version number and core codebase:
-
-- **Version 0.1.0** - Initial release with basic features
-- **Version 0.2.0** - Advanced search improvements
-- **Version 0.3.0** - Neural network enhancements
-- **Version 1.0.0** - Production-ready stable release
-
-Commercial customers always get the latest features, while open source users get core functionality immediately.
+Chess Position → PositionEncoder → Vector (1024d)
+                     ↓
+    ┌─ Opening Book (instant lookup) ─┐
+    │                                 ↓
+    ├─ Pattern Recognition ──→ Confidence Assessment
+    │   (similarity search)           ↓
+    │                          ┌─ High Confidence → Pattern Evaluation
+    │                          └─ Low Confidence → Tactical Search (PVS)
+    │                                 ↓
+    └─────────────→ Hybrid Blending ──→ Final Evaluation
+                         ↓
+            NNUE Evaluation → Neural Position Assessment
+                         ↓
+               GPU Acceleration → 10-100x speedup
+```
 
 ## 📊 Performance Characteristics
 
-### Loading Performance (30k+ positions)
-- **Memory-mapped (.mmap)**: Instant startup (zero-copy loading) - *Premium+*
-- **MessagePack (.msgpack)**: 10-20% faster than bincode - *Premium+*  
-- **Zstd compressed (.zst)**: Best compression ratios - *Premium+*
-- **Binary (.bin)**: 5-15x faster than JSON - *All tiers*
-- **JSON**: Baseline format with streaming support - *All tiers*
+### Loading Performance (Large Datasets)
+- **Memory-mapped files**: Instant startup with zero-copy loading
+- **MessagePack format**: 10-20% faster than binary formats  
+- **Zstd compression**: Best compression ratios with fast decompression
+- **Binary formats**: 5-15x faster than JSON
+- **Streaming JSON**: Parallel processing for large JSON files
 
 ### Memory Usage Optimization
 - **Before optimization**: ~1GB (multiple dataset copies)
 - **After optimization**: ~150-200MB (75-80% reduction)
-- **Streaming processing**: Handles 900k+ positions efficiently
+- **Streaming processing**: Handles 900k+ positions efficiently without memory explosion
 
 ### Search Performance
-- **Basic tactical search**: 1000+ nodes/ms - *Open Source*
-- **Advanced tactical search**: 2800+ nodes/ms with PVS - *Premium+*
-- **GPU acceleration**: 10-100x speedup for large datasets - *Premium+*
-- **Multi-threading**: 2-4x speedup with parallel search - *Premium+*
+- **Tactical search**: 1000-2800+ nodes/ms depending on configuration
+- **GPU acceleration**: 10-100x speedup for large similarity searches
+- **Multi-threading**: 2-4x speedup with parallel root search
+- **SIMD operations**: 2-4x speedup for vector calculations
 
 ## 🛠️ Development
 
@@ -292,43 +239,25 @@ cargo test
 
 # Run benchmarks
 cargo run --bin benchmark
-
-# Test feature gating
-cargo run --bin feature_demo
-cargo run --bin license_demo
 ```
 
-### Examples and Demos
+### Key Dependencies
 
-```bash
-# Basic engine demonstration
-cargo run --bin demo
-
-# UCI engine for chess GUIs  
-cargo run --bin uci_engine
-
-# Position analysis tool
-cargo run --bin analyze "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1"
-
-# Performance benchmarking
-cargo run --bin benchmark
-
-# Feature tier demonstration
-cargo run --bin feature_demo
-
-# License system demonstration  
-cargo run --bin license_demo
-```
+- `chess` (3.2) - Chess game logic and position representation
+- `ndarray` (0.16) - Numerical arrays for vector operations  
+- `candle-core/candle-nn` (0.9) - Neural network framework
+- `rayon` (1.10) - Data parallelism for multi-threading
+- `serde` (1.0) - Serialization for training data
 
 ### Architecture Components
 
-- **Position Encoder** - Converts chess positions to 1024-dimensional vectors
-- **Similarity Search** - k-NN search with multiple algorithms (linear, LSH, GPU)
-- **Tactical Search** - Advanced chess search with PVS, pruning, and move ordering
-- **NNUE Integration** - Neural network evaluation with hybrid blending
-- **License System** - Runtime feature gating and subscription management
-- **Auto Discovery** - Intelligent training data detection and format optimization
-- **Ultra-Fast Loaders** - Memory-mapped and streaming loaders for massive datasets
+- **PositionEncoder** - Converts chess positions to 1024-dimensional vectors
+- **SimilaritySearch** - k-NN search with multiple algorithms (linear, LSH, GPU)
+- **TacticalSearch** - Advanced chess search with PVS, pruning, and move ordering
+- **NNUE** - Neural network evaluation with incremental updates and hybrid blending
+- **OpeningBook** - Fast hash-map lookup for chess openings
+- **AutoDiscovery** - Intelligent training data detection and format optimization
+- **UltraFastLoader** - Memory-mapped and streaming loaders for massive datasets
 
 ## 🧪 Testing
 
@@ -342,7 +271,7 @@ cargo test
 cargo test position_encoder
 cargo test similarity_search
 cargo test tactical_search
-cargo test license
+cargo test nnue
 
 # Run with full output
 cargo test -- --nocapture
@@ -381,40 +310,32 @@ We welcome contributions to the open source core! Please see [CONTRIBUTING.md](C
 - Test coverage expansion
 - New open source features
 
-### Commercial Feature Development
-Commercial feature development is handled internally to ensure quality and integration with the licensing system.
-
 ## 📄 License
 
-- **Open Source Core**: Licensed under MIT OR Apache-2.0
-- **Premium Features**: Commercial license required
-- **Enterprise Features**: Enterprise license required
+This project is licensed under MIT OR Apache-2.0 at your option.
 
 See [LICENSE](LICENSE) for full details.
 
 ## 🆘 Support
 
-### Open Source Support
 - **GitHub Issues** - Bug reports and feature requests
-- **Documentation** - Comprehensive API documentation
-- **Community** - Discord server and discussions
-
-### Commercial Support  
-- **Email Support** - Priority email support for Premium+ customers
-- **Dedicated Support** - Phone and video support for Enterprise customers
-- **Custom Development** - Custom algorithm development for Enterprise customers
+- **Documentation** - Comprehensive API documentation at [docs.rs](https://docs.rs/chess-vector-engine)
+- **Examples** - Extensive code examples and demonstrations
 
 ## 🏆 Acknowledgments
 
 Built with excellent open source libraries:
-- [chess](https://crates.io/crates/chess) - Chess game logic
-- [ndarray](https://crates.io/crates/ndarray) - Numerical computing
-- [candle](https://github.com/huggingface/candle) - Neural network framework
-- [rayon](https://crates.io/crates/rayon) - Data parallelism
-- [tokio](https://crates.io/crates/tokio) - Async runtime
+- [chess](https://crates.io/crates/chess) - Chess game logic and position representation
+- [ndarray](https://crates.io/crates/ndarray) - Numerical computing and linear algebra
+- [candle](https://github.com/huggingface/candle) - Neural network framework from HuggingFace
+- [rayon](https://crates.io/crates/rayon) - Data parallelism and multi-threading
+- [tokio](https://crates.io/crates/tokio) - Async runtime for concurrent operations
 
-Special thanks to the chess programming community and contributors to Stockfish, Leela Chess Zero, and other open source chess engines that inspired this project.
+Special thanks to the chess programming community and contributors to:
+- **Stockfish** - Reference for advanced search algorithms and evaluation techniques
+- **Leela Chess Zero** - Inspiration for neural network integration in chess engines  
+- **Chess Programming Wiki** - Comprehensive resource for chess engine development
 
 ---
 
-**Ready to get started?** Try the open source version today or [subscribe for premium features](https://yourdomain.com/pricing)!
+**Ready to revolutionize chess AI?** Start with `cargo install chess-vector-engine` and explore the power of vector-based position analysis!
