@@ -844,14 +844,10 @@ impl TacticalSearch {
         // King safety
         score += self.king_safety(board);
 
-        // Perspective from white's point of view
-        let final_score = if board.side_to_move() == Color::Black {
-            -score
-        } else {
-            score
-        };
-        
-        final_score
+        // Always return evaluation from White's perspective
+        // The score is already calculated from White's perspective
+        // (positive = good for White, negative = good for Black)
+        score
     }
 
     /// Evaluate terminal positions (checkmate, stalemate, etc.)
@@ -917,17 +913,55 @@ impl TacticalSearch {
     fn king_safety(&self, board: &Board) -> f32 {
         let mut safety = 0.0;
         
-        // Simple king safety evaluation based on castling rights and checks
+        // Comprehensive king safety evaluation
         for color in [Color::White, Color::Black] {
             let mut king_safety = 0.0;
             
-            // Bonus for castling rights
-            let castle_rights = board.castle_rights(color);
-            if castle_rights.has_kingside() {
-                king_safety += 20.0;
+            // Find king position
+            let king_square = board.king_square(color);
+            
+            // MAJOR PENALTY for early king moves in opening
+            let starting_king_square = if color == Color::White { 
+                chess::Square::E1 
+            } else { 
+                chess::Square::E8 
+            };
+            
+            // If king has moved from starting position, apply heavy penalty
+            if king_square != starting_king_square {
+                // Check if castling has occurred (king on safe squares)
+                let is_castled = (color == Color::White && 
+                                 (king_square == chess::Square::G1 || king_square == chess::Square::C1)) ||
+                                (color == Color::Black && 
+                                 (king_square == chess::Square::G8 || king_square == chess::Square::C8));
+                
+                if !is_castled {
+                    // Heavy penalty for exposed king (like Ke2)
+                    king_safety -= 300.0; // This should prevent Ke2!
+                    
+                    // Extra penalty for really bad king moves (e.g., toward center)
+                    let king_rank = king_square.get_rank().to_index();
+                    let king_file = king_square.get_file().to_index();
+                    
+                    // Penalty for king moving toward center or off back rank
+                    if color == Color::White && king_rank > 0 {
+                        king_safety -= 200.0; // Moving off back rank
+                    }
+                    if color == Color::Black && king_rank < 7 {
+                        king_safety -= 200.0; // Moving off back rank
+                    }
+                }
             }
-            if castle_rights.has_queenside() {
-                king_safety += 15.0;
+            
+            // Bonus for castling rights (only if king still on starting square)
+            if king_square == starting_king_square {
+                let castle_rights = board.castle_rights(color);
+                if castle_rights.has_kingside() {
+                    king_safety += 20.0;
+                }
+                if castle_rights.has_queenside() {
+                    king_safety += 15.0;
+                }
             }
             
             // Penalty for being in check

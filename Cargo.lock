@@ -365,6 +365,7 @@ dependencies = [
  "memmap2",
  "ndarray",
  "ndarray-rand",
+ "num_cpus",
  "pgn-reader",
  "rand 0.8.5",
  "rayon",

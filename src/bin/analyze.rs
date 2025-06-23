@@ -56,6 +56,10 @@ fn initialize_analysis_engine() -> ChessVectorEngine {
                 println!("✅ Manifold learning enabled - optimized for position analysis");
             }
             
+            // Always enable tactical search for comprehensive analysis
+            engine.enable_tactical_search_default();
+            println!("⚔️ Tactical search enabled for comprehensive evaluation");
+            
             engine
         }
         Err(e) => {
@@ -64,6 +68,11 @@ fn initialize_analysis_engine() -> ChessVectorEngine {
             
             let mut engine = ChessVectorEngine::new(1024);
             engine.enable_opening_book();
+            
+            // Enable tactical search for proper position evaluation
+            engine.enable_tactical_search_default();
+            println!("⚔️ Tactical search enabled for analysis");
+            
             load_opening_book(&mut engine);
             engine
         }

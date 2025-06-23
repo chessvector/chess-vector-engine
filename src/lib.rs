@@ -15,6 +15,7 @@ pub mod streaming_loader;
 pub mod ultra_fast_loader;
 pub mod features;
 pub mod license;
+pub mod lichess_loader;
 // pub mod tablebase; // Temporarily disabled due to version conflicts
 pub mod uci;
 
@@ -34,6 +35,7 @@ pub use streaming_loader::StreamingLoader;
 pub use ultra_fast_loader::{UltraFastLoader, LoadingStats};
 pub use features::{FeatureTier, FeatureChecker, FeatureRegistry, FeatureError};
 pub use license::{LicenseVerifier, LicensedFeatureChecker, LicenseKey, LicenseStatus, LicenseError};
+pub use lichess_loader::{LichessLoader, load_lichess_puzzles_premium, load_lichess_puzzles_basic};
 // pub use tablebase::{TablebaseProber, TablebaseResult, WdlValue};
 pub use uci::{UCIEngine, UCIConfig, run_uci_engine, run_uci_engine_with_config};
 
@@ -45,6 +47,25 @@ use std::str::FromStr;
 use std::sync::Arc;
 use serde_json::Value;
 
+/// Calculate move centrality for intelligent move ordering
+/// Returns higher values for moves toward the center of the board
+fn move_centrality(chess_move: &ChessMove) -> f32 {
+    let dest_square = chess_move.get_dest();
+    let rank = dest_square.get_rank().to_index() as f32;
+    let file = dest_square.get_file().to_index() as f32;
+    
+    // Calculate distance from center (3.5, 3.5)
+    let center_rank = 3.5;
+    let center_file = 3.5;
+    
+    let rank_distance = (rank - center_rank).abs();
+    let file_distance = (file - center_file).abs();
+    
+    // Return higher values for more central moves (invert the distance)
+    let max_distance = 3.5; // Maximum distance from center to edge
+    let distance = (rank_distance + file_distance) / 2.0;
+    max_distance - distance
+}
 
 /// Move recommendation data
 #[derive(Debug, Clone)]
@@ -281,6 +302,11 @@ impl ChessVectorEngine {
 
     /// Add a position with its evaluation to the knowledge base
     pub fn add_position(&mut self, board: &Board, evaluation: f32) {
+        // Safety check: Validate position before storing
+        if !self.is_position_safe(board) {
+            return; // Skip unsafe positions
+        }
+        
         let vector = self.encoder.encode(board);
         self.similarity_search.add_position(vector.clone(), evaluation);
         
@@ -990,6 +1016,34 @@ impl ChessVectorEngine {
         
         Ok(loaded_files)
     }
+    
+    /// Load Lichess puzzle database with premium features (Premium+)
+    pub fn load_lichess_puzzles_premium<P: AsRef<std::path::Path>>(&mut self, csv_path: P) -> Result<(), Box<dyn std::error::Error>> {
+        self.require_feature("ultra_fast_loading")?;  // Premium+ required
+        
+        println!("🔥 Loading Lichess puzzles with premium performance...");
+        let puzzle_entries = crate::lichess_loader::load_lichess_puzzles_premium_with_moves(csv_path)?;
+        
+        for (board, evaluation, best_move) in puzzle_entries {
+            self.add_position_with_move(&board, evaluation, Some(best_move), Some(evaluation));
+        }
+        
+        println!("✅ Premium Lichess puzzle loading complete!");
+        Ok(())
+    }
+    
+    /// Load limited Lichess puzzle database (Open Source)
+    pub fn load_lichess_puzzles_basic<P: AsRef<std::path::Path>>(&mut self, csv_path: P, max_puzzles: usize) -> Result<(), Box<dyn std::error::Error>> {
+        println!("📚 Loading Lichess puzzles (basic tier, limited to {} puzzles)...", max_puzzles);
+        let puzzle_entries = crate::lichess_loader::load_lichess_puzzles_basic_with_moves(csv_path, max_puzzles)?;
+        
+        for (board, evaluation, best_move) in puzzle_entries {
+            self.add_position_with_move(&board, evaluation, Some(best_move), Some(evaluation));
+        }
+        
+        println!("✅ Basic Lichess puzzle loading complete!");
+        Ok(())
+    }
 
     /// Create a new chess vector engine with automatic training data loading
     pub fn new_with_auto_load(vector_size: usize) -> Result<Self, Box<dyn std::error::Error>> {
@@ -1227,6 +1281,39 @@ impl ChessVectorEngine {
             checker.save_cache(path)?;
         }
         Ok(())
+    }
+    
+    // TODO: Creator access method removed for git security
+    // For local development only - not to be committed
+    
+    /// Validate that a position is safe to store and won't cause panics
+    fn is_position_safe(&self, board: &Board) -> bool {
+        // Check if position can generate legal moves without panicking
+        match std::panic::catch_unwind(|| {
+            use chess::MoveGen;
+            let _legal_moves: Vec<ChessMove> = MoveGen::new_legal(board).collect();
+            true
+        }) {
+            Ok(_) => true,
+            Err(_) => {
+                // Position causes panic during move generation - skip it
+                false
+            }
+        }
+    }
+    
+    /// Check if GPU acceleration feature is available
+    pub fn check_gpu_acceleration(&self) -> Result<(), Box<dyn std::error::Error>> {
+        self.feature_checker.check_feature("gpu_acceleration")?;
+        
+        // Check if GPU is available on the system
+        match crate::gpu_acceleration::GPUAccelerator::new() {
+            Ok(_) => {
+                println!("🔥 GPU acceleration available and ready");
+                Ok(())
+            },
+            Err(e) => Err(format!("GPU acceleration not available: {}", e).into())
+        }
     }
     
     /// Load starter dataset for open source users
@@ -1916,7 +2003,7 @@ impl ChessVectorEngine {
     }
     
     /// Get move recommendations based on similar positions and opening book
-    pub fn recommend_moves(&self, board: &Board, num_recommendations: usize) -> Vec<MoveRecommendation> {
+    pub fn recommend_moves(&mut self, board: &Board, num_recommendations: usize) -> Vec<MoveRecommendation> {
         // // First check tablebase for perfect endgame moves
         // if let Some(ref tablebase) = self.tablebase {
         //     if let Some(best_move) = tablebase.get_best_move(board) {
@@ -1951,31 +2038,97 @@ impl ChessVectorEngine {
         // Fall back to similarity search
         let similar_positions = self.find_similar_positions_with_indices(board, 20);
         
-        if similar_positions.is_empty() {
-            return Vec::new();
-        }
-        
         // Collect moves from similar positions
         let mut move_data: HashMap<ChessMove, Vec<(f32, f32)>> = HashMap::new(); // move -> (similarity, outcome)
         
-        // Use actual position indices to get moves and outcomes
+        // Get legal moves for current position to validate recommendations
+        use chess::MoveGen;
+        let legal_moves: Vec<ChessMove> = match std::panic::catch_unwind(|| {
+            MoveGen::new_legal(board).collect::<Vec<ChessMove>>()
+        }) {
+            Ok(moves) => moves,
+            Err(_) => {
+                // If we can't generate legal moves for the current position, return empty recommendations
+                return Vec::new();
+            }
+        };
+        
+        // Use actual position indices to get moves and outcomes (only if we found similar positions)
         for (position_index, _eval, similarity) in similar_positions {
             if let Some(moves) = self.position_moves.get(&position_index) {
                 for &(chess_move, outcome) in moves {
-                    move_data.entry(chess_move)
-                        .or_insert_with(Vec::new)
-                        .push((similarity, outcome));
+                    // CRITICAL FIX: Only include moves that are legal for the current position
+                    if legal_moves.contains(&chess_move) {
+                        move_data.entry(chess_move)
+                            .or_insert_with(Vec::new)
+                            .push((similarity, outcome));
+                    }
                 }
             }
         }
         
-        // If no moves found from stored data, generate legal moves and give them neutral recommendations
+        // If no moves found from stored data, use tactical search for intelligent fallback
         if move_data.is_empty() {
-            use chess::MoveGen;
-            let legal_moves: Vec<ChessMove> = MoveGen::new_legal(board).collect();
-            
-            for chess_move in legal_moves.into_iter().take(num_recommendations) {
-                move_data.insert(chess_move, vec![(0.5, 0.0)]); // Neutral similarity and outcome
+            if let Some(ref mut tactical_search) = self.tactical_search {
+                // Use tactical search to find the best moves with proper evaluation
+                let tactical_result = tactical_search.search(board);
+                
+                // Add the best tactical move with strong confidence
+                if let Some(best_move) = tactical_result.best_move {
+                    move_data.insert(best_move, vec![(0.75, tactical_result.evaluation)]);
+                }
+                
+                // Generate additional well-ordered moves using tactical search move ordering
+                // (legal_moves already generated above with safety validation)
+                let mut ordered_moves = legal_moves.clone();
+                
+                // Use basic move ordering (captures first, then other moves)
+                ordered_moves.sort_by(|a, b| {
+                    let a_is_capture = board.piece_on(a.get_dest()).is_some();
+                    let b_is_capture = board.piece_on(b.get_dest()).is_some();
+                    
+                    match (a_is_capture, b_is_capture) {
+                        (true, false) => std::cmp::Ordering::Less,    // a is capture, prefer it
+                        (false, true) => std::cmp::Ordering::Greater, // b is capture, prefer it
+                        _ => {
+                            // Both captures or both non-captures, prefer center moves
+                            let a_centrality = move_centrality(a);
+                            let b_centrality = move_centrality(b);
+                            b_centrality.partial_cmp(&a_centrality).unwrap_or(std::cmp::Ordering::Equal)
+                        }
+                    }
+                });
+                
+                // Add ordered moves with tactical confidence
+                for chess_move in ordered_moves.into_iter().take(num_recommendations) {
+                    if !move_data.contains_key(&chess_move) {
+                        move_data.insert(chess_move, vec![(0.6, 0.0)]);
+                    }
+                }
+            } else {
+                // Basic fallback when no tactical search available - still use move ordering
+                // (legal_moves already generated above with safety validation)
+                let mut ordered_moves = legal_moves.clone();
+                
+                // Basic move ordering even without tactical search
+                ordered_moves.sort_by(|a, b| {
+                    let a_is_capture = board.piece_on(a.get_dest()).is_some();
+                    let b_is_capture = board.piece_on(b.get_dest()).is_some();
+                    
+                    match (a_is_capture, b_is_capture) {
+                        (true, false) => std::cmp::Ordering::Less,
+                        (false, true) => std::cmp::Ordering::Greater,
+                        _ => {
+                            let a_centrality = move_centrality(a);
+                            let b_centrality = move_centrality(b);
+                            b_centrality.partial_cmp(&a_centrality).unwrap_or(std::cmp::Ordering::Equal)
+                        }
+                    }
+                });
+                
+                for chess_move in ordered_moves.into_iter().take(num_recommendations) {
+                    move_data.insert(chess_move, vec![(0.3, 0.0)]); // Lower baseline confidence for unknown moves
+                }
             }
         }
         
@@ -2000,9 +2153,10 @@ impl ChessVectorEngine {
                 0.0
             };
             
-            // Confidence based on number of similar positions and average similarity
+            // Improved confidence calculation for better pattern recognition
             let avg_similarity = outcomes.iter().map(|(s, _)| s).sum::<f32>() / outcomes.len() as f32;
-            let confidence = avg_similarity * (outcomes.len() as f32).ln().max(1.0) / 10.0; // Logarithmic scaling
+            let position_count_bonus = (outcomes.len() as f32).ln().max(1.0) / 5.0; // Bonus for more supporting positions
+            let confidence = (avg_similarity * 0.8 + position_count_bonus * 0.2).min(0.95); // Blend similarity and support
             
             recommendations.push(MoveRecommendation {
                 chess_move,
@@ -2021,7 +2175,7 @@ impl ChessVectorEngine {
     }
     
     /// Generate legal move recommendations (filters recommendations by legal moves)
-    pub fn recommend_legal_moves(&self, board: &Board, num_recommendations: usize) -> Vec<MoveRecommendation> {
+    pub fn recommend_legal_moves(&mut self, board: &Board, num_recommendations: usize) -> Vec<MoveRecommendation> {
         use chess::MoveGen;
         
         // Get all legal moves
@@ -2449,6 +2603,40 @@ mod tests {
         // Test legal move filtering
         let legal_recommendations = engine.recommend_legal_moves(&board, 3);
         assert!(!legal_recommendations.is_empty());
+    }
+
+    #[test]
+    fn test_empty_knowledge_base_fallback() {
+        // Test that recommend_moves() works even with empty knowledge base
+        let engine = ChessVectorEngine::new(1024);
+        
+        // Test with a specific position (Sicilian Defense)
+        use std::str::FromStr;
+        let board = Board::from_str("r1bqkbnr/pppp1ppp/2n5/4p3/4P3/5N2/PPPP1PPP/RNBQKB1R w KQkq - 0 1").unwrap();
+        
+        // Should return move recommendations even with empty knowledge base
+        let recommendations = engine.recommend_moves(&board, 5);
+        assert!(!recommendations.is_empty(), "recommend_moves should not return empty even with no training data");
+        assert_eq!(recommendations.len(), 5, "Should return exactly 5 recommendations");
+        
+        // All recommendations should have neutral confidence and outcome
+        for rec in &recommendations {
+            assert!(rec.confidence > 0.0, "Confidence should be greater than 0");
+            assert_eq!(rec.from_similar_position_count, 1, "Should have count of 1 for fallback");
+            assert_eq!(rec.average_outcome, 0.0, "Should have neutral outcome");
+        }
+        
+        // Test with starting position too
+        let starting_board = Board::default();
+        let starting_recommendations = engine.recommend_moves(&starting_board, 3);
+        assert!(!starting_recommendations.is_empty(), "Should work for starting position too");
+        
+        // Verify all moves are legal
+        use chess::MoveGen;
+        let legal_moves: std::collections::HashSet<_> = MoveGen::new_legal(&board).collect();
+        for rec in &recommendations {
+            assert!(legal_moves.contains(&rec.chess_move), "All recommended moves should be legal");
+        }
     }
 
     #[test]

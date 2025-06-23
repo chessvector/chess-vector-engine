@@ -1182,7 +1182,7 @@ impl SelfPlayTrainer {
     }
     
     /// Select a move with exploration vs exploitation balance
-    fn select_move_with_exploration(&self, engine: &ChessVectorEngine, position: &Board) -> Option<ChessMove> {
+    fn select_move_with_exploration(&self, engine: &mut ChessVectorEngine, position: &Board) -> Option<ChessMove> {
         let recommendations = engine.recommend_legal_moves(position, 5);
         
         if recommendations.is_empty() {
