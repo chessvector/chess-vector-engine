@@ -272,7 +272,7 @@ impl ManifoldLearner {
         let device = Device::Cpu;
         
         // Convert batch to tensor
-        let data_tensor = Tensor::from_slice(
+        let _data_tensor = Tensor::from_slice(
             &batch_vec,
             (rows, cols),
             &device

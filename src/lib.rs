@@ -44,7 +44,6 @@ use ndarray::{Array1, Array2};
 use std::collections::HashMap;
 use std::path::Path;
 use std::str::FromStr;
-use std::sync::Arc;
 use serde_json::Value;
 
 /// Calculate move centrality for intelligent move ordering
@@ -2608,7 +2607,7 @@ mod tests {
     #[test]
     fn test_empty_knowledge_base_fallback() {
         // Test that recommend_moves() works even with empty knowledge base
-        let engine = ChessVectorEngine::new(1024);
+        let mut engine = ChessVectorEngine::new(1024);
         
         // Test with a specific position (Sicilian Defense)
         use std::str::FromStr;

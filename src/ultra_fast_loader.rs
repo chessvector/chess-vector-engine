@@ -1,7 +1,6 @@
 use chess::Board;
 use std::collections::HashSet;
 use std::path::Path;
-use std::io::{BufRead, BufReader, Read};
 use std::fs::File;
 use indicatif::{ProgressBar, ProgressStyle};
 use rayon::prelude::*;

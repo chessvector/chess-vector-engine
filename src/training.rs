@@ -844,7 +844,7 @@ impl TrainingDataset {
         
         println!("📂 Loading existing training data...");
         let mut existing = Self::load(path)?;
-        let original_len = existing.data.len();
+        let _original_len = existing.data.len();
         
         println!("🔄 Streaming merge with deduplication (avoiding O(n²) operation)...");
         existing.merge_and_deduplicate(self.data.clone());
@@ -917,7 +917,7 @@ impl TrainingDataset {
             return;
         }
         
-        let original_len = self.data.len();
+        let _original_len = self.data.len();
         
         // Build hashset of existing positions for fast lookup
         let mut existing_positions: HashSet<String> = HashSet::with_capacity(self.data.len());

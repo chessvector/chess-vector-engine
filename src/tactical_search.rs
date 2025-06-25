@@ -941,7 +941,7 @@ impl TacticalSearch {
                     
                     // Extra penalty for really bad king moves (e.g., toward center)
                     let king_rank = king_square.get_rank().to_index();
-                    let king_file = king_square.get_file().to_index();
+                    let _king_file = king_square.get_file().to_index();
                     
                     // Penalty for king moving toward center or off back rank
                     if color == Color::White && king_rank > 0 {

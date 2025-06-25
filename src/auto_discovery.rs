@@ -334,8 +334,6 @@ impl AutoDiscovery {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use std::fs;
-    use tempfile::TempDir;
     
     #[test]
     fn test_base_name_extraction() {

@@ -1,8 +1,6 @@
 use chess::{Board, ChessMove, Color};
-use csv::ReaderBuilder;
 use rayon::prelude::*;
 use serde::Deserialize;
-use std::collections::HashMap;
 use std::fs::File;
 use std::io::{BufRead, BufReader};
 use std::path::Path;

@@ -468,8 +468,6 @@ impl Database {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use chess::Board;
-    use std::str::FromStr;
 
     #[test]
     fn test_database_creation() {
