@@ -952,9 +952,9 @@
 <a href=#952 id=952 data-nosnippet>952</a>        <span class="kw">match </span>board.status() {
 <a href=#953 id=953 data-nosnippet>953</a>            chess::BoardStatus::Checkmate =&gt; {
 <a href=#954 id=954 data-nosnippet>954</a>                <span class="kw">if </span>board.side_to_move() == Color::White {
-<a href=#955 id=955 data-nosnippet>955</a>                    -<span class="number">10000.0 </span><span class="comment">// Black wins
+<a href=#955 id=955 data-nosnippet>955</a>                    -<span class="number">100.0 </span><span class="comment">// Black wins (100 pawn units)
 <a href=#956 id=956 data-nosnippet>956</a>                </span>} <span class="kw">else </span>{
-<a href=#957 id=957 data-nosnippet>957</a>                    <span class="number">10000.0 </span><span class="comment">// White wins
+<a href=#957 id=957 data-nosnippet>957</a>                    <span class="number">100.0 </span><span class="comment">// White wins (100 pawn units)
 <a href=#958 id=958 data-nosnippet>958</a>                </span>}
 <a href=#959 id=959 data-nosnippet>959</a>            }
 <a href=#960 id=960 data-nosnippet>960</a>            chess::BoardStatus::Stalemate =&gt; <span class="number">0.0</span>,
@@ -965,11 +965,11 @@
 <a href=#965 id=965 data-nosnippet>965</a>    <span class="doccomment">/// Calculate material balance
 <a href=#966 id=966 data-nosnippet>966</a>    </span><span class="kw">fn </span>material_balance(<span class="kw-2">&amp;</span><span class="self">self</span>, board: <span class="kw-2">&amp;</span>Board) -&gt; f32 {
 <a href=#967 id=967 data-nosnippet>967</a>        <span class="kw">let </span>piece_values = [
-<a href=#968 id=968 data-nosnippet>968</a>            (chess::Piece::Pawn, <span class="number">100.0</span>),
-<a href=#969 id=969 data-nosnippet>969</a>            (chess::Piece::Knight, <span class="number">320.0</span>),
-<a href=#970 id=970 data-nosnippet>970</a>            (chess::Piece::Bishop, <span class="number">330.0</span>),
-<a href=#971 id=971 data-nosnippet>971</a>            (chess::Piece::Rook, <span class="number">500.0</span>),
-<a href=#972 id=972 data-nosnippet>972</a>            (chess::Piece::Queen, <span class="number">900.0</span>),
+<a href=#968 id=968 data-nosnippet>968</a>            (chess::Piece::Pawn, <span class="number">1.0</span>),
+<a href=#969 id=969 data-nosnippet>969</a>            (chess::Piece::Knight, <span class="number">3.2</span>),
+<a href=#970 id=970 data-nosnippet>970</a>            (chess::Piece::Bishop, <span class="number">3.3</span>),
+<a href=#971 id=971 data-nosnippet>971</a>            (chess::Piece::Rook, <span class="number">5.0</span>),
+<a href=#972 id=972 data-nosnippet>972</a>            (chess::Piece::Queen, <span class="number">9.0</span>),
 <a href=#973 id=973 data-nosnippet>973</a>        ];
 <a href=#974 id=974 data-nosnippet>974</a>
 <a href=#975 id=975 data-nosnippet>975</a>        <span class="kw">let </span><span class="kw-2">mut </span>balance = <span class="number">0.0</span>;
@@ -990,13 +990,13 @@
 <a href=#990 id=990 data-nosnippet>990</a>
 <a href=#991 id=991 data-nosnippet>991</a>        <span class="comment">// Simple tactical evaluation based on piece mobility and center control
 <a href=#992 id=992 data-nosnippet>992</a>        </span><span class="kw">let </span>legal_moves: Vec&lt;<span class="kw">_</span>&gt; = MoveGen::new_legal(board).collect();
-<a href=#993 id=993 data-nosnippet>993</a>        <span class="kw">let </span>mobility_bonus = legal_moves.len() <span class="kw">as </span>f32 * <span class="number">0.5</span>;
+<a href=#993 id=993 data-nosnippet>993</a>        <span class="kw">let </span>mobility_bonus = legal_moves.len() <span class="kw">as </span>f32 * <span class="number">0.005</span>; <span class="comment">// Small mobility bonus
 <a href=#994 id=994 data-nosnippet>994</a>
-<a href=#995 id=995 data-nosnippet>995</a>        <span class="comment">// Add bonus for captures available
+<a href=#995 id=995 data-nosnippet>995</a>        // Add bonus for captures available
 <a href=#996 id=996 data-nosnippet>996</a>        </span><span class="kw">let </span>captures = <span class="self">self</span>.generate_captures(board);
-<a href=#997 id=997 data-nosnippet>997</a>        <span class="kw">let </span>capture_bonus = captures.len() <span class="kw">as </span>f32 * <span class="number">10.0</span>;
+<a href=#997 id=997 data-nosnippet>997</a>        <span class="kw">let </span>capture_bonus = captures.len() <span class="kw">as </span>f32 * <span class="number">0.1</span>; <span class="comment">// Small capture bonus
 <a href=#998 id=998 data-nosnippet>998</a>
-<a href=#999 id=999 data-nosnippet>999</a>        <span class="comment">// Perspective-based scoring
+<a href=#999 id=999 data-nosnippet>999</a>        // Perspective-based scoring
 <a href=#1000 id=1000 data-nosnippet>1000</a>        </span><span class="kw">if </span>board.side_to_move() == Color::White {
 <a href=#1001 id=1001 data-nosnippet>1001</a>            bonus += mobility_bonus + capture_bonus;
 <a href=#1002 id=1002 data-nosnippet>1002</a>        } <span class="kw">else </span>{
