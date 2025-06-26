@@ -243,7 +243,7 @@ impl PositionEncoder {
                 let new_file = center_file + file_offset;
                 let new_rank = center_rank + rank_offset;
 
-                if new_file >= 0 && new_file < 8 && new_rank >= 0 && new_rank < 8 {
+                if (0..8).contains(&new_file) && (0..8).contains(&new_rank) {
                     let square = Square::make_square(
                         chess::Rank::from_index(new_rank as usize),
                         chess::File::from_index(new_file as usize),
@@ -359,12 +359,8 @@ impl PositionEncoder {
             let rooks_queens = (board.pieces(Piece::Rook) | board.pieces(Piece::Queen))
                 & board.color_combined(color);
             for square in chess::ALL_SQUARES {
-                if (rooks_queens & chess::BitBoard::from_square(square)).popcnt() > 0 {
-                    if square.get_rank() == enemy_king_square.get_rank()
-                        || square.get_file() == enemy_king_square.get_file()
-                    {
-                        potential_pins += 1;
-                    }
+                if (rooks_queens & chess::BitBoard::from_square(square)).popcnt() > 0 && (square.get_rank() == enemy_king_square.get_rank() || square.get_file() == enemy_king_square.get_file()) {
+                    potential_pins += 1;
                 }
             }
 

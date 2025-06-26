@@ -69,6 +69,7 @@ struct LicenseCache {
 /// Main license verifier
 pub struct LicenseVerifier {
     cache: LicenseCache,
+    #[allow(dead_code)]
     verification_url: String,
     offline_mode: bool,
     cache_ttl: Duration, // How long to trust cached licenses
@@ -84,7 +85,7 @@ impl LicenseVerifier {
             },
             verification_url,
             offline_mode: false,
-            cache_ttl: Duration::from_hours(24), // Cache for 24 hours
+            cache_ttl: Duration::from_secs(24 * 60 * 60), // Cache for 24 hours
         }
     }
 
@@ -97,7 +98,7 @@ impl LicenseVerifier {
             },
             verification_url: String::new(),
             offline_mode: true,
-            cache_ttl: Duration::from_days(30), // Longer cache for offline mode
+            cache_ttl: Duration::from_secs(30 * 24 * 60 * 60), // Longer cache for offline mode
         };
 
         // Pre-populate with demo licenses for testing
@@ -408,16 +409,14 @@ impl LicensedFeatureChecker {
             let registry = crate::features::FeatureRegistry::new();
             if registry.is_feature_available(feature, &self.current_tier) {
                 Ok(())
+            } else if let Some(required_tier) = registry.get_feature_tier(feature) {
+                Err(FeatureError::InsufficientTier {
+                    feature: feature.to_string(),
+                    required: required_tier.clone(),
+                    current: self.current_tier.clone(),
+                })
             } else {
-                if let Some(required_tier) = registry.get_feature_tier(feature) {
-                    Err(FeatureError::InsufficientTier {
-                        feature: feature.to_string(),
-                        required: required_tier.clone(),
-                        current: self.current_tier.clone(),
-                    })
-                } else {
-                    Err(FeatureError::UnknownFeature(feature.to_string()))
-                }
+                Err(FeatureError::UnknownFeature(feature.to_string()))
             }
         }
     }
@@ -453,6 +452,7 @@ pub fn current_timestamp() -> u64 {
 }
 
 /// Duration extensions for convenience
+#[allow(dead_code)]
 trait DurationExt {
     fn from_hours(hours: u64) -> Duration;
     fn from_days(days: u64) -> Duration;

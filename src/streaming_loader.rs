@@ -326,6 +326,6 @@ mod tests {
 
         let estimated = loader.estimate_line_count(temp_file.path()).unwrap();
         // Should be approximately 100 (within reasonable range)
-        assert!(estimated >= 80 && estimated <= 120);
+        assert!((80..=120).contains(&estimated));
     }
 }

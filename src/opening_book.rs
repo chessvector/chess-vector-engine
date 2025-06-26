@@ -18,6 +18,12 @@ pub struct OpeningBook {
     entries: HashMap<String, OpeningEntry>,
 }
 
+impl Default for OpeningBook {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl OpeningBook {
     /// Create a new opening book
     pub fn new() -> Self {
@@ -1026,7 +1032,7 @@ mod tests {
     #[test]
     fn test_standard_openings() {
         let book = OpeningBook::with_standard_openings();
-        assert!(book.entries.len() > 0);
+        assert!(!book.entries.is_empty());
 
         // Test starting position lookup
         let board = Board::default();

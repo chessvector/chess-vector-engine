@@ -1,3 +1,4 @@
+#![allow(clippy::type_complexity)]
 use crate::gpu_acceleration::GPUAccelerator;
 use ndarray::{Array1, Array2};
 use rayon::prelude::*;
@@ -43,14 +44,14 @@ impl Eq for SearchResult {}
 
 impl PartialOrd for SearchResult {
     fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
-        // Reverse ordering for max-heap behavior in BinaryHeap
-        other.similarity.partial_cmp(&self.similarity)
+        Some(self.cmp(other))
     }
 }
 
 impl Ord for SearchResult {
     fn cmp(&self, other: &Self) -> Ordering {
-        self.partial_cmp(other).unwrap_or(Ordering::Equal)
+        // Reverse ordering for max-heap behavior in BinaryHeap
+        other.similarity.partial_cmp(&self.similarity).unwrap_or(Ordering::Equal)
     }
 }
 

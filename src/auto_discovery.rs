@@ -73,7 +73,7 @@ impl AutoDiscovery {
         for file in files {
             groups
                 .entry(file.base_name.clone())
-                .or_insert_with(Vec::new)
+                .or_default()
                 .push(file);
         }
 
@@ -207,14 +207,14 @@ impl AutoDiscovery {
             .unwrap_or("unknown");
 
         // Remove known extensions to get base name
-        let base = file_name
+        
+
+        file_name
             .replace(".mmap", "")
             .replace(".msgpack", "")
             .replace(".bin", "")
             .replace(".zst", "")
-            .replace(".json", "");
-
-        base
+            .replace(".json", "")
     }
 
     /// Detect file format and priority
@@ -245,13 +245,10 @@ impl AutoDiscovery {
         }
 
         // Check by content for files that might not have proper extensions
-        if file_name.contains("training")
+        if (file_name.contains("training")
             || file_name.contains("position")
-            || file_name.contains("tactical")
-        {
-            if Self::verify_json_training_data(path)? {
-                return Ok(Some(("JSON".to_string(), FormatPriority::Json)));
-            }
+            || file_name.contains("tactical")) && Self::verify_json_training_data(path)? {
+            return Ok(Some(("JSON".to_string(), FormatPriority::Json)));
         }
 
         Ok(None)
@@ -314,7 +311,7 @@ impl AutoDiscovery {
         // Skip very small files and very large files for safety
         if let Ok(metadata) = std::fs::metadata(path) {
             let size = metadata.len();
-            if size < 100 || size > 100_000_000 {
+            if !(100..=100_000_000).contains(&size) {
                 // Skip files < 100B or > 100MB
                 return Ok(false);
             }

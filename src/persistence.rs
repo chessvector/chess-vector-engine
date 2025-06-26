@@ -1,3 +1,4 @@
+#![allow(clippy::type_complexity)]
 use rusqlite::{params, Connection, Result as SqlResult};
 use serde::{Deserialize, Serialize};
 use std::path::Path;
@@ -129,7 +130,7 @@ impl Database {
         let compressed_vector_bytes = position_data
             .compressed_vector
             .as_ref()
-            .map(|v| bincode::serialize(v))
+            .map(bincode::serialize)
             .transpose()
             .map_err(|e| rusqlite::Error::ToSqlConversionFailure(Box::new(e)))?;
 
@@ -316,7 +317,7 @@ impl Database {
             "SELECT position_id FROM lsh_buckets WHERE table_id = ?1 AND bucket_hash = ?2",
         )?;
 
-        let rows = stmt.query_map(params![table_id, bucket_hash], |row| Ok(row.get(0)?))?;
+        let rows = stmt.query_map(params![table_id, bucket_hash], |row| row.get(0))?;
 
         rows.collect()
     }
@@ -459,7 +460,7 @@ impl Database {
                 let compressed_vector_bytes = position_data
                     .compressed_vector
                     .as_ref()
-                    .map(|v| bincode::serialize(v))
+                    .map(bincode::serialize)
                     .transpose()
                     .map_err(|e| rusqlite::Error::ToSqlConversionFailure(Box::new(e)))?;
 

@@ -51,13 +51,18 @@ pub enum UCIOption {
 #[derive(Debug, Clone)]
 pub struct SearchInfo {
     depth: u32,
+    #[allow(dead_code)]
     seldepth: Option<u32>,
     time: u64, // milliseconds
     nodes: u64,
     nps: u64, // nodes per second
+    #[allow(dead_code)]
     score: SearchScore,
+    #[allow(dead_code)]
     pv: Vec<ChessMove>, // principal variation
+    #[allow(dead_code)]
     currmove: Option<ChessMove>,
+    #[allow(dead_code)]
     currmovenumber: Option<u32>,
 }
 
@@ -187,7 +192,7 @@ impl UCIEngine {
         for line in stdin.lock().lines() {
             match line {
                 Ok(command) => {
-                    let response = self.process_command(&command.trim());
+                    let response = self.process_command(command.trim());
                     if !response.is_empty() {
                         let _ = writeln!(stdout, "{}", response);
                         let _ = stdout.flush();
@@ -375,8 +380,10 @@ impl UCIEngine {
         }) = self.options.get("Pattern_Weight")
         {
             let weight = (*pattern_weight as f32) / 100.0;
-            let mut config = HybridConfig::default();
-            config.pattern_weight = weight;
+            let config = HybridConfig {
+                pattern_weight: weight,
+                ..HybridConfig::default()
+            };
             self.engine.configure_hybrid_evaluation(config);
         }
 
@@ -392,8 +399,10 @@ impl UCIEngine {
             value: threshold, ..
         }) = self.options.get("Pattern_Confidence_Threshold")
         {
-            let mut config = HybridConfig::default();
-            config.pattern_confidence_threshold = (*threshold as f32) / 100.0;
+            let config = HybridConfig {
+                pattern_confidence_threshold: (*threshold as f32) / 100.0,
+                ..HybridConfig::default()
+            };
             self.engine.configure_hybrid_evaluation(config);
         }
 

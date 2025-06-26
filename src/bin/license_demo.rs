@@ -1,6 +1,5 @@
-use chess_vector_engine::license::{current_timestamp, LicenseError, LicenseKey, LicenseVerifier};
+use chess_vector_engine::license::{current_timestamp, LicenseKey, LicenseVerifier};
 use chess_vector_engine::{ChessVectorEngine, FeatureTier};
-use tokio;
 
 /// Comprehensive license system demonstration
 #[tokio::main]
@@ -241,6 +240,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 mod license_utils {
     use std::time::{SystemTime, UNIX_EPOCH};
 
+    #[allow(dead_code)]
     pub fn current_timestamp() -> u64 {
         SystemTime::now()
             .duration_since(UNIX_EPOCH)

@@ -134,7 +134,9 @@ struct StockfishPlayer {
     child: Child,
     stdin: BufWriter<std::process::ChildStdin>,
     stdout: BufReader<std::process::ChildStdout>,
+    #[allow(dead_code)]
     name: String,
+    #[allow(dead_code)]
     depth: u8,
     time_per_move: u32, // milliseconds
 }
@@ -292,11 +294,15 @@ impl Drop for StockfishPlayer {
 #[derive(Debug, Clone)]
 struct MoveAnalysis {
     chess_move: ChessMove,
+    #[allow(dead_code)]
     evaluation_before: f32,
     evaluation_after: f32,
     centipawn_loss: f32,
+    #[allow(dead_code)]
     engine_name: String,
+    #[allow(dead_code)]
     time_taken: u64, // milliseconds
+    #[allow(dead_code)]
     depth_searched: u8,
 }
 
@@ -318,7 +324,7 @@ impl GameState {
     }
 
     fn current_board(&self) -> Board {
-        self.game.current_position().clone()
+        self.game.current_position()
     }
 
     fn make_move(&mut self, analysis: MoveAnalysis) -> Result<(), &'static str> {
@@ -339,12 +345,12 @@ impl GameState {
 
         // PGN headers
         pgn.push_str("[Event \"Chess Vector vs Stockfish (Safe Mode)\"]\n");
-        pgn.push_str(&format!("[Site \"CLI Match\"]\n"));
+        pgn.push_str("[Site \"CLI Match\"]\n");
         pgn.push_str(&format!(
             "[Date \"{}\"]\n",
             self.start_time.format("%Y.%m.%d")
         ));
-        pgn.push_str(&format!("[Round \"1\"]\n"));
+        pgn.push_str("[Round \"1\"]\n");
 
         match self.chess_vector_color {
             Color::White => {
@@ -390,7 +396,7 @@ impl GameState {
             if analysis.centipawn_loss > 50.0 {
                 pgn.push_str("??"); // Blunder
             } else if analysis.centipawn_loss > 20.0 {
-                pgn.push_str("?"); // Questionable move
+                pgn.push('?'); // Questionable move
             }
 
             // Add evaluation comment

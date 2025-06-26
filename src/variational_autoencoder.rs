@@ -42,7 +42,7 @@ impl VariationalEncoder {
             let layer = linear(
                 prev_dim,
                 hidden_dim,
-                vs.pp(&format!("encoder.shared.{}", i)),
+                vs.pp(format!("encoder.shared.{}", i)),
             )?;
             shared_layers.push(layer);
             prev_dim = hidden_dim;
@@ -99,7 +99,7 @@ impl VariationalDecoder {
             let layer = linear(
                 prev_dim,
                 hidden_dim,
-                vs.pp(&format!("decoder.hidden.{}", i)),
+                vs.pp(format!("decoder.hidden.{}", i)),
             )?;
             layers.push(layer);
             prev_dim = hidden_dim;
@@ -221,7 +221,7 @@ impl VariationalAutoencoder {
         let kl_div = {
             let var = logvar.exp()?;
             let mean_sq = mean.powf(2.0)?;
-            let one_tensor = Tensor::ones_like(&logvar)?;
+            let one_tensor = Tensor::ones_like(logvar)?;
             let logvar_plus_one = (logvar + &one_tensor)?;
             let minus_mean_sq = (&logvar_plus_one - &mean_sq)?;
             let kl_per_dim = (&minus_mean_sq - &var)?;

@@ -13,6 +13,7 @@ pub struct UltraFastLoader {
     pub duplicate_count: usize,
     pub error_count: usize,
     batch_size: usize,
+    #[allow(dead_code)]
     use_bloom_filter: bool,
 }
 
@@ -118,19 +119,19 @@ impl UltraFastLoader {
         // Try different decompression methods
 
         // 1. Try LZ4 decompression of entire file
-        if let Ok(decompressed) = lz4_flex::decompress_size_prepended(&mmap) {
+        if let Ok(decompressed) = lz4_flex::decompress_size_prepended(mmap) {
             println!("🗜️  Full file LZ4 decompressed");
             return self.parse_decompressed_data(&decompressed, engine);
         }
 
         // 2. Try direct deserialization
-        if let Ok(positions) = bincode::deserialize::<Vec<(String, f32)>>(&mmap) {
+        if let Ok(positions) = bincode::deserialize::<Vec<(String, f32)>>(mmap) {
             println!("📦 Direct memory-mapped deserialization");
             return self.parallel_batch_load(positions, engine);
         }
 
         // 3. Try as raw text (fallback)
-        if let Ok(text) = std::str::from_utf8(&mmap) {
+        if let Ok(text) = std::str::from_utf8(mmap) {
             println!("📝 Treating as text format");
             return self.parse_text_data(text, engine);
         }

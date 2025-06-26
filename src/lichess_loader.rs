@@ -1,3 +1,4 @@
+#![allow(clippy::type_complexity)]
 use crate::TrainingData;
 use chess::{Board, ChessMove, Color};
 use rayon::prelude::*;
@@ -13,22 +14,31 @@ use std::time::Instant;
 #[derive(Debug, Deserialize)]
 struct LichessPuzzle {
     #[serde(rename = "PuzzleId")]
+    #[allow(dead_code)]
     puzzle_id: String,
     #[serde(rename = "FEN")]
+    #[allow(dead_code)]
     fen: String,
     #[serde(rename = "Moves")]
+    #[allow(dead_code)]
     moves: String,
     #[serde(rename = "Rating")]
+    #[allow(dead_code)]
     rating: u32,
     #[serde(rename = "RatingDeviation")]
+    #[allow(dead_code)]
     rating_deviation: u32,
     #[serde(rename = "Popularity")]
+    #[allow(dead_code)]
     popularity: i32,
     #[serde(rename = "NbPlays")]
+    #[allow(dead_code)]
     nb_plays: u32,
     #[serde(rename = "Themes")]
+    #[allow(dead_code)]
     themes: String,
     #[serde(rename = "GameUrl")]
+    #[allow(dead_code)]
     game_url: String,
 }
 
@@ -390,7 +400,7 @@ impl LichessLoader {
                 let evaluation = self.calculate_puzzle_evaluation(rating, themes, &board);
 
                 Ok(Some(TrainingData {
-                    board: board.clone(),
+                    board,
                     evaluation,
                     depth: 1,                 // Puzzle depth
                     game_id: rating as usize, // Use puzzle rating as game_id for uniqueness

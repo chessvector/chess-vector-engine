@@ -477,8 +477,7 @@ impl TacticalSearch {
 
         // Razoring - if static eval is way below alpha, do shallow search first
         if self.config.enable_razoring
-            && depth >= 1
-            && depth <= 3
+            && (1..=3).contains(&depth)
             && !maximizing // Only apply to non-PV nodes
             && static_eval + self.config.razor_margin < alpha
         {
@@ -502,8 +501,7 @@ impl TacticalSearch {
 
         // Extended futility pruning for depths 2-4
         if self.config.enable_extended_futility_pruning
-            && depth >= 2
-            && depth <= 4
+            && (2..=4).contains(&depth)
             && !maximizing
             && board.checkers().popcnt() == 0 // Not in check
             && static_eval + self.config.extended_futility_margin * (depth as f32) < alpha
@@ -519,12 +517,8 @@ impl TacticalSearch {
             && board.checkers().popcnt() == 0 // Not in check
             && self.has_non_pawn_material(board, board.side_to_move())
         {
-            let null_move_reduction = (depth / 4).max(2).min(4);
-            let new_depth = if depth > null_move_reduction {
-                depth - null_move_reduction
-            } else {
-                0
-            };
+            let null_move_reduction = (depth / 4).clamp(2, 4);
+            let new_depth = depth.saturating_sub(null_move_reduction);
 
             // Make null move (switch sides without moving)
             let null_board = board.null_move().unwrap_or(*board);
@@ -646,8 +640,7 @@ impl TacticalSearch {
                 );
 
                 // If null window search fails, re-search with full window
-                if (maximizing && null_eval > alpha && null_eval < beta)
-                    || (!maximizing && null_eval < beta && null_eval > alpha)
+                if null_eval > alpha && null_eval < beta
                 {
                     // Re-search with full window and full depth if reduced
                     let full_depth = if reduction > 0 {
@@ -814,10 +807,8 @@ impl TacticalSearch {
                 return beta;
             }
             alpha = alpha.max(stand_pat);
-        } else {
-            if stand_pat <= alpha {
-                return alpha;
-            }
+        } else if stand_pat <= alpha {
+            return alpha;
         }
 
         // Only search captures and checks in quiescence
@@ -833,10 +824,8 @@ impl TacticalSearch {
                 if alpha >= beta {
                     break;
                 }
-            } else {
-                if evaluation <= alpha {
-                    return alpha;
-                }
+            } else if evaluation <= alpha {
+                return alpha;
             }
         }
 
@@ -1127,11 +1116,9 @@ impl TacticalSearch {
     fn is_killer_move(&self, chess_move: &ChessMove) -> bool {
         // Simple killer move detection - can be enhanced with depth tracking
         for depth_killers in &self.killer_moves {
-            for killer in depth_killers {
-                if let Some(killer_move) = killer {
-                    if killer_move == chess_move {
-                        return true;
-                    }
+            for killer_move in depth_killers.iter().flatten() {
+                if killer_move == chess_move {
+                    return true;
                 }
             }
         }
@@ -1139,6 +1126,7 @@ impl TacticalSearch {
     }
 
     /// Store a killer move at the given depth
+    #[allow(dead_code)]
     fn store_killer_move(&mut self, chess_move: ChessMove, depth: u32) {
         let depth_idx = (depth as usize).min(self.killer_moves.len() - 1);
 
@@ -1154,6 +1142,7 @@ impl TacticalSearch {
     }
 
     /// Update history heuristic for move ordering
+    #[allow(dead_code)]
     fn update_history(&mut self, chess_move: &ChessMove, depth: u32) {
         let key = (chess_move.get_source(), chess_move.get_dest());
         let bonus = depth * depth; // Quadratic bonus for deeper successful moves

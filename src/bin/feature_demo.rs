@@ -55,7 +55,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     // Test 2: Premium Engine
     println!("\n2️⃣ Premium Engine (Paid Tier)");
-    let mut premium_engine = ChessVectorEngine::new_with_tier(1024, FeatureTier::Premium);
+    let premium_engine = ChessVectorEngine::new_with_tier(1024, FeatureTier::Premium);
     println!("   Current tier: {:?}", premium_engine.get_feature_tier());
 
     // These should work (open source + premium features)

@@ -564,7 +564,7 @@ impl ChessVectorEngine {
         // Batch process to avoid repeated lookups
         for (i, data) in dataset.data.into_iter().enumerate() {
             if !existing_boards.contains(&data.board) {
-                existing_boards.insert(data.board.clone());
+                existing_boards.insert(data.board);
                 new_positions.push(data.board);
                 new_evaluations.push(data.evaluation);
             }
@@ -599,7 +599,7 @@ impl ChessVectorEngine {
 
             if i % 500 == 0 || i == add_pb.length().unwrap() as usize - 1 {
                 add_pb.set_position((i + 1) as u64);
-                add_pb.set_message(format!("vectors encoded"));
+                add_pb.set_message("vectors encoded".to_string());
             }
         }
         add_pb.finish_with_message("✅ All positions added");
@@ -691,7 +691,9 @@ impl ChessVectorEngine {
         struct BinaryTrainingData {
             positions: Vec<String>,
             evaluations: Vec<f32>,
+            #[allow(dead_code)]
             vectors: Vec<Vec<f32>>,
+            #[allow(dead_code)]
             created_at: i64,
         }
 
@@ -1078,13 +1080,13 @@ impl ChessVectorEngine {
                 }),
                 "tactical" => {
                     crate::training::TacticalPuzzleParser::load_tactical_puzzles(file_path)
-                        .and_then(|puzzles| {
+                        .map(|puzzles| {
                             crate::training::TacticalPuzzleParser::load_into_engine_incremental(
                                 &puzzles, self,
                             );
                             loaded_files.push(file_path.to_string());
                             println!("🎯 Auto-loaded tactical puzzles from {}", file_path);
-                            Ok(())
+                            
                         })
                 }
                 _ => Ok(()),
@@ -1178,7 +1180,7 @@ impl ChessVectorEngine {
         }
 
         // Try to load binary formats first for maximum speed
-        let binary_files = vec![
+        let binary_files = [
             "training_data_a100.bin", // A100 training data (priority)
             "training_data.bin",
             "tactical_training_data.bin",
@@ -1212,7 +1214,7 @@ impl ChessVectorEngine {
                 pb.set_position(i as u64);
                 pb.set_message(format!("Loading {}", file_path));
 
-                if let Ok(_) = engine.load_training_data_binary(file_path) {
+                if engine.load_training_data_binary(file_path).is_ok() {
                     loaded_count += 1;
                 }
             }
@@ -1960,12 +1962,10 @@ impl ChessVectorEngine {
     pub fn convert_json_to_binary() -> Result<Vec<String>, Box<dyn std::error::Error>> {
         use indicatif::{ProgressBar, ProgressStyle};
 
-        let json_files = vec![
-            "training_data.json",
+        let json_files = ["training_data.json",
             "tactical_training_data.json",
             "engine_training.json",
-            "chess_training.json",
-        ];
+            "chess_training.json"];
 
         // Check which JSON files exist
         let existing_json_files: Vec<_> = json_files
@@ -2003,8 +2003,8 @@ impl ChessVectorEngine {
 
             // Load from JSON and save as binary
             let mut temp_engine = Self::new(1024);
-            if let Ok(_) = temp_engine.load_training_data_incremental(json_file) {
-                if let Ok(_) = temp_engine.save_training_data_binary(&binary_file) {
+            if temp_engine.load_training_data_incremental(json_file).is_ok() {
+                if temp_engine.save_training_data_binary(&binary_file).is_ok() {
                     converted_files.push(format!("{} -> {}", json_file, binary_file.display()));
                     println!("✅ Converted {} to binary format", json_file);
                 } else {
@@ -2239,7 +2239,7 @@ impl ChessVectorEngine {
         if let (Some(mov), Some(outcome)) = (chess_move, move_outcome) {
             self.position_moves
                 .entry(position_index)
-                .or_insert_with(Vec::new)
+                .or_default()
                 .push((mov, outcome));
         }
     }
@@ -2311,7 +2311,7 @@ impl ChessVectorEngine {
                     if legal_moves.contains(&chess_move) {
                         move_data
                             .entry(chess_move)
-                            .or_insert_with(Vec::new)
+                            .or_default()
                             .push((similarity, outcome));
                     }
                 }
@@ -2354,9 +2354,7 @@ impl ChessVectorEngine {
 
                 // Add ordered moves with tactical confidence
                 for chess_move in ordered_moves.into_iter().take(num_recommendations) {
-                    if !move_data.contains_key(&chess_move) {
-                        move_data.insert(chess_move, vec![(0.6, 0.0)]);
-                    }
+                    move_data.entry(chess_move).or_insert_with(|| vec![(0.6, 0.0)]);
                 }
             } else {
                 // Basic fallback when no tactical search available - still use move ordering
@@ -2787,11 +2785,9 @@ impl ChessVectorEngine {
             }
 
             // Rebuild manifold learning every 10 iterations for large datasets
-            if iteration % 10 == 0 && self.knowledge_base_size() > 5000 {
-                if self.manifold_learner.is_some() {
-                    println!("🧠 Retraining manifold learning with new data...");
-                    let _ = self.train_manifold_learning(5);
-                }
+            if iteration % 10 == 0 && self.knowledge_base_size() > 5000 && self.manifold_learner.is_some() {
+                println!("🧠 Retraining manifold learning with new data...");
+                let _ = self.train_manifold_learning(5);
             }
         }
 

@@ -33,7 +33,6 @@ use chess_vector_engine::run_uci_engine;
 /// - Pattern_Confidence_Threshold: Minimum confidence for pattern-only evaluation (0-100, default 75)
 /// - Enable_LSH: Use LSH acceleration for similarity search (true/false, default true)
 /// - Enable_GPU: Use GPU acceleration when available (true/false, default true)
-
 fn main() {
     run_uci_engine();
 }

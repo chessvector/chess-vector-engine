@@ -7,7 +7,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     // Method 1: Direct tier setting (for development/testing)
     println!("\n🔧 Method 1: Direct Premium Tier Access (Development Mode)");
-    let mut engine_dev = ChessVectorEngine::new_with_tier(1024, FeatureTier::Premium);
+    let engine_dev = ChessVectorEngine::new_with_tier(1024, FeatureTier::Premium);
 
     println!("✅ Engine created with Premium tier directly");
     println!("📊 Available features:");
@@ -31,10 +31,10 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     // Method 2: Using creator license key (for production)
     println!("\n🔑 Method 2: Creator License Key (Production Mode)");
-    let mut engine_licensed = ChessVectorEngine::new_with_offline_license(1024);
+    let engine_licensed = ChessVectorEngine::new_with_offline_license(1024);
 
     // Creator license key (this would be your actual license in production)
-    let creator_key = "CREATOR-PREMIUM-UNLIMITED-ACCESS-KEY";
+    let _creator_key = "CREATOR-PREMIUM-UNLIMITED-ACCESS-KEY";
 
     // Note: In production, use proper license activation:
     // engine_licensed.activate_license(creator_key).await?;
@@ -67,7 +67,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     println!("\n📚 Lichess Puzzle Loading Comparison:");
 
     // Basic tier loading (limited)
-    let basic_engine = ChessVectorEngine::new(1024);
+    let _basic_engine = ChessVectorEngine::new(1024);
     println!("❌ Basic Tier: Limited to 50,000 puzzles max");
     println!("   📊 Rating range: 1000-2000");
     println!("   ⚡ Batch size: 10,000");
@@ -112,7 +112,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     // Demo actual premium loading (if file exists)
     let lichess_path = "~/Downloads/lichess_db_puzzle.csv";
     let expanded_path = if lichess_path.starts_with("~/") {
-        if let Some(home) = std::env::var("HOME").ok() {
+        if let Ok(home) = std::env::var("HOME") {
             lichess_path.replace("~", &home)
         } else {
             lichess_path.to_string()

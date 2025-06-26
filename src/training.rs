@@ -194,7 +194,7 @@ impl<'de> serde::Deserialize<'de> for TacticalTrainingData {
             }
         }
 
-        const FIELDS: &'static [&'static str] = &[
+        const FIELDS: &[&str] = &[
             "fen",
             "solution_move",
             "move_theme",
@@ -258,7 +258,7 @@ impl Visitor for GameExtractor {
 
                         // Store position (we'll evaluate it later with Stockfish)
                         self.positions.push(TrainingData {
-                            board: self.current_game.current_position().clone(),
+                            board: self.current_game.current_position(),
                             evaluation: 0.0, // Will be filled by Stockfish
                             depth: 0,
                             game_id: self.game_id,
@@ -630,6 +630,12 @@ pub struct TrainingDataset {
     pub data: Vec<TrainingData>,
 }
 
+impl Default for TrainingDataset {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl TrainingDataset {
     pub fn new() -> Self {
         Self { data: Vec::new() }
@@ -740,7 +746,7 @@ impl TrainingDataset {
         for data in &self.data {
             games
                 .entry(data.game_id)
-                .or_insert_with(Vec::new)
+                .or_default()
                 .push(data);
         }
 
@@ -829,7 +835,7 @@ impl TrainingDataset {
 
         if path.exists() {
             // Try fast append-only save first
-            if let Ok(_) = self.save_append_only(path) {
+            if self.save_append_only(path).is_ok() {
                 return Ok(());
             }
 
@@ -1259,7 +1265,7 @@ impl SelfPlayTrainer {
         }
 
         // Play the game
-        while !game.result().is_some() && move_count < self.config.max_moves_per_game {
+        while game.result().is_none() && move_count < self.config.max_moves_per_game {
             let current_position = game.current_position();
 
             // Get engine's move recommendation with exploration
@@ -1389,7 +1395,7 @@ impl SelfPlayTrainer {
 
     /// Get random opening moves for variety
     fn get_random_opening(&self) -> Option<Vec<ChessMove>> {
-        let openings = vec![
+        let openings = [
             // Italian Game
             vec!["e4", "e5", "Nf3", "Nc6", "Bc4"],
             // Ruy Lopez
@@ -1569,7 +1575,7 @@ impl<'de> serde::Deserialize<'de> for TrainingData {
             }
         }
 
-        const FIELDS: &'static [&'static str] = &["fen", "evaluation", "depth", "game_id"];
+        const FIELDS: &[&str] = &["fen", "evaluation", "depth", "game_id"];
         deserializer.deserialize_struct("TrainingData", FIELDS, TrainingDataVisitor)
     }
 }

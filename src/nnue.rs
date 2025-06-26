@@ -1,3 +1,4 @@
+#![allow(clippy::type_complexity)]
 use candle_core::{Device, Module, Result as CandleResult, Tensor};
 use candle_nn::{linear, AdamW, Linear, Optimizer, ParamsAdamW, VarBuilder, VarMap};
 use chess::{Board, Color, Piece, Square};
@@ -14,6 +15,7 @@ pub struct NNUE {
     hidden_layers: Vec<Linear>,
     output_layer: Linear,
     device: Device,
+    #[allow(dead_code)]
     var_map: VarMap,
     optimizer: Option<AdamW>,
 
@@ -112,7 +114,7 @@ impl NNUE {
             let layer = linear(
                 prev_size,
                 config.hidden_size,
-                vs.pp(&format!("hidden_{}", i)),
+                vs.pp(format!("hidden_{}", i)),
             )?;
             hidden_layers.push(layer);
             prev_size = config.hidden_size;
