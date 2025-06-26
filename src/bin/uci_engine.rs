@@ -1,7 +1,7 @@
 use chess_vector_engine::run_uci_engine;
 
 /// UCI chess engine binary
-/// 
+///
 /// This binary provides a UCI (Universal Chess Interface) compliant chess engine
 /// that can be used with any UCI-compatible chess GUI such as:
 /// - Arena
@@ -10,12 +10,12 @@ use chess_vector_engine::run_uci_engine;
 /// - Scid vs. PC
 /// - BanksiaGUI
 /// - And many others
-/// 
+///
 /// Usage:
 /// 1. Compile: `cargo build --release --bin uci_engine`
 /// 2. Add the resulting binary to your chess GUI as a new engine
 /// 3. The engine will communicate using standard UCI protocol
-/// 
+///
 /// Features:
 /// - Hybrid evaluation combining pattern recognition and tactical search
 /// - GPU acceleration when available (CUDA/Metal) with CPU fallback
@@ -23,7 +23,7 @@ use chess_vector_engine::run_uci_engine;
 /// - Configurable search depth and time management
 /// - Advanced pattern-based move recommendations
 /// - LSH-accelerated similarity search
-/// 
+///
 /// UCI Options:
 /// - Hash: Hash table size in MB (1-2048, default 128)
 /// - Threads: Number of search threads (1-64, default 1)

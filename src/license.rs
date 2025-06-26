@@ -1,10 +1,9 @@
+use crate::features::{FeatureError, FeatureTier};
+use serde::{Deserialize, Serialize};
 /// License verification system for open-core business model
 /// Validates subscription tiers and enables feature access
-
 use std::collections::HashMap;
-use std::time::{SystemTime, UNIX_EPOCH, Duration};
-use serde::{Serialize, Deserialize};
-use crate::features::{FeatureTier, FeatureError};
+use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
 /// License key information
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -100,12 +99,12 @@ impl LicenseVerifier {
             offline_mode: true,
             cache_ttl: Duration::from_days(30), // Longer cache for offline mode
         };
-        
+
         // Pre-populate with demo licenses for testing
         verifier.add_demo_licenses();
         verifier
     }
-    
+
     /// Add demo licenses for testing purposes
     fn add_demo_licenses(&mut self) {
         let demo_licenses = vec![
@@ -151,14 +150,17 @@ impl LicenseVerifier {
                 ],
             },
         ];
-        
+
         for license in demo_licenses {
             self.cache.licenses.insert(license.key.clone(), license);
         }
     }
 
     /// Load license cache from file
-    pub fn load_cache<P: AsRef<std::path::Path>>(&mut self, path: P) -> Result<(), Box<dyn std::error::Error>> {
+    pub fn load_cache<P: AsRef<std::path::Path>>(
+        &mut self,
+        path: P,
+    ) -> Result<(), Box<dyn std::error::Error>> {
         if path.as_ref().exists() {
             let content = std::fs::read_to_string(path)?;
             self.cache = serde_json::from_str(&content)?;
@@ -167,7 +169,10 @@ impl LicenseVerifier {
     }
 
     /// Save license cache to file
-    pub fn save_cache<P: AsRef<std::path::Path>>(&self, path: P) -> Result<(), Box<dyn std::error::Error>> {
+    pub fn save_cache<P: AsRef<std::path::Path>>(
+        &self,
+        path: P,
+    ) -> Result<(), Box<dyn std::error::Error>> {
         let content = serde_json::to_string_pretty(&self.cache)?;
         std::fs::write(path, content)?;
         Ok(())
@@ -191,7 +196,7 @@ impl LicenseVerifier {
                     // Cache the verified license
                     self.cache.licenses.insert(key.to_string(), license.clone());
                     self.cache.last_verification = current_timestamp();
-                    
+
                     if self.is_license_valid(&license) {
                         Ok(LicenseStatus::Valid(license.tier))
                     } else {
@@ -232,14 +237,21 @@ impl LicenseVerifier {
     }
 
     /// Check if feature is licensed for given key
-    pub async fn check_feature_license(&mut self, key: &str, feature: &str) -> Result<(), LicenseError> {
+    pub async fn check_feature_license(
+        &mut self,
+        key: &str,
+        feature: &str,
+    ) -> Result<(), LicenseError> {
         let license_status = self.verify_license(key).await?;
-        
+
         match license_status {
             LicenseStatus::Valid(tier) => {
-                let cached_license = self.cache.licenses.get(key)
+                let cached_license = self
+                    .cache
+                    .licenses
+                    .get(key)
                     .ok_or_else(|| LicenseError::InvalidKey(key.to_string()))?;
-                
+
                 // Check if feature is specifically enabled or tier allows it
                 if cached_license.features.contains(&feature.to_string()) {
                     Ok(())
@@ -249,25 +261,19 @@ impl LicenseVerifier {
                     if registry.is_feature_available(feature, &tier) {
                         Ok(())
                     } else {
-                        Err(LicenseError::FeatureNotLicensed { 
-                            feature: feature.to_string(), 
-                            tier 
+                        Err(LicenseError::FeatureNotLicensed {
+                            feature: feature.to_string(),
+                            tier,
                         })
                     }
                 }
             }
-            LicenseStatus::Expired(expired_at) => {
-                Err(LicenseError::Expired { 
-                    key: key.to_string(), 
-                    expired_at 
-                })
-            }
-            LicenseStatus::Invalid => {
-                Err(LicenseError::InvalidKey(key.to_string()))
-            }
-            LicenseStatus::NotFound => {
-                Err(LicenseError::InvalidKey(key.to_string()))
-            }
+            LicenseStatus::Expired(expired_at) => Err(LicenseError::Expired {
+                key: key.to_string(),
+                expired_at,
+            }),
+            LicenseStatus::Invalid => Err(LicenseError::InvalidKey(key.to_string())),
+            LicenseStatus::NotFound => Err(LicenseError::InvalidKey(key.to_string())),
         }
     }
 
@@ -275,7 +281,7 @@ impl LicenseVerifier {
     async fn verify_online(&self, key: &str) -> Result<LicenseKey, LicenseError> {
         // TODO: Implement actual HTTP request to license server
         // For now, return a mock response based on key format
-        
+
         if key.starts_with("DEMO-") {
             Ok(LicenseKey {
                 key: key.to_string(),
@@ -366,19 +372,17 @@ impl LicensedFeatureChecker {
     /// Activate license key
     pub async fn activate_license(&mut self, key: &str) -> Result<FeatureTier, LicenseError> {
         let status = self.verifier.verify_license(key).await?;
-        
+
         match status {
             LicenseStatus::Valid(tier) => {
                 self.current_license_key = Some(key.to_string());
                 self.current_tier = tier.clone();
                 Ok(tier)
             }
-            LicenseStatus::Expired(expired_at) => {
-                Err(LicenseError::Expired { 
-                    key: key.to_string(), 
-                    expired_at 
-                })
-            }
+            LicenseStatus::Expired(expired_at) => Err(LicenseError::Expired {
+                key: key.to_string(),
+                expired_at,
+            }),
             LicenseStatus::Invalid | LicenseStatus::NotFound => {
                 Err(LicenseError::InvalidKey(key.to_string()))
             }
@@ -391,10 +395,10 @@ impl LicensedFeatureChecker {
             match self.verifier.check_feature_license(key, feature).await {
                 Ok(()) => Ok(()),
                 Err(LicenseError::FeatureNotLicensed { feature, tier }) => {
-                    Err(FeatureError::InsufficientTier { 
-                        feature, 
-                        required: tier, 
-                        current: self.current_tier.clone() 
+                    Err(FeatureError::InsufficientTier {
+                        feature,
+                        required: tier,
+                        current: self.current_tier.clone(),
                     })
                 }
                 Err(e) => Err(FeatureError::UnknownFeature(e.to_string())),
@@ -424,12 +428,18 @@ impl LicensedFeatureChecker {
     }
 
     /// Load license cache
-    pub fn load_cache<P: AsRef<std::path::Path>>(&mut self, path: P) -> Result<(), Box<dyn std::error::Error>> {
+    pub fn load_cache<P: AsRef<std::path::Path>>(
+        &mut self,
+        path: P,
+    ) -> Result<(), Box<dyn std::error::Error>> {
         self.verifier.load_cache(path)
     }
 
     /// Save license cache
-    pub fn save_cache<P: AsRef<std::path::Path>>(&self, path: P) -> Result<(), Box<dyn std::error::Error>> {
+    pub fn save_cache<P: AsRef<std::path::Path>>(
+        &self,
+        path: P,
+    ) -> Result<(), Box<dyn std::error::Error>> {
         self.verifier.save_cache(path)
     }
 }
@@ -452,7 +462,7 @@ impl DurationExt for Duration {
     fn from_hours(hours: u64) -> Duration {
         Duration::from_secs(hours * 3600)
     }
-    
+
     fn from_days(days: u64) -> Duration {
         Duration::from_secs(days * 86400)
     }
@@ -466,7 +476,7 @@ mod tests {
     #[tokio::test]
     async fn test_demo_license() {
         let mut verifier = LicenseVerifier::new("https://api.example.com/license".to_string());
-        
+
         let status = verifier.verify_license("DEMO-123456").await.unwrap();
         match status {
             LicenseStatus::Valid(tier) => {
@@ -479,7 +489,7 @@ mod tests {
     #[tokio::test]
     async fn test_premium_license() {
         let mut verifier = LicenseVerifier::new("https://api.example.com/license".to_string());
-        
+
         let status = verifier.verify_license("PREMIUM-789012").await.unwrap();
         match status {
             LicenseStatus::Valid(tier) => {
@@ -492,7 +502,7 @@ mod tests {
     #[tokio::test]
     async fn test_enterprise_license() {
         let mut verifier = LicenseVerifier::new("https://api.example.com/license".to_string());
-        
+
         let status = verifier.verify_license("ENTERPRISE-345678").await.unwrap();
         match status {
             LicenseStatus::Valid(tier) => {
@@ -505,7 +515,7 @@ mod tests {
     #[tokio::test]
     async fn test_invalid_license() {
         let mut verifier = LicenseVerifier::new("https://api.example.com/license".to_string());
-        
+
         let result = verifier.verify_license("INVALID-123").await;
         assert!(result.is_err());
     }
@@ -513,17 +523,17 @@ mod tests {
     #[tokio::test]
     async fn test_licensed_feature_checker() {
         let mut checker = LicensedFeatureChecker::new_offline();
-        
+
         // Should start as open source
         assert_eq!(checker.get_current_tier(), &FeatureTier::OpenSource);
-        
+
         // Activate premium license
         let tier = checker.activate_license("PREMIUM-TEST").await.unwrap();
         assert_eq!(tier, FeatureTier::Premium);
-        
+
         // Should now allow premium features
         assert!(checker.check_feature("gpu_acceleration").await.is_ok());
-        
+
         // Should still deny enterprise features
         assert!(checker.check_feature("distributed_training").await.is_err());
     }
@@ -531,7 +541,7 @@ mod tests {
     #[test]
     fn test_license_cache() {
         let mut verifier = LicenseVerifier::new_offline();
-        
+
         let license = LicenseKey {
             key: "TEST-123".to_string(),
             tier: FeatureTier::Premium,
@@ -540,16 +550,16 @@ mod tests {
             customer_id: "test-user".to_string(),
             features: vec!["gpu_acceleration".to_string()],
         };
-        
+
         verifier.add_license(license);
-        
+
         // Save and load cache
         let temp_file = tempfile::NamedTempFile::new().unwrap();
         verifier.save_cache(temp_file.path()).unwrap();
-        
+
         let mut new_verifier = LicenseVerifier::new_offline();
         new_verifier.load_cache(temp_file.path()).unwrap();
-        
+
         // Should have the cached license
         assert!(new_verifier.cache.licenses.contains_key("TEST-123"));
     }

@@ -1,9 +1,9 @@
 use chess::Board;
-use std::collections::HashSet;
-use std::path::Path;
-use std::fs::File;
 use indicatif::{ProgressBar, ProgressStyle};
 use rayon::prelude::*;
+use std::collections::HashSet;
+use std::fs::File;
+use std::path::Path;
 use std::sync::{Arc, Mutex};
 
 /// Ultra-fast loader specifically designed for massive datasets (100k-10M+ positions)
@@ -35,26 +35,32 @@ impl UltraFastLoader {
     ) -> Result<(), Box<dyn std::error::Error>> {
         let path_ref = path.as_ref();
         println!("🚀 ULTRA-FAST loading: {}", path_ref.display());
-        
+
         let file_size = std::fs::metadata(path_ref)?.len();
         println!("📊 File size: {:.1} MB", file_size as f64 / 1_000_000.0);
-        
-        if file_size > 500_000_000 { // > 500MB
+
+        if file_size > 500_000_000 {
+            // > 500MB
             println!("⚡ Large file detected - using memory-mapped loading");
             return self.memory_mapped_load(path_ref, engine);
         }
-        
+
         // Standard file loading with optimizations
         let data = std::fs::read(path_ref)?;
-        
+
         // Try LZ4 decompression
-        let decompressed_data = if let Ok(decompressed) = lz4_flex::decompress_size_prepended(&data) {
-            println!("🗜️  LZ4 decompressed: {} → {} bytes", data.len(), decompressed.len());
+        let decompressed_data = if let Ok(decompressed) = lz4_flex::decompress_size_prepended(&data)
+        {
+            println!(
+                "🗜️  LZ4 decompressed: {} → {} bytes",
+                data.len(),
+                decompressed.len()
+            );
             decompressed
         } else {
             data
         };
-        
+
         // Deserialize with error handling
         let positions: Vec<(String, f32)> = match bincode::deserialize(&decompressed_data) {
             Ok(pos) => pos,
@@ -63,14 +69,14 @@ impl UltraFastLoader {
                 return Err(e.into());
             }
         };
-        
+
         let total_positions = positions.len();
         println!("📦 Loaded {} positions from binary", total_positions);
-        
+
         if total_positions == 0 {
             return Ok(());
         }
-        
+
         // Use optimized loading strategy based on size
         if total_positions > 100_000 {
             self.parallel_batch_load(positions, engine)
@@ -86,18 +92,18 @@ impl UltraFastLoader {
         engine: &mut crate::ChessVectorEngine,
     ) -> Result<(), Box<dyn std::error::Error>> {
         use memmap2::Mmap;
-        
+
         let file = File::open(path)?;
         let mmap = unsafe { Mmap::map(&file)? };
-        
+
         println!("🗺️  Memory-mapped {} bytes", mmap.len());
-        
+
         // Try to deserialize in chunks to avoid memory explosion
         const CHUNK_SIZE: usize = 50_000_000; // 50MB chunks
         let total_chunks = (mmap.len() + CHUNK_SIZE - 1) / CHUNK_SIZE;
-        
+
         println!("📦 Processing {} chunks of ~50MB each", total_chunks);
-        
+
         // For very large files, we need a different approach
         // Try to parse as streaming format instead
         self.stream_parse_memory_mapped(&mmap, engine)
@@ -110,25 +116,25 @@ impl UltraFastLoader {
         engine: &mut crate::ChessVectorEngine,
     ) -> Result<(), Box<dyn std::error::Error>> {
         // Try different decompression methods
-        
+
         // 1. Try LZ4 decompression of entire file
         if let Ok(decompressed) = lz4_flex::decompress_size_prepended(&mmap) {
             println!("🗜️  Full file LZ4 decompressed");
             return self.parse_decompressed_data(&decompressed, engine);
         }
-        
+
         // 2. Try direct deserialization
         if let Ok(positions) = bincode::deserialize::<Vec<(String, f32)>>(&mmap) {
             println!("📦 Direct memory-mapped deserialization");
             return self.parallel_batch_load(positions, engine);
         }
-        
+
         // 3. Try as raw text (fallback)
         if let Ok(text) = std::str::from_utf8(&mmap) {
             println!("📝 Treating as text format");
             return self.parse_text_data(text, engine);
         }
-        
+
         Err("Unable to parse memory-mapped file in any known format".into())
     }
 
@@ -149,74 +155,77 @@ impl UltraFastLoader {
         engine: &mut crate::ChessVectorEngine,
     ) -> Result<(), Box<dyn std::error::Error>> {
         println!("📝 Parsing text data...");
-        
+
         let lines: Vec<&str> = text.lines().collect();
         let total_lines = lines.len();
-        
+
         if total_lines == 0 {
             return Ok(());
         }
-        
+
         println!("📊 Processing {} lines", total_lines);
-        
+
         let pb = ProgressBar::new(total_lines as u64);
         pb.set_style(
             ProgressStyle::default_bar()
                 .template("⚡ Parsing [{elapsed_precise}] [{bar:40.green/blue}] {pos}/{len} ({percent}%) {msg}")?
                 .progress_chars("██░")
         );
-        
+
         // Use parallel processing for text parsing
         let batch_size = 10000;
         let existing_boards: HashSet<Board> = engine.position_boards.iter().cloned().collect();
         let existing_boards = Arc::new(existing_boards);
-        
+
         let results: Arc<Mutex<Vec<(Board, f32)>>> = Arc::new(Mutex::new(Vec::new()));
-        
-        lines.par_chunks(batch_size).enumerate().for_each(|(chunk_idx, chunk)| {
-            let mut local_results = Vec::new();
-            
-            for (line_idx, line) in chunk.iter().enumerate() {
-                if line.trim().is_empty() {
-                    continue;
-                }
-                
-                // Try to parse as JSON
-                if let Ok(json) = serde_json::from_str::<serde_json::Value>(line) {
-                    if let Some((board, eval)) = self.extract_from_json(&json) {
-                        if !existing_boards.contains(&board) {
-                            local_results.push((board, eval));
+
+        lines
+            .par_chunks(batch_size)
+            .enumerate()
+            .for_each(|(chunk_idx, chunk)| {
+                let mut local_results = Vec::new();
+
+                for (line_idx, line) in chunk.iter().enumerate() {
+                    if line.trim().is_empty() {
+                        continue;
+                    }
+
+                    // Try to parse as JSON
+                    if let Ok(json) = serde_json::from_str::<serde_json::Value>(line) {
+                        if let Some((board, eval)) = self.extract_from_json(&json) {
+                            if !existing_boards.contains(&board) {
+                                local_results.push((board, eval));
+                            }
                         }
                     }
+
+                    // Update progress periodically
+                    if line_idx % 1000 == 0 {
+                        pb.set_position((chunk_idx * batch_size + line_idx) as u64);
+                    }
                 }
-                
-                // Update progress periodically
-                if line_idx % 1000 == 0 {
-                    pb.set_position((chunk_idx * batch_size + line_idx) as u64);
+
+                // Add local results to global results
+                if !local_results.is_empty() {
+                    if let Ok(mut results) = results.lock() {
+                        results.extend(local_results);
+                    }
                 }
-            }
-            
-            // Add local results to global results
-            if !local_results.is_empty() {
-                if let Ok(mut results) = results.lock() {
-                    results.extend(local_results);
-                }
-            }
-        });
-        
+            });
+
         pb.finish_with_message("✅ Text parsing complete");
-        
+
         // Extract results and add to engine
         let final_results = Arc::try_unwrap(results).unwrap().into_inner().unwrap();
         self.loaded_count = final_results.len();
-        
+
         println!("📦 Parsed {} valid positions", self.loaded_count);
-        
+
         // Add to engine in batches
         for (board, eval) in final_results {
             engine.add_position(&board, eval);
         }
-        
+
         Ok(())
     }
 
@@ -231,7 +240,7 @@ impl UltraFastLoader {
                 return Some((board, eval as f32));
             }
         }
-        
+
         None
     }
 
@@ -243,28 +252,28 @@ impl UltraFastLoader {
     ) -> Result<(), Box<dyn std::error::Error>> {
         let total_positions = positions.len();
         println!("🔄 Parallel batch loading {} positions", total_positions);
-        
+
         let pb = ProgressBar::new(total_positions as u64);
         pb.set_style(
             ProgressStyle::default_bar()
                 .template("⚡ Loading [{elapsed_precise}] [{bar:40.cyan/blue}] {pos}/{len} ({percent}%) {msg}")?
                 .progress_chars("██░")
         );
-        
+
         // Create bloom filter for existing positions
         let existing_boards: HashSet<Board> = engine.position_boards.iter().cloned().collect();
-        
+
         // Process in parallel chunks
         let chunk_size = self.batch_size;
         let chunks: Vec<_> = positions.chunks(chunk_size).collect();
-        
+
         let mut total_loaded = 0;
         let mut total_duplicates = 0;
-        
+
         for (chunk_idx, chunk) in chunks.iter().enumerate() {
             let mut batch_boards = Vec::new();
             let mut batch_evaluations = Vec::new();
-            
+
             // Process chunk
             for (fen, evaluation) in chunk.iter() {
                 match fen.parse::<Board>() {
@@ -281,28 +290,31 @@ impl UltraFastLoader {
                     }
                 }
             }
-            
+
             // Add batch to engine
             for (board, eval) in batch_boards.iter().zip(batch_evaluations.iter()) {
                 engine.add_position(board, *eval);
                 total_loaded += 1;
             }
-            
+
             // Update progress
             pb.set_position(((chunk_idx + 1) * chunk_size).min(total_positions) as u64);
-            pb.set_message(format!("{} loaded, {} dupes", total_loaded, total_duplicates));
+            pb.set_message(format!(
+                "{} loaded, {} dupes",
+                total_loaded, total_duplicates
+            ));
         }
-        
+
         pb.finish_with_message(format!("✅ Loaded {} positions", total_loaded));
-        
+
         self.loaded_count = total_loaded;
         self.duplicate_count = total_duplicates;
-        
+
         println!("📊 Final stats:");
         println!("   Loaded: {} positions", self.loaded_count);
         println!("   Duplicates: {}", self.duplicate_count);
         println!("   Errors: {}", self.error_count);
-        
+
         Ok(())
     }
 
@@ -313,9 +325,9 @@ impl UltraFastLoader {
         engine: &mut crate::ChessVectorEngine,
     ) -> Result<(), Box<dyn std::error::Error>> {
         println!("📦 Sequential loading {} positions", positions.len());
-        
+
         let existing_boards: HashSet<Board> = engine.position_boards.iter().cloned().collect();
-        
+
         for (fen, evaluation) in positions {
             match fen.parse::<Board>() {
                 Ok(board) => {
@@ -331,7 +343,7 @@ impl UltraFastLoader {
                 }
             }
         }
-        
+
         Ok(())
     }
 
@@ -367,7 +379,7 @@ impl LoadingStats {
 #[cfg(test)]
 mod tests {
     use super::*;
-    
+
     #[test]
     fn test_ultra_fast_loader_creation() {
         let loader = UltraFastLoader::new_for_massive_datasets();
@@ -375,14 +387,14 @@ mod tests {
         assert_eq!(loader.batch_size, 50000);
         assert!(loader.use_bloom_filter);
     }
-    
+
     #[test]
     fn test_loading_stats() {
         let mut loader = UltraFastLoader::new_for_massive_datasets();
         loader.loaded_count = 8000;
         loader.duplicate_count = 1500;
         loader.error_count = 500;
-        
+
         let stats = loader.get_stats();
         assert_eq!(stats.loaded, 8000);
         assert_eq!(stats.total_processed, 10000);

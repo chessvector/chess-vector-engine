@@ -1,5 +1,5 @@
-use rusqlite::{Connection, Result as SqlResult, params};
-use serde::{Serialize, Deserialize};
+use rusqlite::{params, Connection, Result as SqlResult};
+use serde::{Deserialize, Serialize};
 use std::path::Path;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -32,10 +32,10 @@ pub struct Database {
 impl Database {
     pub fn new<P: AsRef<Path>>(db_path: P) -> SqlResult<Self> {
         let conn = Connection::open(db_path)?;
-        
+
         // Enable basic optimizations
         conn.execute("PRAGMA foreign_keys=ON", [])?;
-        
+
         let db = Database { conn };
         db.create_tables()?;
         Ok(db)
@@ -108,7 +108,7 @@ impl Database {
             "CREATE INDEX IF NOT EXISTS idx_positions_fen ON positions(fen)",
             [],
         )?;
-        
+
         self.conn.execute(
             "CREATE INDEX IF NOT EXISTS idx_lsh_buckets_table_bucket ON lsh_buckets(table_id, bucket_hash)",
             [],
@@ -125,8 +125,10 @@ impl Database {
     pub fn save_position(&self, position_data: &PositionData) -> SqlResult<i64> {
         let vector_bytes = bincode::serialize(&position_data.vector)
             .map_err(|e| rusqlite::Error::ToSqlConversionFailure(Box::new(e)))?;
-        
-        let compressed_vector_bytes = position_data.compressed_vector.as_ref()
+
+        let compressed_vector_bytes = position_data
+            .compressed_vector
+            .as_ref()
             .map(|v| bincode::serialize(v))
             .transpose()
             .map_err(|e| rusqlite::Error::ToSqlConversionFailure(Box::new(e)))?;
@@ -155,20 +157,31 @@ impl Database {
     pub fn load_position(&self, fen: &str) -> SqlResult<Option<PositionData>> {
         let mut stmt = self.conn.prepare(
             "SELECT fen, vector, evaluation, compressed_vector, created_at 
-             FROM positions WHERE fen = ?1"
+             FROM positions WHERE fen = ?1",
         )?;
 
         let mut rows = stmt.query_map([fen], |row| {
             let vector_bytes: Vec<u8> = row.get(1)?;
-            let vector: Vec<f64> = bincode::deserialize(&vector_bytes)
-                .map_err(|e| rusqlite::Error::FromSqlConversionFailure(1, rusqlite::types::Type::Blob, Box::new(e)))?;
+            let vector: Vec<f64> = bincode::deserialize(&vector_bytes).map_err(|e| {
+                rusqlite::Error::FromSqlConversionFailure(
+                    1,
+                    rusqlite::types::Type::Blob,
+                    Box::new(e),
+                )
+            })?;
 
-            let compressed_vector = if let Ok(Some(compressed_bytes)) = row.get::<_, Option<Vec<u8>>>(3) {
-                Some(bincode::deserialize(&compressed_bytes)
-                    .map_err(|e| rusqlite::Error::FromSqlConversionFailure(3, rusqlite::types::Type::Blob, Box::new(e)))?)
-            } else {
-                None
-            };
+            let compressed_vector =
+                if let Ok(Some(compressed_bytes)) = row.get::<_, Option<Vec<u8>>>(3) {
+                    Some(bincode::deserialize(&compressed_bytes).map_err(|e| {
+                        rusqlite::Error::FromSqlConversionFailure(
+                            3,
+                            rusqlite::types::Type::Blob,
+                            Box::new(e),
+                        )
+                    })?)
+                } else {
+                    None
+                };
 
             Ok(PositionData {
                 fen: row.get(0)?,
@@ -189,20 +202,31 @@ impl Database {
     pub fn load_all_positions(&self) -> SqlResult<Vec<PositionData>> {
         let mut stmt = self.conn.prepare(
             "SELECT fen, vector, evaluation, compressed_vector, created_at 
-             FROM positions ORDER BY created_at"
+             FROM positions ORDER BY created_at",
         )?;
 
         let rows = stmt.query_map([], |row| {
             let vector_bytes: Vec<u8> = row.get(1)?;
-            let vector: Vec<f64> = bincode::deserialize(&vector_bytes)
-                .map_err(|e| rusqlite::Error::FromSqlConversionFailure(1, rusqlite::types::Type::Blob, Box::new(e)))?;
+            let vector: Vec<f64> = bincode::deserialize(&vector_bytes).map_err(|e| {
+                rusqlite::Error::FromSqlConversionFailure(
+                    1,
+                    rusqlite::types::Type::Blob,
+                    Box::new(e),
+                )
+            })?;
 
-            let compressed_vector = if let Ok(Some(compressed_bytes)) = row.get::<_, Option<Vec<u8>>>(3) {
-                Some(bincode::deserialize(&compressed_bytes)
-                    .map_err(|e| rusqlite::Error::FromSqlConversionFailure(3, rusqlite::types::Type::Blob, Box::new(e)))?)
-            } else {
-                None
-            };
+            let compressed_vector =
+                if let Ok(Some(compressed_bytes)) = row.get::<_, Option<Vec<u8>>>(3) {
+                    Some(bincode::deserialize(&compressed_bytes).map_err(|e| {
+                        rusqlite::Error::FromSqlConversionFailure(
+                            3,
+                            rusqlite::types::Type::Blob,
+                            Box::new(e),
+                        )
+                    })?)
+                } else {
+                    None
+                };
 
             Ok(PositionData {
                 fen: row.get(0)?,
@@ -244,13 +268,19 @@ impl Database {
     pub fn load_lsh_config(&self) -> SqlResult<Option<LSHTableData>> {
         let mut stmt = self.conn.prepare(
             "SELECT num_tables, num_hash_functions, vector_dim, hash_functions 
-             FROM lsh_config WHERE id = 1"
+             FROM lsh_config WHERE id = 1",
         )?;
 
         let mut rows = stmt.query_map([], |row| {
             let hash_functions_bytes: Vec<u8> = row.get(3)?;
             let hash_functions: Vec<LSHHashFunction> = bincode::deserialize(&hash_functions_bytes)
-                .map_err(|e| rusqlite::Error::FromSqlConversionFailure(3, rusqlite::types::Type::Blob, Box::new(e)))?;
+                .map_err(|e| {
+                    rusqlite::Error::FromSqlConversionFailure(
+                        3,
+                        rusqlite::types::Type::Blob,
+                        Box::new(e),
+                    )
+                })?;
 
             Ok(LSHTableData {
                 num_tables: row.get(0)?,
@@ -267,7 +297,12 @@ impl Database {
         }
     }
 
-    pub fn save_lsh_bucket(&self, table_id: usize, bucket_hash: &str, position_id: i64) -> SqlResult<()> {
+    pub fn save_lsh_bucket(
+        &self,
+        table_id: usize,
+        bucket_hash: &str,
+        position_id: i64,
+    ) -> SqlResult<()> {
         self.conn.execute(
             "INSERT OR IGNORE INTO lsh_buckets (table_id, bucket_hash, position_id)
              VALUES (?1, ?2, ?3)",
@@ -278,12 +313,10 @@ impl Database {
 
     pub fn load_lsh_buckets(&self, table_id: usize, bucket_hash: &str) -> SqlResult<Vec<i64>> {
         let mut stmt = self.conn.prepare(
-            "SELECT position_id FROM lsh_buckets WHERE table_id = ?1 AND bucket_hash = ?2"
+            "SELECT position_id FROM lsh_buckets WHERE table_id = ?1 AND bucket_hash = ?2",
         )?;
 
-        let rows = stmt.query_map(params![table_id, bucket_hash], |row| {
-            Ok(row.get(0)?)
-        })?;
+        let rows = stmt.query_map(params![table_id, bucket_hash], |row| Ok(row.get(0)?))?;
 
         rows.collect()
     }
@@ -304,9 +337,15 @@ impl Database {
         Ok(())
     }
 
-    pub fn save_manifold_model(&self, input_dim: usize, compressed_dim: usize, model_weights: &[u8], training_metadata: Option<&[u8]>) -> SqlResult<()> {
+    pub fn save_manifold_model(
+        &self,
+        input_dim: usize,
+        compressed_dim: usize,
+        model_weights: &[u8],
+        training_metadata: Option<&[u8]>,
+    ) -> SqlResult<()> {
         let metadata_bytes = training_metadata.unwrap_or(&[]);
-        
+
         let current_time = std::time::SystemTime::now()
             .duration_since(std::time::UNIX_EPOCH)
             .map_err(|e| rusqlite::Error::ToSqlConversionFailure(Box::new(e)))?
@@ -330,7 +369,7 @@ impl Database {
     pub fn load_manifold_model(&self) -> SqlResult<Option<(usize, usize, Vec<u8>, Vec<u8>)>> {
         let mut stmt = self.conn.prepare(
             "SELECT input_dim, compressed_dim, model_weights, training_metadata 
-             FROM manifold_models WHERE id = 1"
+             FROM manifold_models WHERE id = 1",
         )?;
 
         let mut rows = stmt.query_map([], |row| {
@@ -352,20 +391,31 @@ impl Database {
     pub fn get_position_by_id(&self, id: i64) -> SqlResult<Option<PositionData>> {
         let mut stmt = self.conn.prepare(
             "SELECT fen, vector, evaluation, compressed_vector, created_at 
-             FROM positions WHERE id = ?1"
+             FROM positions WHERE id = ?1",
         )?;
 
         let mut rows = stmt.query_map([id], |row| {
             let vector_bytes: Vec<u8> = row.get(1)?;
-            let vector: Vec<f64> = bincode::deserialize(&vector_bytes)
-                .map_err(|e| rusqlite::Error::FromSqlConversionFailure(1, rusqlite::types::Type::Blob, Box::new(e)))?;
+            let vector: Vec<f64> = bincode::deserialize(&vector_bytes).map_err(|e| {
+                rusqlite::Error::FromSqlConversionFailure(
+                    1,
+                    rusqlite::types::Type::Blob,
+                    Box::new(e),
+                )
+            })?;
 
-            let compressed_vector = if let Ok(Some(compressed_bytes)) = row.get::<_, Option<Vec<u8>>>(3) {
-                Some(bincode::deserialize(&compressed_bytes)
-                    .map_err(|e| rusqlite::Error::FromSqlConversionFailure(3, rusqlite::types::Type::Blob, Box::new(e)))?)
-            } else {
-                None
-            };
+            let compressed_vector =
+                if let Ok(Some(compressed_bytes)) = row.get::<_, Option<Vec<u8>>>(3) {
+                    Some(bincode::deserialize(&compressed_bytes).map_err(|e| {
+                        rusqlite::Error::FromSqlConversionFailure(
+                            3,
+                            rusqlite::types::Type::Blob,
+                            Box::new(e),
+                        )
+                    })?)
+                } else {
+                    None
+                };
 
             Ok(PositionData {
                 fen: row.get(0)?,
@@ -390,7 +440,7 @@ impl Database {
         }
 
         let tx = self.conn.unchecked_transaction()?;
-        
+
         {
             let mut stmt = tx.prepare(
                 "INSERT OR REPLACE INTO positions (fen, vector, evaluation, compressed_vector, created_at, updated_at)
@@ -406,7 +456,9 @@ impl Database {
                 let vector_bytes = bincode::serialize(&position_data.vector)
                     .map_err(|e| rusqlite::Error::ToSqlConversionFailure(Box::new(e)))?;
 
-                let compressed_vector_bytes = position_data.compressed_vector.as_ref()
+                let compressed_vector_bytes = position_data
+                    .compressed_vector
+                    .as_ref()
                     .map(|v| bincode::serialize(v))
                     .transpose()
                     .map_err(|e| rusqlite::Error::ToSqlConversionFailure(Box::new(e)))?;
@@ -421,29 +473,44 @@ impl Database {
                 ])?;
             }
         }
-        
+
         tx.commit()?;
         Ok(positions.len())
     }
 
     /// Load positions in batches for better memory efficiency
-    pub fn load_positions_batch(&self, limit: usize, offset: usize) -> SqlResult<Vec<PositionData>> {
+    pub fn load_positions_batch(
+        &self,
+        limit: usize,
+        offset: usize,
+    ) -> SqlResult<Vec<PositionData>> {
         let mut stmt = self.conn.prepare(
             "SELECT fen, vector, evaluation, compressed_vector, created_at 
-             FROM positions ORDER BY id LIMIT ?1 OFFSET ?2"
+             FROM positions ORDER BY id LIMIT ?1 OFFSET ?2",
         )?;
 
         let rows = stmt.query_map([limit, offset], |row| {
             let vector_bytes: Vec<u8> = row.get(1)?;
-            let vector: Vec<f64> = bincode::deserialize(&vector_bytes)
-                .map_err(|e| rusqlite::Error::FromSqlConversionFailure(1, rusqlite::types::Type::Blob, Box::new(e)))?;
+            let vector: Vec<f64> = bincode::deserialize(&vector_bytes).map_err(|e| {
+                rusqlite::Error::FromSqlConversionFailure(
+                    1,
+                    rusqlite::types::Type::Blob,
+                    Box::new(e),
+                )
+            })?;
 
-            let compressed_vector = if let Ok(Some(compressed_bytes)) = row.get::<_, Option<Vec<u8>>>(3) {
-                Some(bincode::deserialize(&compressed_bytes)
-                    .map_err(|e| rusqlite::Error::FromSqlConversionFailure(3, rusqlite::types::Type::Blob, Box::new(e)))?)
-            } else {
-                None
-            };
+            let compressed_vector =
+                if let Ok(Some(compressed_bytes)) = row.get::<_, Option<Vec<u8>>>(3) {
+                    Some(bincode::deserialize(&compressed_bytes).map_err(|e| {
+                        rusqlite::Error::FromSqlConversionFailure(
+                            3,
+                            rusqlite::types::Type::Blob,
+                            Box::new(e),
+                        )
+                    })?)
+                } else {
+                    None
+                };
 
             Ok(PositionData {
                 fen: row.get(0)?,
@@ -478,7 +545,7 @@ mod tests {
     #[test]
     fn test_position_storage() {
         let db = Database::in_memory().unwrap();
-        
+
         let position = PositionData {
             fen: "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1".to_string(),
             vector: vec![1.0, 2.0, 3.0],
@@ -500,21 +567,19 @@ mod tests {
     #[test]
     fn test_lsh_config_storage() {
         let db = Database::in_memory().unwrap();
-        
+
         let config = LSHTableData {
             num_tables: 10,
             num_hash_functions: 5,
             vector_dim: 1024,
-            hash_functions: vec![
-                LSHHashFunction {
-                    random_vector: vec![1.0, -1.0, 0.5],
-                    threshold: 0.0,
-                }
-            ],
+            hash_functions: vec![LSHHashFunction {
+                random_vector: vec![1.0, -1.0, 0.5],
+                threshold: 0.0,
+            }],
         };
 
         db.save_lsh_config(&config).unwrap();
-        
+
         let loaded = db.load_lsh_config().unwrap().unwrap();
         assert_eq!(loaded.num_tables, config.num_tables);
         assert_eq!(loaded.num_hash_functions, config.num_hash_functions);

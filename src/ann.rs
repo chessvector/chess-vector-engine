@@ -61,38 +61,43 @@ impl ANNIndex {
             vector_dim,
         }
     }
-    
+
     /// Enable LSH indexing
     pub fn with_lsh(mut self, num_tables: usize, hash_size: usize) -> Self {
         self.lsh = Some(crate::lsh::LSH::new(self.vector_dim, num_tables, hash_size));
         self
     }
-    
+
     /// Enable random projections for dimensionality reduction
     pub fn with_random_projections(mut self, projected_dim: usize) -> Self {
         self.use_random_projections = true;
         self.projected_dim = projected_dim;
         self
     }
-    
+
     /// Add a vector to the index
     pub fn add_vector(&mut self, vector: Array1<f32>, data: f32) {
         // Initialize random projection matrix if needed
         if self.use_random_projections && self.projection_matrix.is_none() {
             self.init_random_projections(vector.len());
         }
-        
+
         self.vectors.push(vector.clone());
         self.data.push(data);
-        
+
         // Add to LSH if enabled
         if let Some(ref mut lsh) = self.lsh {
             lsh.add_vector(vector, data);
         }
     }
-    
+
     /// Search for approximate nearest neighbors
-    pub fn search(&self, query: &Array1<f32>, k: usize, strategy: SearchStrategy) -> Vec<ANNResult> {
+    pub fn search(
+        &self,
+        query: &Array1<f32>,
+        k: usize,
+        strategy: SearchStrategy,
+    ) -> Vec<ANNResult> {
         match strategy {
             SearchStrategy::LSH => self.search_lsh(query, k),
             SearchStrategy::RandomProjection => self.search_random_projection(query, k),
@@ -100,7 +105,7 @@ impl ANNIndex {
             SearchStrategy::Exact => self.search_exact(query, k),
         }
     }
-    
+
     /// LSH-based search
     fn search_lsh(&self, query: &Array1<f32>, k: usize) -> Vec<ANNResult> {
         if let Some(ref lsh) = self.lsh {
@@ -116,17 +121,18 @@ impl ANNIndex {
             self.search_exact(query, k)
         }
     }
-    
+
     /// Random projection-based search
     fn search_random_projection(&self, query: &Array1<f32>, k: usize) -> Vec<ANNResult> {
         if !self.use_random_projections || self.projection_matrix.is_none() {
             return self.search_exact(query, k);
         }
-        
+
         let proj_matrix = self.projection_matrix.as_ref().unwrap();
         let proj_query = self.project_vector(query, proj_matrix);
-        
-        let mut results: Vec<_> = self.vectors
+
+        let mut results: Vec<_> = self
+            .vectors
             .iter()
             .zip(self.data.iter())
             .map(|(vec, &data)| {
@@ -139,17 +145,17 @@ impl ANNIndex {
                 }
             })
             .collect();
-        
+
         results.sort_by(|a, b| b.similarity.partial_cmp(&a.similarity).unwrap());
         results.truncate(k);
         results
     }
-    
+
     /// Hybrid search combining multiple strategies
     fn search_hybrid(&self, query: &Array1<f32>, k: usize) -> Vec<ANNResult> {
         let mut candidate_indices = std::collections::HashSet::new();
         let mut results = Vec::new();
-        
+
         // Get candidates from LSH
         if let Some(ref lsh) = self.lsh {
             let lsh_results = lsh.query(query, k * 2);
@@ -163,7 +169,7 @@ impl ANNIndex {
                 }
             }
         }
-        
+
         // Get candidates from random projection
         if self.use_random_projections {
             let rp_results = self.search_random_projection(query, k * 2);
@@ -177,14 +183,14 @@ impl ANNIndex {
                 }
             }
         }
-        
+
         // If we don't have enough candidates, add some random ones
         if candidate_indices.len() < k * 3 {
             for idx in 0..(k * 3).min(self.vectors.len()) {
                 candidate_indices.insert(idx);
             }
         }
-        
+
         // Re-rank candidates using exact similarity
         for &idx in &candidate_indices {
             let vec = &self.vectors[idx];
@@ -196,15 +202,16 @@ impl ANNIndex {
                 similarity,
             });
         }
-        
+
         results.sort_by(|a, b| b.similarity.partial_cmp(&a.similarity).unwrap());
         results.truncate(k);
         results
     }
-    
+
     /// Exact search (brute force)
     fn search_exact(&self, query: &Array1<f32>, k: usize) -> Vec<ANNResult> {
-        let mut results: Vec<_> = self.vectors
+        let mut results: Vec<_> = self
+            .vectors
             .iter()
             .zip(self.data.iter())
             .map(|(vec, &data)| {
@@ -216,36 +223,40 @@ impl ANNIndex {
                 }
             })
             .collect();
-        
+
         results.sort_by(|a, b| b.similarity.partial_cmp(&a.similarity).unwrap());
         results.truncate(k);
         results
     }
-    
+
     /// Initialize random projection matrix
     fn init_random_projections(&mut self, input_dim: usize) {
         use rand::Rng;
         let mut rng = rand::thread_rng();
-        
+
         // Use the provided input_dim (should match self.vector_dim)
-        assert_eq!(input_dim, self.vector_dim, "Input dimension should match vector dimension");
-        
+        assert_eq!(
+            input_dim, self.vector_dim,
+            "Input dimension should match vector dimension"
+        );
+
         let mut matrix_data = Vec::with_capacity(self.projected_dim * input_dim);
         for _ in 0..(self.projected_dim * input_dim) {
             matrix_data.push(rng.gen_range(-1.0..1.0));
         }
-        
+
         self.projection_matrix = Some(
             Array2::from_shape_vec((self.projected_dim, input_dim), matrix_data)
-                .expect("Failed to create projection matrix")
+                .expect("Failed to create projection matrix"),
         );
     }
-    
+
     /// Project a vector to lower dimension
     fn project_vector(&self, vector: &Array1<f32>, proj_matrix: &Array2<f32>) -> Array1<f32> {
         let mut result = Array1::zeros(self.projected_dim);
         for i in 0..self.projected_dim {
-            let dot_product: f32 = vector.iter()
+            let dot_product: f32 = vector
+                .iter()
                 .zip(proj_matrix.row(i).iter())
                 .map(|(v, p)| v * p)
                 .sum();
@@ -253,15 +264,23 @@ impl ANNIndex {
         }
         result
     }
-    
+
     /// Get statistics about the index
     pub fn stats(&self) -> ANNStats {
         ANNStats {
             num_vectors: self.vectors.len(),
-            vector_dim: if self.vectors.is_empty() { 0 } else { self.vectors[0].len() },
+            vector_dim: if self.vectors.is_empty() {
+                0
+            } else {
+                self.vectors[0].len()
+            },
             has_lsh: self.lsh.is_some(),
             has_random_projections: self.use_random_projections,
-            projected_dim: if self.use_random_projections { Some(self.projected_dim) } else { None },
+            projected_dim: if self.use_random_projections {
+                Some(self.projected_dim)
+            } else {
+                None
+            },
         }
     }
 }
@@ -294,7 +313,7 @@ fn cosine_similarity(a: &Array1<f32>, b: &Array1<f32>) -> f32 {
     let dot_product: f32 = a.iter().zip(b.iter()).map(|(x, y)| x * y).sum();
     let norm_a: f32 = a.iter().map(|x| x * x).sum::<f32>().sqrt();
     let norm_b: f32 = b.iter().map(|x| x * x).sum::<f32>().sqrt();
-    
+
     if norm_a == 0.0 || norm_b == 0.0 {
         0.0
     } else {
@@ -307,7 +326,7 @@ fn vectors_approximately_equal(a: &Array1<f32>, b: &Array1<f32>) -> bool {
     if a.len() != b.len() {
         return false;
     }
-    
+
     let threshold = 1e-6;
     for (x, y) in a.iter().zip(b.iter()) {
         if (x - y).abs() > threshold {
@@ -323,7 +342,7 @@ use ndarray::Array2;
 mod tests {
     use super::*;
     use ndarray::Array1;
-    
+
     #[test]
     fn test_ann_index_creation() {
         let index = ANNIndex::new(128);
@@ -331,52 +350,50 @@ mod tests {
         assert!(!index.use_random_projections);
         assert!(index.lsh.is_none());
     }
-    
+
     #[test]
     fn test_ann_with_lsh() {
         let index = ANNIndex::new(128).with_lsh(4, 8);
         assert!(index.lsh.is_some());
     }
-    
+
     #[test]
     fn test_ann_with_random_projections() {
         let index = ANNIndex::new(128).with_random_projections(32);
         assert!(index.use_random_projections);
         assert_eq!(index.projected_dim, 32);
     }
-    
+
     #[test]
     fn test_add_and_search() {
         let mut index = ANNIndex::new(4);
-        
+
         let vec1 = Array1::from(vec![1.0, 0.0, 0.0, 0.0]);
         let vec2 = Array1::from(vec![0.0, 1.0, 0.0, 0.0]);
         let vec3 = Array1::from(vec![1.0, 0.1, 0.0, 0.0]);
-        
+
         index.add_vector(vec1.clone(), 1.0);
         index.add_vector(vec2, 2.0);
         index.add_vector(vec3, 1.1);
-        
+
         let results = index.search(&vec1, 2, SearchStrategy::Exact);
         assert_eq!(results.len(), 2);
         assert!(results[0].similarity > 0.9); // Should find itself first
     }
-    
+
     #[test]
     fn test_search_strategies() {
-        let mut index = ANNIndex::new(4)
-            .with_lsh(2, 4)
-            .with_random_projections(2);
-        
+        let mut index = ANNIndex::new(4).with_lsh(2, 4).with_random_projections(2);
+
         let vec1 = Array1::from(vec![1.0, 0.0, 0.0, 0.0]);
         index.add_vector(vec1.clone(), 1.0);
-        
+
         // Test all search strategies
         let exact = index.search(&vec1, 1, SearchStrategy::Exact);
         let lsh = index.search(&vec1, 1, SearchStrategy::LSH);
         let rp = index.search(&vec1, 1, SearchStrategy::RandomProjection);
         let hybrid = index.search(&vec1, 1, SearchStrategy::Hybrid);
-        
+
         assert!(!exact.is_empty());
         assert!(!lsh.is_empty());
         assert!(!rp.is_empty());

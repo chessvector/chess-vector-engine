@@ -69,9 +69,9 @@ chess = "3.2"
 ndarray = "0.16"
 ndarray-rand = "0.15"
 
-# Machine learning framework
-candle-core = { version = "0.9", features = [] }
-candle-nn = "0.9"
+# Machine learning framework - CPU only for compatibility
+candle-core = { version = "0.9", default-features = false }
+candle-nn = { version = "0.9", default-features = false }
 safetensors = "0.4"
 
 # Serialization for saving/loading models

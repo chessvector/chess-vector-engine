@@ -41,7 +41,7 @@ impl GPUAccelerator {
     /// Create a new GPU accelerator with intelligent device detection
     pub fn new() -> CandleResult<Self> {
         // Try GPU devices in order of preference: CUDA > Metal > CPU
-        
+
         #[cfg(feature = "cuda")]
         {
             match Self::try_cuda() {
@@ -82,7 +82,7 @@ impl GPUAccelerator {
         // Try to detect multiple CUDA devices
         let mut available_devices = Vec::new();
         let mut device_count = 0;
-        
+
         // Try to detect up to 8 CUDA devices
         for i in 0..8 {
             if let Ok(device) = Device::new_cuda(i) {
@@ -92,13 +92,13 @@ impl GPUAccelerator {
                 break;
             }
         }
-        
+
         if available_devices.is_empty() {
             return Err(candle_core::Error::Msg("No CUDA devices available".into()));
         }
-        
+
         println!("🚀 Detected {} CUDA device(s)", device_count);
-        
+
         Ok(GPUAccelerator {
             device: available_devices[0].clone(),
             device_type: DeviceType::CUDA,
@@ -117,7 +117,7 @@ impl GPUAccelerator {
         // Try to detect multiple Metal devices
         let mut available_devices = Vec::new();
         let mut device_count = 0;
-        
+
         // Try to detect up to 4 Metal devices (typically fewer than CUDA)
         for i in 0..4 {
             if let Ok(device) = Device::new_metal(i) {
@@ -127,13 +127,13 @@ impl GPUAccelerator {
                 break;
             }
         }
-        
+
         if available_devices.is_empty() {
             return Err(candle_core::Error::Msg("No Metal devices available".into()));
         }
-        
+
         println!("🍎 Detected {} Metal device(s)", device_count);
-        
+
         Ok(GPUAccelerator {
             device: available_devices[0].clone(),
             device_type: DeviceType::Metal,
@@ -161,34 +161,37 @@ impl GPUAccelerator {
     pub fn is_gpu_enabled(&self) -> bool {
         matches!(self.device_type, DeviceType::CUDA | DeviceType::Metal)
     }
-    
+
     /// Get number of available GPU devices
     pub fn device_count(&self) -> usize {
         self.available_devices.len()
     }
-    
+
     /// Check if multiple GPU devices are available
     pub fn is_multi_gpu_available(&self) -> bool {
         self.is_gpu_enabled() && self.available_devices.len() > 1
     }
-    
+
     /// Get all available devices for multi-GPU operations
     pub fn all_devices(&self) -> &[Device] {
         &self.available_devices
     }
-    
+
     /// Switch to a specific device (for multi-GPU operations)
     pub fn switch_device(&mut self, device_index: usize) -> Result<(), String> {
         if device_index >= self.available_devices.len() {
-            return Err(format!("Device index {} out of range (have {} devices)", 
-                             device_index, self.available_devices.len()));
+            return Err(format!(
+                "Device index {} out of range (have {} devices)",
+                device_index,
+                self.available_devices.len()
+            ));
         }
-        
+
         self.device = self.available_devices[device_index].clone();
         self.current_device_index = device_index;
         Ok(())
     }
-    
+
     /// Get current device index
     pub fn current_device_index(&self) -> usize {
         self.current_device_index
@@ -203,7 +206,7 @@ impl GPUAccelerator {
     /// Convert 2D ndarray to Candle tensor on the appropriate device
     pub fn array2_to_tensor(&self, array: &Array2<f32>) -> CandleResult<Tensor> {
         let shape = array.shape();
-        let data = array.as_slice().expect("Array must be contiguous");  
+        let data = array.as_slice().expect("Array must be contiguous");
         Tensor::from_slice(data, (shape[0], shape[1]), &self.device)
     }
 
@@ -226,7 +229,11 @@ impl GPUAccelerator {
     }
 
     /// Accelerated cosine similarity computation
-    pub fn cosine_similarity_batch(&self, query: &Array1<f32>, vectors: &Array2<f32>) -> CandleResult<Array1<f32>> {
+    pub fn cosine_similarity_batch(
+        &self,
+        query: &Array1<f32>,
+        vectors: &Array2<f32>,
+    ) -> CandleResult<Array1<f32>> {
         if !self.is_gpu_enabled() || vectors.nrows() < 100 {
             // Fall back to CPU for small batches or when GPU not available
             return Ok(self.cosine_similarity_cpu(query, vectors));
@@ -245,7 +252,9 @@ impl GPUAccelerator {
         let vectors_normalized = vectors_tensor.div(&vectors_norm)?;
 
         // Compute dot products (cosine similarity)
-        let similarities = vectors_normalized.matmul(&query_normalized.unsqueeze(1)?)?.squeeze(1)?;
+        let similarities = vectors_normalized
+            .matmul(&query_normalized.unsqueeze(1)?)?
+            .squeeze(1)?;
 
         self.tensor_to_array(&similarities)
     }
@@ -254,7 +263,7 @@ impl GPUAccelerator {
     fn cosine_similarity_cpu(&self, query: &Array1<f32>, vectors: &Array2<f32>) -> Array1<f32> {
         let query_norm = query.dot(query).sqrt();
         let mut similarities = Array1::zeros(vectors.nrows());
-        
+
         for (i, vector) in vectors.outer_iter().enumerate() {
             let dot_product = query.dot(&vector);
             let vector_norm = vector.dot(&vector).sqrt();
@@ -264,7 +273,7 @@ impl GPUAccelerator {
                 0.0
             };
         }
-        
+
         similarities
     }
 
@@ -284,7 +293,9 @@ impl GPUAccelerator {
     /// Accelerated vector addition
     pub fn add_vectors(&self, vectors: &[Array1<f32>]) -> CandleResult<Array1<f32>> {
         if vectors.is_empty() {
-            return Err(candle_core::Error::Msg("Cannot add empty vector list".into()));
+            return Err(candle_core::Error::Msg(
+                "Cannot add empty vector list".into(),
+            ));
         }
 
         if !self.is_gpu_enabled() || vectors.len() < 10 {
@@ -302,7 +313,7 @@ impl GPUAccelerator {
             let vector_tensor = self.array_to_tensor(vector)?;
             result_tensor = result_tensor.add(&vector_tensor)?;
         }
-        
+
         self.tensor_to_array(&result_tensor)
     }
 
@@ -335,83 +346,97 @@ impl GPUAccelerator {
         let size = 1000;
         let a = Array2::<f32>::ones((size, size));
         let b = Array2::<f32>::ones((size, size));
-        
+
         let start = std::time::Instant::now();
         let _result = self.matmul(&a, &b)?;
         let duration = start.elapsed();
-        
+
         let ops = (size * size * size) as f64; // Matrix multiplication operations
         let gflops = ops / duration.as_secs_f64() / 1e9;
-        
+
         Ok(gflops)
     }
-    
+
     /// Multi-GPU parallel similarity search (when multiple GPUs available)
-    pub fn multi_gpu_similarity_search(&self, query: &Array1<f32>, vectors: &Array2<f32>) -> CandleResult<Array1<f32>> {
+    pub fn multi_gpu_similarity_search(
+        &self,
+        query: &Array1<f32>,
+        vectors: &Array2<f32>,
+    ) -> CandleResult<Array1<f32>> {
         if !self.is_multi_gpu_available() || vectors.nrows() < 1000 {
             // Fall back to single GPU/CPU
             return self.cosine_similarity_batch(query, vectors);
         }
-        
-        println!("🚀 Using multi-GPU similarity search across {} devices", self.device_count());
-        
+
+        println!(
+            "🚀 Using multi-GPU similarity search across {} devices",
+            self.device_count()
+        );
+
         let chunk_size = (vectors.nrows() + self.device_count() - 1) / self.device_count();
         let mut results = Vec::new();
-        
+
         // Process chunks in parallel across different GPUs
-        for (device_idx, chunk) in vectors.axis_chunks_iter(ndarray::Axis(0), chunk_size).enumerate() {
+        for (device_idx, chunk) in vectors
+            .axis_chunks_iter(ndarray::Axis(0), chunk_size)
+            .enumerate()
+        {
             if device_idx >= self.available_devices.len() {
                 break;
             }
-            
+
             // Create tensor on specific device
             let device = &self.available_devices[device_idx];
             let query_tensor = Tensor::from_slice(
                 query.as_slice().expect("Array must be contiguous"),
                 query.len(),
-                device
+                device,
             )?;
-            
+
             let chunk_data = chunk.as_slice().expect("Chunk must be contiguous");
-            let chunk_tensor = Tensor::from_slice(
-                chunk_data,
-                (chunk.nrows(), chunk.ncols()),
-                device
-            )?;
-            
+            let chunk_tensor =
+                Tensor::from_slice(chunk_data, (chunk.nrows(), chunk.ncols()), device)?;
+
             // Compute similarities on this GPU
-            let similarities = self.compute_cosine_similarity_tensor(&query_tensor, &chunk_tensor)?;
+            let similarities =
+                self.compute_cosine_similarity_tensor(&query_tensor, &chunk_tensor)?;
             let similarities_array = self.tensor_to_array(&similarities)?;
             results.push(similarities_array);
         }
-        
+
         // Concatenate results
         let total_len: usize = results.iter().map(|r| r.len()).sum();
         let mut combined = Vec::with_capacity(total_len);
         for result in results {
             combined.extend(result.iter());
         }
-        
+
         Ok(Array1::from_vec(combined))
     }
-    
+
     /// Helper method to compute cosine similarity on tensor
-    fn compute_cosine_similarity_tensor(&self, query: &Tensor, vectors: &Tensor) -> CandleResult<Tensor> {
+    fn compute_cosine_similarity_tensor(
+        &self,
+        query: &Tensor,
+        vectors: &Tensor,
+    ) -> CandleResult<Tensor> {
         // Normalize query
         let query_norm = query.sqr()?.sum_keepdim(0)?.sqrt()?;
         let query_normalized = query.broadcast_div(&query_norm)?;
-        
+
         // Normalize vectors
         let vectors_norm = vectors.sqr()?.sum_keepdim(1)?.sqrt()?;
         let vectors_normalized = vectors.broadcast_div(&vectors_norm)?;
-        
+
         // Compute dot product (cosine similarity)
-        vectors_normalized.matmul(&query_normalized.unsqueeze(1)?)?.squeeze(1)
+        vectors_normalized
+            .matmul(&query_normalized.unsqueeze(1)?)?
+            .squeeze(1)
     }
-    
+
     /// Multi-GPU batch processing for large operations
-    pub fn multi_gpu_batch_process<T, F>(&self, data: &[T], process_fn: F) -> Result<Vec<T>, String> 
-    where 
+    pub fn multi_gpu_batch_process<T, F>(&self, data: &[T], process_fn: F) -> Result<Vec<T>, String>
+    where
         T: Clone + Send + Sync,
         F: Fn(&[T], usize) -> Result<Vec<T>, String> + Send + Sync,
     {
@@ -419,14 +444,17 @@ impl GPUAccelerator {
             // Single device processing
             return process_fn(data, 0);
         }
-        
+
         use rayon::prelude::*;
-        
+
         let chunk_size = (data.len() + self.device_count() - 1) / self.device_count();
-        
-        println!("🚀 Multi-GPU batch processing: {} items across {} devices", 
-                 data.len(), self.device_count());
-        
+
+        println!(
+            "🚀 Multi-GPU batch processing: {} items across {} devices",
+            data.len(),
+            self.device_count()
+        );
+
         let results: Result<Vec<Vec<T>>, String> = data
             .par_chunks(chunk_size)
             .enumerate()
@@ -435,7 +463,7 @@ impl GPUAccelerator {
                 process_fn(chunk, gpu_idx)
             })
             .collect();
-        
+
         match results {
             Ok(chunks) => Ok(chunks.into_iter().flatten().collect()),
             Err(e) => Err(e),
@@ -470,8 +498,10 @@ mod tests {
         let accelerator = GPUAccelerator::global();
         let query = Array1::from_vec(vec![1.0, 2.0, 3.0]);
         let vectors = Array2::from_shape_vec((2, 3), vec![1.0, 2.0, 3.0, 4.0, 5.0, 6.0]).unwrap();
-        
-        let similarities = accelerator.cosine_similarity_batch(&query, &vectors).unwrap();
+
+        let similarities = accelerator
+            .cosine_similarity_batch(&query, &vectors)
+            .unwrap();
         assert_eq!(similarities.len(), 2);
         assert!(similarities[0] > 0.9); // Should be close to 1.0 for identical vectors
     }
@@ -481,7 +511,7 @@ mod tests {
         let accelerator = GPUAccelerator::global();
         let a = Array2::<f32>::ones((2, 3));
         let b = Array2::<f32>::ones((3, 2));
-        
+
         let result = accelerator.matmul(&a, &b).unwrap();
         assert_eq!(result.shape(), &[2, 2]);
         assert_eq!(result[(0, 0)], 3.0); // Sum of ones
@@ -491,7 +521,11 @@ mod tests {
     fn test_benchmark() {
         let accelerator = GPUAccelerator::global();
         let gflops = accelerator.benchmark().unwrap();
-        println!("Benchmark: {:.2} GFLOPS on {:?}", gflops, accelerator.device_type());
+        println!(
+            "Benchmark: {:.2} GFLOPS on {:?}",
+            gflops,
+            accelerator.device_type()
+        );
         assert!(gflops > 0.0);
     }
 }

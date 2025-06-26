@@ -1,13 +1,13 @@
-use chess::{Board, Game, MoveGen, ChessMove};
-use pgn_reader::{RawHeader, SanPlus, Skip, Visitor, BufferedReader};
-use std::fs::File;
-use std::io::{BufRead, BufReader, Write, BufWriter};
-use std::path::Path;
-use std::process::{Command, Stdio, Child};
-use std::str::FromStr;
+use chess::{Board, ChessMove, Game, MoveGen};
 use indicatif::{ProgressBar, ProgressStyle};
+use pgn_reader::{BufferedReader, RawHeader, SanPlus, Skip, Visitor};
 use rayon::prelude::*;
 use serde::{Deserialize, Serialize};
+use std::fs::File;
+use std::io::{BufRead, BufReader, BufWriter, Write};
+use std::path::Path;
+use std::process::{Child, Command, Stdio};
+use std::str::FromStr;
 use std::sync::{Arc, Mutex};
 
 use crate::ChessVectorEngine;
@@ -59,7 +59,7 @@ pub struct TacticalPuzzle {
     #[serde(rename = "FEN")]
     pub fen: String,
     #[serde(rename = "Moves")]
-    pub moves: String,           // Space-separated move sequence
+    pub moves: String, // Space-separated move sequence
     #[serde(rename = "Rating")]
     pub rating: u32,
     #[serde(rename = "RatingDeviation")]
@@ -69,7 +69,7 @@ pub struct TacticalPuzzle {
     #[serde(rename = "NbPlays")]
     pub nb_plays: u32,
     #[serde(rename = "Themes")]
-    pub themes: String,          // Space-separated themes
+    pub themes: String, // Space-separated themes
     #[serde(rename = "GameUrl")]
     pub game_url: Option<String>,
     #[serde(rename = "OpeningTags")]
@@ -82,8 +82,8 @@ pub struct TacticalTrainingData {
     pub position: Board,
     pub solution_move: ChessMove,
     pub move_theme: String,
-    pub difficulty: f32,         // Rating as difficulty
-    pub tactical_value: f32,     // High value for move outcome
+    pub difficulty: f32,     // Rating as difficulty
+    pub tactical_value: f32, // High value for move outcome
 }
 
 // Make TacticalTrainingData serializable
@@ -169,14 +169,18 @@ impl<'de> serde::Deserialize<'de> for TacticalTrainingData {
                 }
 
                 let fen: String = fen.ok_or_else(|| de::Error::missing_field("fen"))?;
-                let solution_move_str: String = solution_move.ok_or_else(|| de::Error::missing_field("solution_move"))?;
-                let move_theme = move_theme.ok_or_else(|| de::Error::missing_field("move_theme"))?;
-                let difficulty = difficulty.ok_or_else(|| de::Error::missing_field("difficulty"))?;
-                let tactical_value = tactical_value.ok_or_else(|| de::Error::missing_field("tactical_value"))?;
+                let solution_move_str: String =
+                    solution_move.ok_or_else(|| de::Error::missing_field("solution_move"))?;
+                let move_theme =
+                    move_theme.ok_or_else(|| de::Error::missing_field("move_theme"))?;
+                let difficulty =
+                    difficulty.ok_or_else(|| de::Error::missing_field("difficulty"))?;
+                let tactical_value =
+                    tactical_value.ok_or_else(|| de::Error::missing_field("tactical_value"))?;
 
                 let position = Board::from_str(&fen)
                     .map_err(|e| de::Error::custom(format!("Invalid FEN: {}", e)))?;
-                
+
                 let solution_move = ChessMove::from_str(&solution_move_str)
                     .map_err(|e| de::Error::custom(format!("Invalid move: {}", e)))?;
 
@@ -190,7 +194,13 @@ impl<'de> serde::Deserialize<'de> for TacticalTrainingData {
             }
         }
 
-        const FIELDS: &'static [&'static str] = &["fen", "solution_move", "move_theme", "difficulty", "tactical_value"];
+        const FIELDS: &'static [&'static str] = &[
+            "fen",
+            "solution_move",
+            "move_theme",
+            "difficulty",
+            "tactical_value",
+        ];
         deserializer.deserialize_struct("TacticalTrainingData", FIELDS, TacticalTrainingDataVisitor)
     }
 }
@@ -233,10 +243,10 @@ impl Visitor for GameExtractor {
         }
 
         let san_str = san_plus.san.to_string();
-        
+
         // First validate that we have a legal position to work with
         let current_pos = self.current_game.current_position();
-        
+
         // Try to parse and make the move
         match chess::ChessMove::from_san(&current_pos, &san_str) {
             Ok(chess_move) => {
@@ -245,7 +255,7 @@ impl Visitor for GameExtractor {
                 if legal_moves.contains(&chess_move) {
                     if self.current_game.make_move(chess_move) {
                         self.move_count += 1;
-                        
+
                         // Store position (we'll evaluate it later with Stockfish)
                         self.positions.push(TrainingData {
                             board: self.current_game.current_position().clone(),
@@ -294,10 +304,12 @@ impl StockfishEvaluator {
             .stderr(Stdio::piped())
             .spawn()?;
 
-        let stdin = child.stdin.as_mut()
+        let stdin = child
+            .stdin
+            .as_mut()
             .ok_or("Failed to get stdin handle for Stockfish process")?;
         let fen = board.to_string();
-        
+
         // Send UCI commands
         use std::io::Write;
         writeln!(stdin, "uci")?;
@@ -305,10 +317,10 @@ impl StockfishEvaluator {
         writeln!(stdin, "position fen {}", fen)?;
         writeln!(stdin, "go depth {}", self.depth)?;
         writeln!(stdin, "quit")?;
-        
+
         let output = child.wait_with_output()?;
         let stdout = String::from_utf8_lossy(&output.stdout);
-        
+
         // Parse the evaluation from Stockfish output
         for line in stdout.lines() {
             if line.starts_with("info") && line.contains("score cp") {
@@ -330,15 +342,19 @@ impl StockfishEvaluator {
                 }
             }
         }
-        
+
         Ok(0.0) // Default to 0 if no evaluation found
     }
 
     /// Batch evaluate multiple positions
-    pub fn evaluate_batch(&self, positions: &mut [TrainingData]) -> Result<(), Box<dyn std::error::Error>> {
+    pub fn evaluate_batch(
+        &self,
+        positions: &mut [TrainingData],
+    ) -> Result<(), Box<dyn std::error::Error>> {
         let pb = ProgressBar::new(positions.len() as u64);
-        if let Ok(style) = ProgressStyle::default_bar()
-            .template("{spinner:.green} [{elapsed_precise}] [{bar:40.cyan/blue}] {pos}/{len} ({eta})") {
+        if let Ok(style) = ProgressStyle::default_bar().template(
+            "{spinner:.green} [{elapsed_precise}] [{bar:40.cyan/blue}] {pos}/{len} ({eta})",
+        ) {
             pb.set_style(style.progress_chars("#>-"));
         }
 
@@ -355,13 +371,17 @@ impl StockfishEvaluator {
             }
             pb.inc(1);
         }
-        
+
         pb.finish_with_message("Evaluation complete");
         Ok(())
     }
-    
+
     /// Evaluate multiple positions in parallel using concurrent Stockfish instances
-    pub fn evaluate_batch_parallel(&self, positions: &mut [TrainingData], num_threads: usize) -> Result<(), Box<dyn std::error::Error>> {
+    pub fn evaluate_batch_parallel(
+        &self,
+        positions: &mut [TrainingData],
+        num_threads: usize,
+    ) -> Result<(), Box<dyn std::error::Error>> {
         let pb = ProgressBar::new(positions.len() as u64);
         if let Ok(style) = ProgressStyle::default_bar()
             .template("{spinner:.green} [{elapsed_precise}] [{bar:40.cyan/blue}] {pos}/{len} Parallel evaluation") {
@@ -369,8 +389,10 @@ impl StockfishEvaluator {
         }
 
         // Set the thread pool size
-        let pool = rayon::ThreadPoolBuilder::new().num_threads(num_threads).build()?;
-        
+        let pool = rayon::ThreadPoolBuilder::new()
+            .num_threads(num_threads)
+            .build()?;
+
         pool.install(|| {
             // Use parallel iterator to evaluate positions
             positions.par_iter_mut().for_each(|data| {
@@ -387,7 +409,7 @@ impl StockfishEvaluator {
                 pb.inc(1);
             });
         });
-        
+
         pb.finish_with_message("Parallel evaluation complete");
         Ok(())
     }
@@ -409,28 +431,41 @@ impl StockfishProcess {
             .stderr(Stdio::piped())
             .spawn()?;
 
-        let stdin = BufWriter::new(child.stdin.take()
-            .ok_or("Failed to get stdin handle for Stockfish process")?);
-        let stdout = BufReader::new(child.stdout.take()
-            .ok_or("Failed to get stdout handle for Stockfish process")?);
-        
-        let mut process = Self { child, stdin, stdout, depth };
-        
+        let stdin = BufWriter::new(
+            child
+                .stdin
+                .take()
+                .ok_or("Failed to get stdin handle for Stockfish process")?,
+        );
+        let stdout = BufReader::new(
+            child
+                .stdout
+                .take()
+                .ok_or("Failed to get stdout handle for Stockfish process")?,
+        );
+
+        let mut process = Self {
+            child,
+            stdin,
+            stdout,
+            depth,
+        };
+
         // Initialize UCI
         process.send_command("uci")?;
         process.wait_for_ready()?;
         process.send_command("isready")?;
         process.wait_for_ready()?;
-        
+
         Ok(process)
     }
-    
+
     fn send_command(&mut self, command: &str) -> Result<(), Box<dyn std::error::Error>> {
         writeln!(self.stdin, "{}", command)?;
         self.stdin.flush()?;
         Ok(())
     }
-    
+
     fn wait_for_ready(&mut self) -> Result<(), Box<dyn std::error::Error>> {
         let mut line = String::new();
         loop {
@@ -442,23 +477,23 @@ impl StockfishProcess {
         }
         Ok(())
     }
-    
+
     fn evaluate_position(&mut self, board: &Board) -> Result<f32, Box<dyn std::error::Error>> {
         let fen = board.to_string();
-        
+
         // Send position and evaluation commands
         self.send_command(&format!("position fen {}", fen))?;
         self.send_command(&format!("go depth {}", self.depth))?;
-        
+
         // Read response until we get bestmove
         let mut line = String::new();
         let mut last_evaluation = 0.0;
-        
+
         loop {
             line.clear();
             self.stdout.read_line(&mut line)?;
             let line = line.trim();
-            
+
             if line.starts_with("info") && line.contains("score cp") {
                 if let Some(cp_pos) = line.find("score cp ") {
                     let cp_str = &line[cp_pos + 9..];
@@ -481,7 +516,7 @@ impl StockfishProcess {
                 break;
             }
         }
-        
+
         Ok(last_evaluation)
     }
 }
@@ -503,9 +538,12 @@ pub struct StockfishPool {
 impl StockfishPool {
     pub fn new(depth: u8, pool_size: usize) -> Result<Self, Box<dyn std::error::Error>> {
         let mut processes = Vec::with_capacity(pool_size);
-        
-        println!("🚀 Initializing Stockfish pool with {} processes...", pool_size);
-        
+
+        println!(
+            "🚀 Initializing Stockfish pool with {} processes...",
+            pool_size
+        );
+
         for i in 0..pool_size {
             match StockfishProcess::new(depth) {
                 Ok(process) => {
@@ -521,16 +559,16 @@ impl StockfishPool {
                 }
             }
         }
-        
+
         println!(" ✅ Pool ready!");
-        
+
         Ok(Self {
             pool: Arc::new(Mutex::new(processes)),
             depth,
             pool_size,
         })
     }
-    
+
     pub fn evaluate_position(&self, board: &Board) -> Result<f32, Box<dyn std::error::Error>> {
         // Get a process from the pool
         let mut process = {
@@ -542,10 +580,10 @@ impl StockfishPool {
                 StockfishProcess::new(self.depth)?
             }
         };
-        
+
         // Evaluate position
         let result = process.evaluate_position(board);
-        
+
         // Return process to pool
         {
             let mut pool = self.pool.lock().unwrap();
@@ -554,11 +592,14 @@ impl StockfishPool {
             }
             // Otherwise drop the process (in case of pool size changes)
         }
-        
+
         result
     }
-    
-    pub fn evaluate_batch_parallel(&self, positions: &mut [TrainingData]) -> Result<(), Box<dyn std::error::Error>> {
+
+    pub fn evaluate_batch_parallel(
+        &self,
+        positions: &mut [TrainingData],
+    ) -> Result<(), Box<dyn std::error::Error>> {
         let pb = ProgressBar::new(positions.len() as u64);
         pb.set_style(ProgressStyle::default_bar()
             .template("{spinner:.green} [{elapsed_precise}] [{bar:40.cyan/blue}] {pos}/{len} Pool evaluation")
@@ -578,7 +619,7 @@ impl StockfishPool {
             }
             pb.inc(1);
         });
-        
+
         pb.finish_with_message("Pool evaluation complete");
         Ok(())
     }
@@ -603,46 +644,55 @@ impl TrainingDataset {
     ) -> Result<(), Box<dyn std::error::Error>> {
         let file = File::open(path)?;
         let reader = BufReader::new(file);
-        
+
         let mut extractor = GameExtractor::new(max_moves_per_game);
         let mut games_processed = 0;
-        
+
         // Create a simple PGN parser
         let mut pgn_content = String::new();
         for line in reader.lines() {
             let line = line?;
             pgn_content.push_str(&line);
             pgn_content.push('\n');
-            
+
             // Check if this is the end of a game
-            if line.trim().ends_with("1-0") || line.trim().ends_with("0-1") || 
-               line.trim().ends_with("1/2-1/2") || line.trim().ends_with("*") {
-                
+            if line.trim().ends_with("1-0")
+                || line.trim().ends_with("0-1")
+                || line.trim().ends_with("1/2-1/2")
+                || line.trim().ends_with("*")
+            {
                 // Parse this game
                 let cursor = std::io::Cursor::new(&pgn_content);
                 let mut reader = BufferedReader::new(cursor);
                 if let Err(e) = reader.read_all(&mut extractor) {
                     eprintln!("Error parsing game {}: {}", games_processed + 1, e);
                 }
-                
+
                 games_processed += 1;
                 pgn_content.clear();
-                
+
                 if let Some(max) = max_games {
                     if games_processed >= max {
                         break;
                     }
                 }
-                
+
                 if games_processed % 100 == 0 {
-                    println!("Processed {} games, extracted {} positions", 
-                            games_processed, extractor.positions.len());
+                    println!(
+                        "Processed {} games, extracted {} positions",
+                        games_processed,
+                        extractor.positions.len()
+                    );
                 }
             }
         }
-        
+
         self.data.extend(extractor.positions);
-        println!("Loaded {} positions from {} games", self.data.len(), games_processed);
+        println!(
+            "Loaded {} positions from {} games",
+            self.data.len(),
+            games_processed
+        );
         Ok(())
     }
 
@@ -651,9 +701,13 @@ impl TrainingDataset {
         let evaluator = StockfishEvaluator::new(depth);
         evaluator.evaluate_batch(&mut self.data)
     }
-    
+
     /// Evaluate all positions using Stockfish in parallel
-    pub fn evaluate_with_stockfish_parallel(&mut self, depth: u8, num_threads: usize) -> Result<(), Box<dyn std::error::Error>> {
+    pub fn evaluate_with_stockfish_parallel(
+        &mut self,
+        depth: u8,
+        num_threads: usize,
+    ) -> Result<(), Box<dyn std::error::Error>> {
         let evaluator = StockfishEvaluator::new(depth);
         evaluator.evaluate_batch_parallel(&mut self.data, num_threads)
     }
@@ -670,35 +724,38 @@ impl TrainingDataset {
             engine.add_position(&data.board, data.evaluation);
             pb.inc(1);
         }
-        
+
         pb.finish_with_message("Training complete");
         println!("Trained engine with {} positions", self.data.len());
     }
 
     /// Split dataset into train/test sets by games to prevent data leakage
     pub fn split(&self, train_ratio: f32) -> (TrainingDataset, TrainingDataset) {
-        use std::collections::{HashMap, HashSet};
         use rand::seq::SliceRandom;
         use rand::thread_rng;
-        
+        use std::collections::{HashMap, HashSet};
+
         // Group positions by game_id
         let mut games: HashMap<usize, Vec<&TrainingData>> = HashMap::new();
         for data in &self.data {
-            games.entry(data.game_id).or_insert_with(Vec::new).push(data);
+            games
+                .entry(data.game_id)
+                .or_insert_with(Vec::new)
+                .push(data);
         }
-        
+
         // Get unique game IDs and shuffle them
         let mut game_ids: Vec<usize> = games.keys().cloned().collect();
         game_ids.shuffle(&mut thread_rng());
-        
+
         // Split games by ratio
         let split_point = (game_ids.len() as f32 * train_ratio) as usize;
         let train_game_ids: HashSet<usize> = game_ids[..split_point].iter().cloned().collect();
-        
+
         // Separate positions based on game membership
         let mut train_data = Vec::new();
         let mut test_data = Vec::new();
-        
+
         for data in &self.data {
             if train_game_ids.contains(&data.game_id) {
                 train_data.push(data.clone());
@@ -706,10 +763,10 @@ impl TrainingDataset {
                 test_data.push(data.clone());
             }
         }
-        
+
         (
             TrainingDataset { data: train_data },
-            TrainingDataset { data: test_data }
+            TrainingDataset { data: test_data },
         )
     }
 
@@ -728,12 +785,18 @@ impl TrainingDataset {
     }
 
     /// Load and append data from file to existing dataset (incremental training)
-    pub fn load_and_append<P: AsRef<Path>>(&mut self, path: P) -> Result<(), Box<dyn std::error::Error>> {
+    pub fn load_and_append<P: AsRef<Path>>(
+        &mut self,
+        path: P,
+    ) -> Result<(), Box<dyn std::error::Error>> {
         let existing_len = self.data.len();
         let additional_data = Self::load(path)?;
         self.data.extend(additional_data.data);
-        println!("Loaded {} additional positions (total: {})", 
-                self.data.len() - existing_len, self.data.len());
+        println!(
+            "Loaded {} additional positions (total: {})",
+            self.data.len() - existing_len,
+            self.data.len()
+        );
         Ok(())
     }
 
@@ -741,25 +804,35 @@ impl TrainingDataset {
     pub fn merge(&mut self, other: TrainingDataset) {
         let existing_len = self.data.len();
         self.data.extend(other.data);
-        println!("Merged {} positions (total: {})", 
-                self.data.len() - existing_len, self.data.len());
+        println!(
+            "Merged {} positions (total: {})",
+            self.data.len() - existing_len,
+            self.data.len()
+        );
     }
 
     /// Save incrementally (append to existing file if it exists)
-    pub fn save_incremental<P: AsRef<Path>>(&self, path: P) -> Result<(), Box<dyn std::error::Error>> {
+    pub fn save_incremental<P: AsRef<Path>>(
+        &self,
+        path: P,
+    ) -> Result<(), Box<dyn std::error::Error>> {
         self.save_incremental_with_options(path, true)
     }
-    
+
     /// Save incrementally with option to skip deduplication
-    pub fn save_incremental_with_options<P: AsRef<Path>>(&self, path: P, deduplicate: bool) -> Result<(), Box<dyn std::error::Error>> {
+    pub fn save_incremental_with_options<P: AsRef<Path>>(
+        &self,
+        path: P,
+        deduplicate: bool,
+    ) -> Result<(), Box<dyn std::error::Error>> {
         let path = path.as_ref();
-        
+
         if path.exists() {
             // Try fast append-only save first
             if let Ok(_) = self.save_append_only(path) {
                 return Ok(());
             }
-            
+
             // Fall back to full merge
             if deduplicate {
                 self.save_incremental_full_merge(path)
@@ -771,57 +844,66 @@ impl TrainingDataset {
             self.save(path)
         }
     }
-    
+
     /// Fast merge without deduplication (for trusted unique data)
-    fn save_incremental_no_dedup<P: AsRef<Path>>(&self, path: P) -> Result<(), Box<dyn std::error::Error>> {
+    fn save_incremental_no_dedup<P: AsRef<Path>>(
+        &self,
+        path: P,
+    ) -> Result<(), Box<dyn std::error::Error>> {
         let path = path.as_ref();
-        
+
         println!("📂 Loading existing training data...");
         let mut existing = Self::load(path)?;
-        
+
         println!("⚡ Fast merge without deduplication...");
         existing.data.extend(self.data.iter().cloned());
-        
-        println!("💾 Serializing {} positions to JSON...", existing.data.len());
+
+        println!(
+            "💾 Serializing {} positions to JSON...",
+            existing.data.len()
+        );
         let json = serde_json::to_string_pretty(&existing.data)?;
-        
+
         println!("✍️  Writing to disk...");
         std::fs::write(path, json)?;
-        
-        println!("✅ Fast merge save: total {} positions", existing.data.len());
+
+        println!(
+            "✅ Fast merge save: total {} positions",
+            existing.data.len()
+        );
         Ok(())
     }
-    
+
     /// Fast append-only save (no deduplication, just append new positions)
-    pub fn save_append_only<P: AsRef<Path>>(&self, path: P) -> Result<(), Box<dyn std::error::Error>> {
+    pub fn save_append_only<P: AsRef<Path>>(
+        &self,
+        path: P,
+    ) -> Result<(), Box<dyn std::error::Error>> {
         use std::fs::OpenOptions;
         use std::io::{BufRead, BufReader, Seek, SeekFrom, Write};
-        
+
         if self.data.is_empty() {
             return Ok(());
         }
-        
+
         let path = path.as_ref();
-        let mut file = OpenOptions::new()
-            .read(true)
-            .write(true)
-            .open(path)?;
-        
+        let mut file = OpenOptions::new().read(true).write(true).open(path)?;
+
         // Check if file is valid JSON array by reading last few bytes
         file.seek(SeekFrom::End(-10))?;
         let mut buffer = String::new();
         BufReader::new(&file).read_line(&mut buffer)?;
-        
+
         if !buffer.trim().ends_with(']') {
             return Err("File doesn't end with JSON array bracket".into());
         }
-        
+
         // Seek back to overwrite the closing bracket
         file.seek(SeekFrom::End(-2))?; // Go back 2 chars to overwrite "]\n"
-        
+
         // Append comma and new positions
         write!(file, ",")?;
-        
+
         // Serialize and append new positions (without array brackets)
         for (i, data) in self.data.iter().enumerate() {
             if i > 0 {
@@ -830,32 +912,41 @@ impl TrainingDataset {
             let json = serde_json::to_string(data)?;
             write!(file, "\n  {}", json)?;
         }
-        
+
         // Close the JSON array
         write!(file, "\n]")?;
-        
+
         println!("Fast append: added {} new positions", self.data.len());
         Ok(())
     }
-    
+
     /// Full merge save with deduplication (slower but thorough)
-    fn save_incremental_full_merge<P: AsRef<Path>>(&self, path: P) -> Result<(), Box<dyn std::error::Error>> {
+    fn save_incremental_full_merge<P: AsRef<Path>>(
+        &self,
+        path: P,
+    ) -> Result<(), Box<dyn std::error::Error>> {
         let path = path.as_ref();
-        
+
         println!("📂 Loading existing training data...");
         let mut existing = Self::load(path)?;
         let _original_len = existing.data.len();
-        
+
         println!("🔄 Streaming merge with deduplication (avoiding O(n²) operation)...");
         existing.merge_and_deduplicate(self.data.clone());
-        
-        println!("💾 Serializing {} positions to JSON...", existing.data.len());
+
+        println!(
+            "💾 Serializing {} positions to JSON...",
+            existing.data.len()
+        );
         let json = serde_json::to_string_pretty(&existing.data)?;
-        
+
         println!("✍️  Writing to disk...");
         std::fs::write(path, json)?;
-        
-        println!("✅ Streaming merge save: total {} positions", existing.data.len());
+
+        println!(
+            "✅ Streaming merge save: total {} positions",
+            existing.data.len()
+        );
         Ok(())
     }
 
@@ -871,10 +962,7 @@ impl TrainingDataset {
 
     /// Get the next available game ID for incremental training
     pub fn next_game_id(&self) -> usize {
-        self.data.iter()
-            .map(|data| data.game_id)
-            .max()
-            .unwrap_or(0) + 1
+        self.data.iter().map(|data| data.game_id).max().unwrap_or(0) + 1
     }
 
     /// Remove near-duplicate positions to reduce overfitting
@@ -887,44 +975,48 @@ impl TrainingDataset {
             self.deduplicate_similarity_based(similarity_threshold);
         }
     }
-    
+
     /// Fast hash-based deduplication for exact duplicates (O(n))
     pub fn deduplicate_fast(&mut self) {
         use std::collections::HashSet;
-        
+
         if self.data.is_empty() {
             return;
         }
-        
+
         let mut seen_positions = HashSet::with_capacity(self.data.len());
         let original_len = self.data.len();
-        
+
         // Keep positions with unique FEN strings
         self.data.retain(|data| {
             let fen = data.board.to_string();
             seen_positions.insert(fen)
         });
-        
-        println!("Fast deduplicated: {} -> {} positions (removed {} exact duplicates)", 
-                 original_len, self.data.len(), original_len - self.data.len());
+
+        println!(
+            "Fast deduplicated: {} -> {} positions (removed {} exact duplicates)",
+            original_len,
+            self.data.len(),
+            original_len - self.data.len()
+        );
     }
-    
+
     /// Streaming deduplication when merging with existing data (faster for large datasets)
     pub fn merge_and_deduplicate(&mut self, new_data: Vec<TrainingData>) {
         use std::collections::HashSet;
-        
+
         if new_data.is_empty() {
             return;
         }
-        
+
         let _original_len = self.data.len();
-        
+
         // Build hashset of existing positions for fast lookup
         let mut existing_positions: HashSet<String> = HashSet::with_capacity(self.data.len());
         for data in &self.data {
             existing_positions.insert(data.board.to_string());
         }
-        
+
         // Only add new positions that don't already exist
         let mut added = 0;
         for data in new_data {
@@ -934,45 +1026,50 @@ impl TrainingDataset {
                 added += 1;
             }
         }
-        
-        println!("Streaming merge: added {} unique positions (total: {})", 
-                 added, self.data.len());
+
+        println!(
+            "Streaming merge: added {} unique positions (total: {})",
+            added,
+            self.data.len()
+        );
     }
-    
+
     /// Similarity-based deduplication for near-duplicates (O(n²) but optimized)
     fn deduplicate_similarity_based(&mut self, similarity_threshold: f32) {
         use crate::PositionEncoder;
         use ndarray::Array1;
-        
+
         if self.data.is_empty() {
             return;
         }
-        
+
         let encoder = PositionEncoder::new(1024);
         let mut keep_indices: Vec<bool> = vec![true; self.data.len()];
-        
+
         // Encode all positions in parallel
         let vectors: Vec<Array1<f32>> = if self.data.len() > 50 {
-            self.data.par_iter()
+            self.data
+                .par_iter()
                 .map(|data| encoder.encode(&data.board))
                 .collect()
         } else {
-            self.data.iter()
+            self.data
+                .iter()
                 .map(|data| encoder.encode(&data.board))
                 .collect()
         };
-        
+
         // Compare each position with all previous ones
         for i in 1..self.data.len() {
             if !keep_indices[i] {
                 continue;
             }
-            
+
             for j in 0..i {
                 if !keep_indices[j] {
                     continue;
                 }
-                
+
                 let similarity = Self::cosine_similarity(&vectors[i], &vectors[j]);
                 if similarity > similarity_threshold {
                     keep_indices[i] = false;
@@ -980,37 +1077,51 @@ impl TrainingDataset {
                 }
             }
         }
-        
+
         // Filter data based on keep_indices
         let original_len = self.data.len();
-        self.data = self.data.iter()
+        self.data = self
+            .data
+            .iter()
             .enumerate()
-            .filter_map(|(i, data)| if keep_indices[i] { Some(data.clone()) } else { None })
+            .filter_map(|(i, data)| {
+                if keep_indices[i] {
+                    Some(data.clone())
+                } else {
+                    None
+                }
+            })
             .collect();
-        
-        println!("Similarity deduplicated: {} -> {} positions (removed {} near-duplicates)", 
-                 original_len, self.data.len(), original_len - self.data.len());
+
+        println!(
+            "Similarity deduplicated: {} -> {} positions (removed {} near-duplicates)",
+            original_len,
+            self.data.len(),
+            original_len - self.data.len()
+        );
     }
-    
+
     /// Remove near-duplicate positions using parallel comparison (faster for large datasets)
     pub fn deduplicate_parallel(&mut self, similarity_threshold: f32, chunk_size: usize) {
         use crate::PositionEncoder;
         use ndarray::Array1;
         use std::sync::{Arc, Mutex};
-        
+
         if self.data.is_empty() {
             return;
         }
-        
+
         let encoder = PositionEncoder::new(1024);
-        
+
         // Encode all positions in parallel
-        let vectors: Vec<Array1<f32>> = self.data.par_iter()
+        let vectors: Vec<Array1<f32>> = self
+            .data
+            .par_iter()
             .map(|data| encoder.encode(&data.board))
             .collect();
-        
+
         let keep_indices = Arc::new(Mutex::new(vec![true; self.data.len()]));
-        
+
         // Process in chunks to balance parallelism and memory usage
         (1..self.data.len())
             .collect::<Vec<_>>()
@@ -1024,7 +1135,7 @@ impl TrainingDataset {
                             continue;
                         }
                     }
-                    
+
                     // Compare with all previous positions
                     for j in 0..i {
                         {
@@ -1033,7 +1144,7 @@ impl TrainingDataset {
                                 continue;
                             }
                         }
-                        
+
                         let similarity = Self::cosine_similarity(&vectors[i], &vectors[j]);
                         if similarity > similarity_threshold {
                             let mut indices = keep_indices.lock().unwrap();
@@ -1043,17 +1154,29 @@ impl TrainingDataset {
                     }
                 }
             });
-        
+
         // Filter data based on keep_indices
         let keep_indices = keep_indices.lock().unwrap();
         let original_len = self.data.len();
-        self.data = self.data.iter()
+        self.data = self
+            .data
+            .iter()
             .enumerate()
-            .filter_map(|(i, data)| if keep_indices[i] { Some(data.clone()) } else { None })
+            .filter_map(|(i, data)| {
+                if keep_indices[i] {
+                    Some(data.clone())
+                } else {
+                    None
+                }
+            })
             .collect();
-        
-        println!("Parallel deduplicated: {} -> {} positions (removed {} duplicates)", 
-                 original_len, self.data.len(), original_len - self.data.len());
+
+        println!(
+            "Parallel deduplicated: {} -> {} positions (removed {} duplicates)",
+            original_len,
+            self.data.len(),
+            original_len - self.data.len()
+        );
     }
 
     /// Calculate cosine similarity between two vectors
@@ -1061,7 +1184,7 @@ impl TrainingDataset {
         let dot_product = a.dot(b);
         let norm_a = a.dot(a).sqrt();
         let norm_b = b.dot(b).sqrt();
-        
+
         if norm_a == 0.0 || norm_b == 0.0 {
             0.0
         } else {
@@ -1083,37 +1206,45 @@ impl SelfPlayTrainer {
             game_counter: 0,
         }
     }
-    
+
     /// Generate training data through self-play games
     pub fn generate_training_data(&mut self, engine: &mut ChessVectorEngine) -> TrainingDataset {
         let mut dataset = TrainingDataset::new();
-        
-        println!("🎮 Starting self-play training with {} games...", self.config.games_per_iteration);
+
+        println!(
+            "🎮 Starting self-play training with {} games...",
+            self.config.games_per_iteration
+        );
         let pb = ProgressBar::new(self.config.games_per_iteration as u64);
-        if let Ok(style) = ProgressStyle::default_bar()
-            .template("{spinner:.green} [{elapsed_precise}] [{bar:40.cyan/blue}] {pos}/{len} ({eta})") {
+        if let Ok(style) = ProgressStyle::default_bar().template(
+            "{spinner:.green} [{elapsed_precise}] [{bar:40.cyan/blue}] {pos}/{len} ({eta})",
+        ) {
             pb.set_style(style.progress_chars("#>-"));
         }
-        
+
         for _ in 0..self.config.games_per_iteration {
             let game_data = self.play_single_game(engine);
             dataset.data.extend(game_data);
             self.game_counter += 1;
             pb.inc(1);
         }
-        
+
         pb.finish_with_message("Self-play games completed");
-        println!("✅ Generated {} positions from {} games", dataset.data.len(), self.config.games_per_iteration);
-        
+        println!(
+            "✅ Generated {} positions from {} games",
+            dataset.data.len(),
+            self.config.games_per_iteration
+        );
+
         dataset
     }
-    
+
     /// Play a single self-play game and extract training positions
     fn play_single_game(&self, engine: &mut ChessVectorEngine) -> Vec<TrainingData> {
         let mut game = Game::new();
         let mut positions = Vec::new();
         let mut move_count = 0;
-        
+
         // Use opening book for variety if enabled
         if self.config.use_opening_book {
             if let Some(opening_moves) = self.get_random_opening() {
@@ -1126,14 +1257,14 @@ impl SelfPlayTrainer {
                 }
             }
         }
-        
+
         // Play the game
         while !game.result().is_some() && move_count < self.config.max_moves_per_game {
             let current_position = game.current_position();
-            
+
             // Get engine's move recommendation with exploration
             let move_choice = self.select_move_with_exploration(engine, &current_position);
-            
+
             if let Some(chess_move) = move_choice {
                 // Evaluate the position before making the move
                 if let Some(evaluation) = engine.evaluate_position(&current_position) {
@@ -1147,7 +1278,7 @@ impl SelfPlayTrainer {
                         });
                     }
                 }
-                
+
                 // Make the move
                 if !game.make_move(chess_move) {
                     break; // Invalid move, end game
@@ -1157,19 +1288,32 @@ impl SelfPlayTrainer {
                 break; // No legal moves
             }
         }
-        
+
         // Add final position evaluation based on game result
         if let Some(result) = game.result() {
             let final_position = game.current_position();
             let final_eval = match result {
-                chess::GameResult::WhiteCheckmates => if final_position.side_to_move() == chess::Color::Black { 10.0 } else { -10.0 },
-                chess::GameResult::BlackCheckmates => if final_position.side_to_move() == chess::Color::White { 10.0 } else { -10.0 },
+                chess::GameResult::WhiteCheckmates => {
+                    if final_position.side_to_move() == chess::Color::Black {
+                        10.0
+                    } else {
+                        -10.0
+                    }
+                }
+                chess::GameResult::BlackCheckmates => {
+                    if final_position.side_to_move() == chess::Color::White {
+                        10.0
+                    } else {
+                        -10.0
+                    }
+                }
                 chess::GameResult::WhiteResigns => -10.0,
                 chess::GameResult::BlackResigns => 10.0,
-                chess::GameResult::Stalemate | chess::GameResult::DrawAccepted | 
-                chess::GameResult::DrawDeclared => 0.0,
+                chess::GameResult::Stalemate
+                | chess::GameResult::DrawAccepted
+                | chess::GameResult::DrawDeclared => 0.0,
             };
-            
+
             positions.push(TrainingData {
                 board: final_position,
                 evaluation: final_eval,
@@ -1177,18 +1321,22 @@ impl SelfPlayTrainer {
                 game_id: self.game_counter,
             });
         }
-        
+
         positions
     }
-    
+
     /// Select a move with exploration vs exploitation balance
-    fn select_move_with_exploration(&self, engine: &mut ChessVectorEngine, position: &Board) -> Option<ChessMove> {
+    fn select_move_with_exploration(
+        &self,
+        engine: &mut ChessVectorEngine,
+        position: &Board,
+    ) -> Option<ChessMove> {
         let recommendations = engine.recommend_legal_moves(position, 5);
-        
+
         if recommendations.is_empty() {
             return None;
         }
-        
+
         // Use temperature-based selection for exploration
         if fastrand::f32() < self.config.exploration_factor {
             // Exploration: weighted random selection based on evaluations
@@ -1198,44 +1346,47 @@ impl SelfPlayTrainer {
             Some(recommendations[0].chess_move)
         }
     }
-    
+
     /// Temperature-based move selection for exploration
-    fn select_move_with_temperature(&self, recommendations: &[crate::MoveRecommendation]) -> Option<ChessMove> {
+    fn select_move_with_temperature(
+        &self,
+        recommendations: &[crate::MoveRecommendation],
+    ) -> Option<ChessMove> {
         if recommendations.is_empty() {
             return None;
         }
-        
+
         // Convert evaluations to probabilities using temperature
         let mut probabilities = Vec::new();
         let mut sum = 0.0;
-        
+
         for rec in recommendations {
             // Use average_outcome as evaluation score for temperature selection
             let prob = (rec.average_outcome / self.config.temperature).exp();
             probabilities.push(prob);
             sum += prob;
         }
-        
+
         // Normalize probabilities
         for prob in &mut probabilities {
             *prob /= sum;
         }
-        
+
         // Random selection based on probabilities
         let rand_val = fastrand::f32();
         let mut cumulative = 0.0;
-        
+
         for (i, &prob) in probabilities.iter().enumerate() {
             cumulative += prob;
             if rand_val <= cumulative {
                 return Some(recommendations[i].chess_move);
             }
         }
-        
+
         // Fallback to first move
         Some(recommendations[0].chess_move)
     }
-    
+
     /// Get random opening moves for variety
     fn get_random_opening(&self) -> Option<Vec<ChessMove>> {
         let openings = vec![
@@ -1254,12 +1405,12 @@ impl SelfPlayTrainer {
             // Caro-Kann Defense
             vec!["e4", "c6"],
         ];
-        
+
         let selected_opening = &openings[fastrand::usize(0..openings.len())];
-        
+
         let mut moves = Vec::new();
         let mut game = Game::new();
-        
+
         for move_str in selected_opening {
             if let Ok(chess_move) = ChessMove::from_str(move_str) {
                 if game.make_move(chess_move) {
@@ -1269,8 +1420,12 @@ impl SelfPlayTrainer {
                 }
             }
         }
-        
-        if moves.is_empty() { None } else { Some(moves) }
+
+        if moves.is_empty() {
+            None
+        } else {
+            Some(moves)
+        }
     }
 }
 
@@ -1310,7 +1465,7 @@ impl EngineEvaluator {
         }
 
         pb.finish_with_message("Accuracy evaluation complete");
-        
+
         if valid_comparisons > 0 {
             let mean_absolute_error = total_error / valid_comparisons as f32;
             println!("Mean Absolute Error: {:.3} pawns", mean_absolute_error);
@@ -1397,7 +1552,8 @@ impl<'de> serde::Deserialize<'de> for TrainingData {
                 }
 
                 let fen: String = fen.ok_or_else(|| de::Error::missing_field("fen"))?;
-                let evaluation = evaluation.ok_or_else(|| de::Error::missing_field("evaluation"))?;
+                let evaluation =
+                    evaluation.ok_or_else(|| de::Error::missing_field("evaluation"))?;
                 let depth = depth.ok_or_else(|| de::Error::missing_field("depth"))?;
                 let game_id = game_id.unwrap_or(0); // Default to 0 for backward compatibility
 
@@ -1431,7 +1587,7 @@ impl TacticalPuzzleParser {
     ) -> Result<Vec<TacticalTrainingData>, Box<dyn std::error::Error>> {
         let file = File::open(&file_path)?;
         let file_size = file.metadata()?.len();
-        
+
         // For large files (>100MB), use parallel processing
         if file_size > 100_000_000 {
             Self::parse_csv_parallel(file_path, max_puzzles, min_rating, max_rating)
@@ -1439,7 +1595,7 @@ impl TacticalPuzzleParser {
             Self::parse_csv_sequential(file_path, max_puzzles, min_rating, max_rating)
         }
     }
-    
+
     /// Sequential CSV parsing for smaller files
     fn parse_csv_sequential<P: AsRef<Path>>(
         file_path: P,
@@ -1449,23 +1605,25 @@ impl TacticalPuzzleParser {
     ) -> Result<Vec<TacticalTrainingData>, Box<dyn std::error::Error>> {
         let file = File::open(file_path)?;
         let reader = BufReader::new(file);
-        
+
         // Create CSV reader without headers since Lichess CSV has no header row
         // Set flexible field count to handle inconsistent CSV structure
         let mut csv_reader = csv::ReaderBuilder::new()
             .has_headers(false)
-            .flexible(true)  // Allow variable number of fields
+            .flexible(true) // Allow variable number of fields
             .from_reader(reader);
-        
+
         let mut tactical_data = Vec::new();
         let mut processed = 0;
         let mut skipped = 0;
-        
+
         let pb = ProgressBar::new_spinner();
-        pb.set_style(ProgressStyle::default_spinner()
-            .template("{spinner:.green} Parsing tactical puzzles: {pos} (skipped: {skipped})")
-            .unwrap());
-        
+        pb.set_style(
+            ProgressStyle::default_spinner()
+                .template("{spinner:.green} Parsing tactical puzzles: {pos} (skipped: {skipped})")
+                .unwrap(),
+        );
+
         for result in csv_reader.records() {
             let record = match result {
                 Ok(r) => r,
@@ -1475,12 +1633,14 @@ impl TacticalPuzzleParser {
                     continue;
                 }
             };
-            
+
             if let Some(puzzle_data) = Self::parse_csv_record(&record, min_rating, max_rating) {
-                if let Some(tactical_data_item) = Self::convert_puzzle_to_training_data(&puzzle_data) {
+                if let Some(tactical_data_item) =
+                    Self::convert_puzzle_to_training_data(&puzzle_data)
+                {
                     tactical_data.push(tactical_data_item);
                     processed += 1;
-                    
+
                     if let Some(max) = max_puzzles {
                         if processed >= max {
                             break;
@@ -1492,15 +1652,21 @@ impl TacticalPuzzleParser {
             } else {
                 skipped += 1;
             }
-            
-            pb.set_message(format!("Parsing tactical puzzles: {} (skipped: {})", processed, skipped));
+
+            pb.set_message(format!(
+                "Parsing tactical puzzles: {} (skipped: {})",
+                processed, skipped
+            ));
         }
-        
-        pb.finish_with_message(format!("Parsed {} puzzles (skipped: {})", processed, skipped));
-        
+
+        pb.finish_with_message(format!(
+            "Parsed {} puzzles (skipped: {})",
+            processed, skipped
+        ));
+
         Ok(tactical_data)
     }
-    
+
     /// Parallel CSV parsing for large files
     fn parse_csv_parallel<P: AsRef<Path>>(
         file_path: P,
@@ -1509,22 +1675,22 @@ impl TacticalPuzzleParser {
         max_rating: Option<u32>,
     ) -> Result<Vec<TacticalTrainingData>, Box<dyn std::error::Error>> {
         use std::io::Read;
-        
+
         let mut file = File::open(&file_path)?;
-        
+
         // Read entire file into memory for parallel processing
         let mut contents = String::new();
         file.read_to_string(&mut contents)?;
-        
+
         // Split into lines for parallel processing
         let lines: Vec<&str> = contents.lines().collect();
-        
+
         let pb = ProgressBar::new(lines.len() as u64);
         pb.set_style(ProgressStyle::default_bar()
             .template("{spinner:.green} [{elapsed_precise}] [{bar:40.cyan/blue}] {pos}/{len} Parallel CSV parsing")
             .unwrap()
             .progress_chars("#>-"));
-        
+
         // Process lines in parallel
         let tactical_data: Vec<TacticalTrainingData> = lines
             .par_iter()
@@ -1535,7 +1701,7 @@ impl TacticalPuzzleParser {
                 if fields.len() < 8 {
                     return None;
                 }
-                
+
                 // Build puzzle from fields
                 if let Some(puzzle_data) = Self::parse_csv_fields(&fields, min_rating, max_rating) {
                     Self::convert_puzzle_to_training_data(&puzzle_data)
@@ -1544,12 +1710,15 @@ impl TacticalPuzzleParser {
                 }
             })
             .collect();
-        
-        pb.finish_with_message(format!("Parallel parsing complete: {} puzzles", tactical_data.len()));
-        
+
+        pb.finish_with_message(format!(
+            "Parallel parsing complete: {} puzzles",
+            tactical_data.len()
+        ));
+
         Ok(tactical_data)
     }
-    
+
     /// Parse CSV record into TacticalPuzzle
     fn parse_csv_record(
         record: &csv::StringRecord,
@@ -1560,24 +1729,24 @@ impl TacticalPuzzleParser {
         if record.len() < 8 {
             return None;
         }
-        
+
         let rating: u32 = record[3].parse().ok()?;
         let rating_deviation: u32 = record[4].parse().ok()?;
         let popularity: i32 = record[5].parse().ok()?;
         let nb_plays: u32 = record[6].parse().ok()?;
-        
+
         // Apply rating filters
         if let Some(min) = min_rating {
-            if rating < min { 
+            if rating < min {
                 return None;
             }
         }
         if let Some(max) = max_rating {
-            if rating > max { 
+            if rating > max {
                 return None;
             }
         }
-        
+
         Some(TacticalPuzzle {
             puzzle_id: record[0].to_string(),
             fen: record[1].to_string(),
@@ -1587,11 +1756,19 @@ impl TacticalPuzzleParser {
             popularity,
             nb_plays,
             themes: record[7].to_string(),
-            game_url: if record.len() > 8 { Some(record[8].to_string()) } else { None },
-            opening_tags: if record.len() > 9 { Some(record[9].to_string()) } else { None },
+            game_url: if record.len() > 8 {
+                Some(record[8].to_string())
+            } else {
+                None
+            },
+            opening_tags: if record.len() > 9 {
+                Some(record[9].to_string())
+            } else {
+                None
+            },
         })
     }
-    
+
     /// Parse CSV fields into TacticalPuzzle (for parallel processing)
     fn parse_csv_fields(
         fields: &[&str],
@@ -1601,24 +1778,24 @@ impl TacticalPuzzleParser {
         if fields.len() < 8 {
             return None;
         }
-        
+
         let rating: u32 = fields[3].parse().ok()?;
         let rating_deviation: u32 = fields[4].parse().ok()?;
         let popularity: i32 = fields[5].parse().ok()?;
         let nb_plays: u32 = fields[6].parse().ok()?;
-        
+
         // Apply rating filters
         if let Some(min) = min_rating {
-            if rating < min { 
+            if rating < min {
                 return None;
             }
         }
         if let Some(max) = max_rating {
-            if rating > max { 
+            if rating > max {
                 return None;
             }
         }
-        
+
         Some(TacticalPuzzle {
             puzzle_id: fields[0].to_string(),
             fen: fields[1].to_string(),
@@ -1628,11 +1805,19 @@ impl TacticalPuzzleParser {
             popularity,
             nb_plays,
             themes: fields[7].to_string(),
-            game_url: if fields.len() > 8 { Some(fields[8].to_string()) } else { None },
-            opening_tags: if fields.len() > 9 { Some(fields[9].to_string()) } else { None },
+            game_url: if fields.len() > 8 {
+                Some(fields[8].to_string())
+            } else {
+                None
+            },
+            opening_tags: if fields.len() > 9 {
+                Some(fields[9].to_string())
+            } else {
+                None
+            },
         })
     }
-    
+
     /// Convert puzzle to training data
     fn convert_puzzle_to_training_data(puzzle: &TacticalPuzzle) -> Option<TacticalTrainingData> {
         // Parse FEN position
@@ -1640,13 +1825,13 @@ impl TacticalPuzzleParser {
             Ok(board) => board,
             Err(_) => return None,
         };
-        
+
         // Parse move sequence - first move is the solution
         let moves: Vec<&str> = puzzle.moves.split_whitespace().collect();
         if moves.is_empty() {
             return None;
         }
-        
+
         // Parse the solution move (first move in sequence)
         let solution_move = match ChessMove::from_str(moves[0]) {
             Ok(mv) => mv,
@@ -1658,22 +1843,22 @@ impl TacticalPuzzleParser {
                 }
             }
         };
-        
+
         // Verify move is legal
         let legal_moves: Vec<ChessMove> = MoveGen::new_legal(&position).collect();
         if !legal_moves.contains(&solution_move) {
             return None;
         }
-        
+
         // Extract primary theme
         let themes: Vec<&str> = puzzle.themes.split_whitespace().collect();
         let primary_theme = themes.first().unwrap_or(&"tactical").to_string();
-        
+
         // Calculate tactical value based on rating and popularity
         let difficulty = puzzle.rating as f32 / 1000.0; // Normalize to 0.8-3.0 range
         let popularity_bonus = (puzzle.popularity as f32 / 100.0).min(2.0);
         let tactical_value = difficulty + popularity_bonus; // High value for move outcome
-        
+
         Some(TacticalTrainingData {
             position,
             solution_move,
@@ -1682,7 +1867,7 @@ impl TacticalPuzzleParser {
             tactical_value,
         })
     }
-    
+
     /// Load tactical training data into chess engine
     pub fn load_into_engine(
         tactical_data: &[TacticalTrainingData],
@@ -1693,7 +1878,7 @@ impl TacticalPuzzleParser {
             .template("{spinner:.green} [{elapsed_precise}] [{bar:40.cyan/blue}] {pos}/{len} Loading tactical patterns")
             .unwrap()
             .progress_chars("#>-"));
-        
+
         for data in tactical_data {
             // Add position with high-value tactical move
             engine.add_position_with_move(
@@ -1704,7 +1889,7 @@ impl TacticalPuzzleParser {
             );
             pb.inc(1);
         }
-        
+
         pb.finish_with_message(format!("Loaded {} tactical patterns", tactical_data.len()));
     }
 
@@ -1715,15 +1900,25 @@ impl TacticalPuzzleParser {
     ) {
         let initial_size = engine.knowledge_base_size();
         let initial_moves = engine.position_moves.len();
-        
+
         // For large datasets, use parallel batch processing
         if tactical_data.len() > 1000 {
-            Self::load_into_engine_incremental_parallel(tactical_data, engine, initial_size, initial_moves);
+            Self::load_into_engine_incremental_parallel(
+                tactical_data,
+                engine,
+                initial_size,
+                initial_moves,
+            );
         } else {
-            Self::load_into_engine_incremental_sequential(tactical_data, engine, initial_size, initial_moves);
+            Self::load_into_engine_incremental_sequential(
+                tactical_data,
+                engine,
+                initial_size,
+                initial_moves,
+            );
         }
     }
-    
+
     /// Sequential loading for smaller datasets
     fn load_into_engine_incremental_sequential(
         tactical_data: &[TacticalTrainingData],
@@ -1736,10 +1931,10 @@ impl TacticalPuzzleParser {
             .template("{spinner:.green} [{elapsed_precise}] [{bar:40.cyan/blue}] {pos}/{len} Loading tactical patterns (incremental)")
             .unwrap()
             .progress_chars("#>-"));
-        
+
         let mut added = 0;
         let mut skipped = 0;
-        
+
         for data in tactical_data {
             // Check if this position already exists to avoid duplicates
             if !engine.position_boards.contains(&data.position) {
@@ -1755,17 +1950,29 @@ impl TacticalPuzzleParser {
             }
             pb.inc(1);
         }
-        
+
         pb.finish_with_message(format!(
-            "Loaded {} new tactical patterns (skipped {} duplicates, total: {})", 
-            added, skipped, engine.knowledge_base_size()
+            "Loaded {} new tactical patterns (skipped {} duplicates, total: {})",
+            added,
+            skipped,
+            engine.knowledge_base_size()
         ));
-        
+
         println!("Incremental tactical training:");
-        println!("  - Positions: {} → {} (+{})", initial_size, engine.knowledge_base_size(), engine.knowledge_base_size() - initial_size);
-        println!("  - Move entries: {} → {} (+{})", initial_moves, engine.position_moves.len(), engine.position_moves.len() - initial_moves);
+        println!(
+            "  - Positions: {} → {} (+{})",
+            initial_size,
+            engine.knowledge_base_size(),
+            engine.knowledge_base_size() - initial_size
+        );
+        println!(
+            "  - Move entries: {} → {} (+{})",
+            initial_moves,
+            engine.position_moves.len(),
+            engine.position_moves.len() - initial_moves
+        );
     }
-    
+
     /// Parallel batch loading for large datasets
     fn load_into_engine_incremental_parallel(
         tactical_data: &[TacticalTrainingData],
@@ -1778,30 +1985,34 @@ impl TacticalPuzzleParser {
             .template("{spinner:.green} [{elapsed_precise}] [{bar:40.cyan/blue}] {pos}/{len} Optimized batch loading tactical patterns")
             .unwrap()
             .progress_chars("#>-"));
-        
+
         // Parallel pre-filtering to avoid duplicates (this is thread-safe for read operations)
         let filtered_data: Vec<&TacticalTrainingData> = tactical_data
             .par_iter()
             .filter(|data| !engine.position_boards.contains(&data.position))
             .collect();
-        
+
         let batch_size = 1000; // Larger batches for better performance
         let mut added = 0;
-        
-        println!("Pre-filtered: {} → {} positions (removed {} duplicates)", 
-                 tactical_data.len(), filtered_data.len(), tactical_data.len() - filtered_data.len());
-        
+
+        println!(
+            "Pre-filtered: {} → {} positions (removed {} duplicates)",
+            tactical_data.len(),
+            filtered_data.len(),
+            tactical_data.len() - filtered_data.len()
+        );
+
         // Process in sequential batches (engine operations aren't thread-safe)
         // But use optimized batch processing
         for batch in filtered_data.chunks(batch_size) {
             let batch_start = added;
-            
+
             for data in batch {
                 // Final duplicate check (should be minimal after pre-filtering)
                 if !engine.position_boards.contains(&data.position) {
                     engine.add_position_with_move(
                         &data.position,
-                        0.0, // Position evaluation (neutral for puzzles) 
+                        0.0, // Position evaluation (neutral for puzzles)
                         Some(data.solution_move),
                         Some(data.tactical_value), // High tactical value
                     );
@@ -1809,23 +2020,38 @@ impl TacticalPuzzleParser {
                 }
                 pb.inc(1);
             }
-            
+
             // Update progress message every batch
             pb.set_message(format!("Loaded batch: {} positions", added - batch_start));
         }
-        
+
         let skipped = tactical_data.len() - added;
-        
+
         pb.finish_with_message(format!(
-            "Optimized loaded {} new tactical patterns (skipped {} duplicates, total: {})", 
-            added, skipped, engine.knowledge_base_size()
+            "Optimized loaded {} new tactical patterns (skipped {} duplicates, total: {})",
+            added,
+            skipped,
+            engine.knowledge_base_size()
         ));
-        
+
         println!("Incremental tactical training (optimized):");
-        println!("  - Positions: {} → {} (+{})", initial_size, engine.knowledge_base_size(), engine.knowledge_base_size() - initial_size);
-        println!("  - Move entries: {} → {} (+{})", initial_moves, engine.position_moves.len(), engine.position_moves.len() - initial_moves);
-        println!("  - Batch size: {}, Pre-filtered efficiency: {:.1}%", 
-                 batch_size, (filtered_data.len() as f32 / tactical_data.len() as f32) * 100.0);
+        println!(
+            "  - Positions: {} → {} (+{})",
+            initial_size,
+            engine.knowledge_base_size(),
+            engine.knowledge_base_size() - initial_size
+        );
+        println!(
+            "  - Move entries: {} → {} (+{})",
+            initial_moves,
+            engine.position_moves.len(),
+            engine.position_moves.len() - initial_moves
+        );
+        println!(
+            "  - Batch size: {}, Pre-filtered efficiency: {:.1}%",
+            batch_size,
+            (filtered_data.len() as f32 / tactical_data.len() as f32) * 100.0
+        );
     }
 
     /// Save tactical puzzles to file for incremental loading later
@@ -1855,31 +2081,34 @@ impl TacticalPuzzleParser {
         path: P,
     ) -> Result<(), Box<dyn std::error::Error>> {
         let path = path.as_ref();
-        
+
         if path.exists() {
             // Load existing puzzles
             let mut existing = Self::load_tactical_puzzles(path)?;
             let original_len = existing.len();
-            
+
             // Add new puzzles, checking for duplicates by puzzle ID if available
             for new_puzzle in tactical_data {
                 // Check if this puzzle already exists (by position)
                 let exists = existing.iter().any(|existing_puzzle| {
-                    existing_puzzle.position == new_puzzle.position &&
-                    existing_puzzle.solution_move == new_puzzle.solution_move
+                    existing_puzzle.position == new_puzzle.position
+                        && existing_puzzle.solution_move == new_puzzle.solution_move
                 });
-                
+
                 if !exists {
                     existing.push(new_puzzle.clone());
                 }
             }
-            
+
             // Save merged data
             let json = serde_json::to_string_pretty(&existing)?;
             std::fs::write(path, json)?;
-            
-            println!("Incremental save: added {} new puzzles (total: {})", 
-                    existing.len() - original_len, existing.len());
+
+            println!(
+                "Incremental save: added {} new puzzles (total: {})",
+                existing.len() - original_len,
+                existing.len()
+            );
         } else {
             // File doesn't exist, just save normally
             Self::save_tactical_puzzles(tactical_data, path)?;
@@ -1896,13 +2125,13 @@ impl TacticalPuzzleParser {
         max_rating: Option<u32>,
     ) -> Result<(), Box<dyn std::error::Error>> {
         println!("Parsing Lichess puzzles incrementally...");
-        
+
         // Parse puzzles
         let tactical_data = Self::parse_csv(file_path, max_puzzles, min_rating, max_rating)?;
-        
+
         // Load into engine incrementally
         Self::load_into_engine_incremental(&tactical_data, engine);
-        
+
         Ok(())
     }
 }
@@ -1923,14 +2152,14 @@ mod tests {
     fn test_add_training_data() {
         let mut dataset = TrainingDataset::new();
         let board = Board::default();
-        
+
         let training_data = TrainingData {
             board,
             evaluation: 0.5,
             depth: 15,
             game_id: 1,
         };
-        
+
         dataset.data.push(training_data);
         assert_eq!(dataset.data.len(), 1);
         assert_eq!(dataset.data[0].evaluation, 0.5);
@@ -1940,21 +2169,21 @@ mod tests {
     fn test_chess_engine_integration() {
         let mut dataset = TrainingDataset::new();
         let board = Board::default();
-        
+
         let training_data = TrainingData {
             board,
             evaluation: 0.3,
             depth: 15,
             game_id: 1,
         };
-        
+
         dataset.data.push(training_data);
-        
+
         let mut engine = ChessVectorEngine::new(1024);
         dataset.train_engine(&mut engine);
-        
+
         assert_eq!(engine.knowledge_base_size(), 1);
-        
+
         let eval = engine.evaluate_position(&board);
         assert!(eval.is_some());
         assert!((eval.unwrap() - 0.3).abs() < 1e-6);
@@ -1964,7 +2193,7 @@ mod tests {
     fn test_deduplication() {
         let mut dataset = TrainingDataset::new();
         let board = Board::default();
-        
+
         // Add duplicate positions
         for i in 0..5 {
             let training_data = TrainingData {
@@ -1975,9 +2204,9 @@ mod tests {
             };
             dataset.data.push(training_data);
         }
-        
+
         assert_eq!(dataset.data.len(), 5);
-        
+
         // Deduplicate with high threshold (should keep only 1)
         dataset.deduplicate(0.999);
         assert_eq!(dataset.data.len(), 1);
@@ -1986,22 +2215,23 @@ mod tests {
     #[test]
     fn test_dataset_serialization() {
         let mut dataset = TrainingDataset::new();
-        let board = Board::from_str("rnbqkbnr/pppppppp/8/8/4P3/8/PPPP1PPP/RNBQKBNR b KQkq - 0 1").unwrap();
-        
+        let board =
+            Board::from_str("rnbqkbnr/pppppppp/8/8/4P3/8/PPPP1PPP/RNBQKBNR b KQkq - 0 1").unwrap();
+
         let training_data = TrainingData {
             board,
             evaluation: 0.2,
             depth: 10,
             game_id: 42,
         };
-        
+
         dataset.data.push(training_data);
-        
+
         // Test serialization/deserialization
         let json = serde_json::to_string(&dataset.data).unwrap();
         let loaded_data: Vec<TrainingData> = serde_json::from_str(&json).unwrap();
         let loaded_dataset = TrainingDataset { data: loaded_data };
-        
+
         assert_eq!(loaded_dataset.data.len(), 1);
         assert_eq!(loaded_dataset.data[0].evaluation, 0.2);
         assert_eq!(loaded_dataset.data[0].depth, 10);
@@ -2022,10 +2252,10 @@ mod tests {
             game_url: None,
             opening_tags: None,
         };
-        
+
         let tactical_data = TacticalPuzzleParser::convert_puzzle_to_training_data(&puzzle);
         assert!(tactical_data.is_some());
-        
+
         let data = tactical_data.unwrap();
         assert_eq!(data.move_theme, "fork");
         assert!(data.tactical_value > 1.0); // Should have high tactical value
@@ -2046,7 +2276,7 @@ mod tests {
             game_url: None,
             opening_tags: None,
         };
-        
+
         let tactical_data = TacticalPuzzleParser::convert_puzzle_to_training_data(&puzzle);
         assert!(tactical_data.is_none());
     }
@@ -2054,48 +2284,46 @@ mod tests {
     #[test]
     fn test_engine_evaluator() {
         let evaluator = EngineEvaluator::new(15);
-        
+
         // Create test dataset
         let mut dataset = TrainingDataset::new();
         let board = Board::default();
-        
+
         let training_data = TrainingData {
             board,
             evaluation: 0.0,
             depth: 15,
             game_id: 1,
         };
-        
+
         dataset.data.push(training_data);
-        
+
         // Create engine with some data
         let mut engine = ChessVectorEngine::new(1024);
         engine.add_position(&board, 0.1);
-        
+
         // Test accuracy evaluation
         let accuracy = evaluator.evaluate_accuracy(&mut engine, &dataset);
         assert!(accuracy.is_ok());
         assert!(accuracy.unwrap() < 1.0); // Should have some accuracy
     }
 
-    #[test] 
+    #[test]
     fn test_tactical_training_integration() {
-        let tactical_data = vec![
-            TacticalTrainingData {
-                position: Board::default(),
-                solution_move: ChessMove::from_str("e2e4").unwrap(),
-                move_theme: "opening".to_string(),
-                difficulty: 1.2,
-                tactical_value: 2.5,
-            }
-        ];
-        
+        let tactical_data = vec![TacticalTrainingData {
+            position: Board::default(),
+            solution_move: ChessMove::from_str("e2e4").unwrap(),
+            move_theme: "opening".to_string(),
+            difficulty: 1.2,
+            tactical_value: 2.5,
+        }];
+
         let mut engine = ChessVectorEngine::new(1024);
         TacticalPuzzleParser::load_into_engine(&tactical_data, &mut engine);
-        
+
         assert_eq!(engine.knowledge_base_size(), 1);
         assert_eq!(engine.position_moves.len(), 1);
-        
+
         // Test that tactical move is available in recommendations
         let recommendations = engine.recommend_moves(&Board::default(), 5);
         assert!(!recommendations.is_empty());
@@ -2105,7 +2333,7 @@ mod tests {
     fn test_multithreading_operations() {
         let mut dataset = TrainingDataset::new();
         let board = Board::default();
-        
+
         // Add test data
         for i in 0..10 {
             let training_data = TrainingData {
@@ -2116,7 +2344,7 @@ mod tests {
             };
             dataset.data.push(training_data);
         }
-        
+
         // Test parallel deduplication doesn't crash
         dataset.deduplicate_parallel(0.95, 5);
         assert!(dataset.data.len() <= 10);
@@ -2126,26 +2354,28 @@ mod tests {
     fn test_incremental_dataset_operations() {
         let mut dataset1 = TrainingDataset::new();
         let board1 = Board::default();
-        let board2 = Board::from_str("rnbqkbnr/pppppppp/8/8/4P3/8/PPPP1PPP/RNBQKBNR b KQkq - 0 1").unwrap();
-        
+        let board2 =
+            Board::from_str("rnbqkbnr/pppppppp/8/8/4P3/8/PPPP1PPP/RNBQKBNR b KQkq - 0 1").unwrap();
+
         // Add initial data
         dataset1.add_position(board1, 0.0, 15, 1);
         dataset1.add_position(board2, 0.2, 15, 2);
         assert_eq!(dataset1.data.len(), 2);
-        
+
         // Create second dataset
         let mut dataset2 = TrainingDataset::new();
         dataset2.add_position(
-            Board::from_str("rnbqkbnr/pppp1ppp/8/4p3/4P3/8/PPPP1PPP/RNBQKBNR w KQkq - 0 2").unwrap(),
+            Board::from_str("rnbqkbnr/pppp1ppp/8/4p3/4P3/8/PPPP1PPP/RNBQKBNR w KQkq - 0 2")
+                .unwrap(),
             0.3,
             15,
-            3
+            3,
         );
-        
+
         // Merge datasets
         dataset1.merge(dataset2);
         assert_eq!(dataset1.data.len(), 3);
-        
+
         // Test next_game_id
         let next_id = dataset1.next_game_id();
         assert_eq!(next_id, 4); // Should be max(1,2,3) + 1
@@ -2154,36 +2384,37 @@ mod tests {
     #[test]
     fn test_save_load_incremental() {
         use tempfile::tempdir;
-        
+
         let temp_dir = tempdir().unwrap();
         let file_path = temp_dir.path().join("incremental_test.json");
-        
+
         // Create and save first dataset
         let mut dataset1 = TrainingDataset::new();
         dataset1.add_position(Board::default(), 0.0, 15, 1);
         dataset1.save(&file_path).unwrap();
-        
+
         // Create second dataset and save incrementally
         let mut dataset2 = TrainingDataset::new();
         dataset2.add_position(
             Board::from_str("rnbqkbnr/pppppppp/8/8/4P3/8/PPPP1PPP/RNBQKBNR b KQkq - 0 1").unwrap(),
             0.2,
             15,
-            2
+            2,
         );
         dataset2.save_incremental(&file_path).unwrap();
-        
+
         // Load and verify merged data
         let loaded = TrainingDataset::load(&file_path).unwrap();
         assert_eq!(loaded.data.len(), 2);
-        
+
         // Test load_and_append
         let mut dataset3 = TrainingDataset::new();
         dataset3.add_position(
-            Board::from_str("rnbqkbnr/pppp1ppp/8/4p3/4P3/8/PPPP1PPP/RNBQKBNR w KQkq - 0 2").unwrap(),
+            Board::from_str("rnbqkbnr/pppp1ppp/8/4p3/4P3/8/PPPP1PPP/RNBQKBNR w KQkq - 0 2")
+                .unwrap(),
             0.3,
             15,
-            3
+            3,
         );
         dataset3.load_and_append(&file_path).unwrap();
         assert_eq!(dataset3.data.len(), 3); // 1 original + 2 from file
@@ -2193,7 +2424,7 @@ mod tests {
     fn test_add_position_method() {
         let mut dataset = TrainingDataset::new();
         let board = Board::default();
-        
+
         // Test add_position method
         dataset.add_position(board, 0.5, 20, 42);
         assert_eq!(dataset.data.len(), 1);
@@ -2205,20 +2436,20 @@ mod tests {
     #[test]
     fn test_incremental_save_deduplication() {
         use tempfile::tempdir;
-        
+
         let temp_dir = tempdir().unwrap();
         let file_path = temp_dir.path().join("dedup_test.json");
-        
+
         // Create and save first dataset
         let mut dataset1 = TrainingDataset::new();
         dataset1.add_position(Board::default(), 0.0, 15, 1);
         dataset1.save(&file_path).unwrap();
-        
+
         // Create second dataset with duplicate position
         let mut dataset2 = TrainingDataset::new();
         dataset2.add_position(Board::default(), 0.1, 15, 2); // Same position, different eval
         dataset2.save_incremental(&file_path).unwrap();
-        
+
         // Should deduplicate and keep only one
         let loaded = TrainingDataset::load(&file_path).unwrap();
         assert_eq!(loaded.data.len(), 1);
@@ -2235,26 +2466,29 @@ mod tests {
                 tactical_value: 2.5,
             },
             TacticalTrainingData {
-                position: Board::from_str("rnbqkbnr/pppppppp/8/8/4P3/8/PPPP1PPP/RNBQKBNR b KQkq - 0 1").unwrap(),
+                position: Board::from_str(
+                    "rnbqkbnr/pppppppp/8/8/4P3/8/PPPP1PPP/RNBQKBNR b KQkq - 0 1",
+                )
+                .unwrap(),
                 solution_move: ChessMove::from_str("e7e5").unwrap(),
                 move_theme: "opening".to_string(),
                 difficulty: 1.0,
                 tactical_value: 2.0,
-            }
+            },
         ];
-        
+
         let mut engine = ChessVectorEngine::new(1024);
-        
+
         // Add some existing data
         engine.add_position(&Board::default(), 0.1);
         assert_eq!(engine.knowledge_base_size(), 1);
-        
+
         // Load tactical puzzles incrementally
         TacticalPuzzleParser::load_into_engine_incremental(&tactical_data, &mut engine);
-        
+
         // Should have added the new position but skipped the duplicate
         assert_eq!(engine.knowledge_base_size(), 2);
-        
+
         // Should have move data for both puzzles
         assert!(engine.training_stats().has_move_data);
         assert!(engine.training_stats().move_data_entries > 0);
@@ -2263,23 +2497,21 @@ mod tests {
     #[test]
     fn test_tactical_puzzle_serialization() {
         use tempfile::tempdir;
-        
+
         let temp_dir = tempdir().unwrap();
         let file_path = temp_dir.path().join("tactical_test.json");
-        
-        let tactical_data = vec![
-            TacticalTrainingData {
-                position: Board::default(),
-                solution_move: ChessMove::from_str("e2e4").unwrap(),
-                move_theme: "fork".to_string(),
-                difficulty: 1.5,
-                tactical_value: 3.0,
-            }
-        ];
-        
+
+        let tactical_data = vec![TacticalTrainingData {
+            position: Board::default(),
+            solution_move: ChessMove::from_str("e2e4").unwrap(),
+            move_theme: "fork".to_string(),
+            difficulty: 1.5,
+            tactical_value: 3.0,
+        }];
+
         // Save tactical puzzles
         TacticalPuzzleParser::save_tactical_puzzles(&tactical_data, &file_path).unwrap();
-        
+
         // Load them back
         let loaded = TacticalPuzzleParser::load_tactical_puzzles(&file_path).unwrap();
         assert_eq!(loaded.len(), 1);
@@ -2291,34 +2523,31 @@ mod tests {
     #[test]
     fn test_tactical_puzzle_incremental_save() {
         use tempfile::tempdir;
-        
+
         let temp_dir = tempdir().unwrap();
         let file_path = temp_dir.path().join("incremental_tactical.json");
-        
+
         // Save first batch
-        let batch1 = vec![
-            TacticalTrainingData {
-                position: Board::default(),
-                solution_move: ChessMove::from_str("e2e4").unwrap(),
-                move_theme: "opening".to_string(),
-                difficulty: 1.0,
-                tactical_value: 2.0,
-            }
-        ];
+        let batch1 = vec![TacticalTrainingData {
+            position: Board::default(),
+            solution_move: ChessMove::from_str("e2e4").unwrap(),
+            move_theme: "opening".to_string(),
+            difficulty: 1.0,
+            tactical_value: 2.0,
+        }];
         TacticalPuzzleParser::save_tactical_puzzles(&batch1, &file_path).unwrap();
-        
+
         // Save second batch incrementally
-        let batch2 = vec![
-            TacticalTrainingData {
-                position: Board::from_str("rnbqkbnr/pppppppp/8/8/4P3/8/PPPP1PPP/RNBQKBNR b KQkq - 0 1").unwrap(),
-                solution_move: ChessMove::from_str("e7e5").unwrap(),
-                move_theme: "counter".to_string(),
-                difficulty: 1.2,
-                tactical_value: 2.2,
-            }
-        ];
+        let batch2 = vec![TacticalTrainingData {
+            position: Board::from_str("rnbqkbnr/pppppppp/8/8/4P3/8/PPPP1PPP/RNBQKBNR b KQkq - 0 1")
+                .unwrap(),
+            solution_move: ChessMove::from_str("e7e5").unwrap(),
+            move_theme: "counter".to_string(),
+            difficulty: 1.2,
+            tactical_value: 2.2,
+        }];
         TacticalPuzzleParser::save_tactical_puzzles_incremental(&batch2, &file_path).unwrap();
-        
+
         // Load and verify merged data
         let loaded = TacticalPuzzleParser::load_tactical_puzzles(&file_path).unwrap();
         assert_eq!(loaded.len(), 2);
@@ -2327,10 +2556,10 @@ mod tests {
     #[test]
     fn test_tactical_puzzle_incremental_deduplication() {
         use tempfile::tempdir;
-        
+
         let temp_dir = tempdir().unwrap();
         let file_path = temp_dir.path().join("dedup_tactical.json");
-        
+
         let tactical_data = TacticalTrainingData {
             position: Board::default(),
             solution_move: ChessMove::from_str("e2e4").unwrap(),
@@ -2338,13 +2567,14 @@ mod tests {
             difficulty: 1.0,
             tactical_value: 2.0,
         };
-        
+
         // Save first time
         TacticalPuzzleParser::save_tactical_puzzles(&[tactical_data.clone()], &file_path).unwrap();
-        
+
         // Try to save the same puzzle again
-        TacticalPuzzleParser::save_tactical_puzzles_incremental(&[tactical_data], &file_path).unwrap();
-        
+        TacticalPuzzleParser::save_tactical_puzzles_incremental(&[tactical_data], &file_path)
+            .unwrap();
+
         // Should still have only one puzzle (deduplicated)
         let loaded = TacticalPuzzleParser::load_tactical_puzzles(&file_path).unwrap();
         assert_eq!(loaded.len(), 1);

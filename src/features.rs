@@ -1,6 +1,5 @@
 /// Feature management for open-core business model
 /// Controls access to commercial vs open source features
-
 use std::collections::HashMap;
 
 /// Available feature tiers
@@ -20,16 +19,19 @@ pub struct FeatureRegistry {
 impl FeatureRegistry {
     pub fn new() -> Self {
         let mut features = HashMap::new();
-        
+
         // Open Source Features (Always Available)
-        features.insert("basic_position_encoding".to_string(), FeatureTier::OpenSource);
+        features.insert(
+            "basic_position_encoding".to_string(),
+            FeatureTier::OpenSource,
+        );
         features.insert("similarity_search".to_string(), FeatureTier::OpenSource);
         features.insert("basic_tactical_search".to_string(), FeatureTier::OpenSource);
         features.insert("uci_basic".to_string(), FeatureTier::OpenSource);
         features.insert("opening_book".to_string(), FeatureTier::OpenSource);
         features.insert("json_training_data".to_string(), FeatureTier::OpenSource);
         features.insert("basic_persistence".to_string(), FeatureTier::OpenSource);
-        
+
         // Premium Features
         features.insert("advanced_nnue".to_string(), FeatureTier::Premium);
         features.insert("gpu_acceleration".to_string(), FeatureTier::Premium);
@@ -40,7 +42,7 @@ impl FeatureRegistry {
         features.insert("multi_pv_analysis".to_string(), FeatureTier::Premium);
         features.insert("advanced_pruning".to_string(), FeatureTier::Premium);
         features.insert("parallel_search".to_string(), FeatureTier::Premium);
-        
+
         // Enterprise Features
         features.insert("distributed_training".to_string(), FeatureTier::Enterprise);
         features.insert("cloud_deployment".to_string(), FeatureTier::Enterprise);
@@ -48,21 +50,21 @@ impl FeatureRegistry {
         features.insert("custom_algorithms".to_string(), FeatureTier::Enterprise);
         features.insert("dedicated_support".to_string(), FeatureTier::Enterprise);
         features.insert("unlimited_positions".to_string(), FeatureTier::Enterprise);
-        
+
         Self { features }
     }
-    
+
     pub fn get_feature_tier(&self, feature: &str) -> Option<&FeatureTier> {
         self.features.get(feature)
     }
-    
+
     pub fn is_feature_available(&self, feature: &str, current_tier: &FeatureTier) -> bool {
         match self.get_feature_tier(feature) {
             Some(required_tier) => Self::tier_includes(current_tier, required_tier),
             None => false, // Unknown features are not available
         }
     }
-    
+
     /// Check if current tier includes required tier
     fn tier_includes(current: &FeatureTier, required: &FeatureTier) -> bool {
         match (current, required) {
@@ -73,7 +75,7 @@ impl FeatureRegistry {
             _ => false,
         }
     }
-    
+
     pub fn get_features_for_tier(&self, tier: &FeatureTier) -> Vec<String> {
         self.features
             .iter()
@@ -97,9 +99,12 @@ impl FeatureChecker {
             current_tier: tier,
         }
     }
-    
+
     pub fn check_feature(&self, feature: &str) -> Result<(), FeatureError> {
-        if self.registry.is_feature_available(feature, &self.current_tier) {
+        if self
+            .registry
+            .is_feature_available(feature, &self.current_tier)
+        {
             Ok(())
         } else {
             match self.registry.get_feature_tier(feature) {
@@ -112,15 +117,15 @@ impl FeatureChecker {
             }
         }
     }
-    
+
     pub fn require_feature(&self, feature: &str) -> Result<(), FeatureError> {
         self.check_feature(feature)
     }
-    
+
     pub fn get_current_tier(&self) -> &FeatureTier {
         &self.current_tier
     }
-    
+
     pub fn upgrade_tier(&mut self, new_tier: FeatureTier) {
         self.current_tier = new_tier;
     }
@@ -140,10 +145,14 @@ pub enum FeatureError {
 impl std::fmt::Display for FeatureError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            FeatureError::InsufficientTier { feature, required, current } => {
+            FeatureError::InsufficientTier {
+                feature,
+                required,
+                current,
+            } => {
                 write!(
-                    f, 
-                    "Feature '{}' requires {:?} tier, but current tier is {:?}. Please upgrade your subscription.", 
+                    f,
+                    "Feature '{}' requires {:?} tier, but current tier is {:?}. Please upgrade your subscription.",
                     feature, required, current
                 )
             }
@@ -200,80 +209,84 @@ impl Default for FeatureChecker {
 #[cfg(test)]
 mod tests {
     use super::*;
-    
+
     #[test]
     fn test_feature_registry() {
         let registry = FeatureRegistry::new();
-        
+
         // Test open source feature
         assert_eq!(
             registry.get_feature_tier("basic_position_encoding"),
             Some(&FeatureTier::OpenSource)
         );
-        
+
         // Test premium feature
         assert_eq!(
             registry.get_feature_tier("gpu_acceleration"),
             Some(&FeatureTier::Premium)
         );
-        
+
         // Test enterprise feature
         assert_eq!(
             registry.get_feature_tier("distributed_training"),
             Some(&FeatureTier::Enterprise)
         );
     }
-    
+
     #[test]
     fn test_tier_access() {
         let registry = FeatureRegistry::new();
-        
+
         // Open source tier can only access open source features
         assert!(registry.is_feature_available("basic_position_encoding", &FeatureTier::OpenSource));
         assert!(!registry.is_feature_available("gpu_acceleration", &FeatureTier::OpenSource));
         assert!(!registry.is_feature_available("distributed_training", &FeatureTier::OpenSource));
-        
+
         // Premium tier can access open source and premium features
         assert!(registry.is_feature_available("basic_position_encoding", &FeatureTier::Premium));
         assert!(registry.is_feature_available("gpu_acceleration", &FeatureTier::Premium));
         assert!(!registry.is_feature_available("distributed_training", &FeatureTier::Premium));
-        
+
         // Enterprise tier can access all features
         assert!(registry.is_feature_available("basic_position_encoding", &FeatureTier::Enterprise));
         assert!(registry.is_feature_available("gpu_acceleration", &FeatureTier::Enterprise));
         assert!(registry.is_feature_available("distributed_training", &FeatureTier::Enterprise));
     }
-    
+
     #[test]
     fn test_feature_checker() {
         let mut checker = FeatureChecker::new(FeatureTier::OpenSource);
-        
+
         // Should allow open source features
         assert!(checker.check_feature("basic_position_encoding").is_ok());
-        
+
         // Should deny premium features
         assert!(checker.check_feature("gpu_acceleration").is_err());
-        
+
         // Upgrade tier
         checker.upgrade_tier(FeatureTier::Premium);
-        
+
         // Should now allow premium features
         assert!(checker.check_feature("gpu_acceleration").is_ok());
     }
-    
+
     #[test]
     fn test_feature_error_messages() {
         let checker = FeatureChecker::new(FeatureTier::OpenSource);
-        
+
         match checker.check_feature("gpu_acceleration") {
-            Err(FeatureError::InsufficientTier { feature, required, current }) => {
+            Err(FeatureError::InsufficientTier {
+                feature,
+                required,
+                current,
+            }) => {
                 assert_eq!(feature, "gpu_acceleration");
                 assert_eq!(required, FeatureTier::Premium);
                 assert_eq!(current, FeatureTier::OpenSource);
             }
             _ => panic!("Expected InsufficientTier error"),
         }
-        
+
         match checker.check_feature("nonexistent_feature") {
             Err(FeatureError::UnknownFeature(feature)) => {
                 assert_eq!(feature, "nonexistent_feature");
