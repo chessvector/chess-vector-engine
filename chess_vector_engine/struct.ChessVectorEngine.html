@@ -24,10 +24,10 @@ with runtime license verification for premium capabilities.</p>
 
 <span class="kw">let </span><span class="kw-2">mut </span>engine = ChessVectorEngine::new(<span class="number">1024</span>);
 <span class="kw">let </span>board = Board::default();
- 
+
 <span class="comment">// Add position with evaluation
 </span>engine.add_position(<span class="kw-2">&amp;</span>board, <span class="number">0.0</span>);
- 
+
 <span class="comment">// Find similar positions
 </span><span class="kw">let </span>similar = engine.find_similar_positions(<span class="kw-2">&amp;</span>board, <span class="number">5</span>);</code></pre></div>
 <h4 id="with-premium-features"><a class="doc-anchor" href="#with-premium-features">§</a>With Premium Features</h4>
@@ -35,12 +35,12 @@ with runtime license verification for premium capabilities.</p>
 
 <span class="comment">// Create engine with premium features (requires license)
 </span><span class="kw">let </span><span class="kw-2">mut </span>engine = ChessVectorEngine::new_with_tier(<span class="number">1024</span>, FeatureTier::Premium);
- 
-<span class="comment">// Enable GPU acceleration
-</span>engine.enable_gpu_acceleration()<span class="question-mark">?</span>;
- 
-<span class="comment">// Use ultra-fast loading for large datasets
-</span>engine.ultra_fast_load_any_format(<span class="string">"training_data.bin"</span>)<span class="question-mark">?</span>;</code></pre></div>
+
+<span class="comment">// Check GPU acceleration availability  
+</span><span class="kw">let </span>_gpu_status = engine.check_gpu_acceleration();
+
+<span class="comment">// Premium features are now available (with valid license)
+</span><span class="macro">println!</span>(<span class="string">"Engine created with premium tier access"</span>);</code></pre></div>
 </div></details><h2 id="implementations" class="section-header">Implementations<a href="#implementations" class="anchor">§</a></h2><div id="implementations-list"><details class="toggle implementors-toggle" open><summary><section id="impl-ChessVectorEngine" class="impl"><a class="src rightside" href="../src/chess_vector_engine/lib.rs.html#301-2984">Source</a><a href="#impl-ChessVectorEngine" class="anchor">§</a><h3 class="code-header">impl <a class="struct" href="struct.ChessVectorEngine.html" title="struct chess_vector_engine::ChessVectorEngine">ChessVectorEngine</a></h3></section></summary><div class="impl-items"><details class="toggle method-toggle" open><summary><section id="method.new" class="method"><a class="src rightside" href="../src/chess_vector_engine/lib.rs.html#303-325">Source</a><h4 class="code-header">pub fn <a href="#method.new" class="fn">new</a>(vector_size: <a class="primitive" href="https://doc.rust-lang.org/1.87.0/std/primitive.usize.html">usize</a>) -&gt; Self</h4></section></summary><div class="docblock"><p>Create a new chess vector engine</p>
 </div></details><details class="toggle method-toggle" open><summary><section id="method.new_with_tier" class="method"><a class="src rightside" href="../src/chess_vector_engine/lib.rs.html#328-332">Source</a><h4 class="code-header">pub fn <a href="#method.new_with_tier" class="fn">new_with_tier</a>(vector_size: <a class="primitive" href="https://doc.rust-lang.org/1.87.0/std/primitive.usize.html">usize</a>, tier: <a class="enum" href="features/enum.FeatureTier.html" title="enum chess_vector_engine::features::FeatureTier">FeatureTier</a>) -&gt; Self</h4></section></summary><div class="docblock"><p>Create new engine with specific feature tier</p>
 </div></details><details class="toggle method-toggle" open><summary><section id="method.get_feature_tier" class="method"><a class="src rightside" href="../src/chess_vector_engine/lib.rs.html#335-337">Source</a><h4 class="code-header">pub fn <a href="#method.get_feature_tier" class="fn">get_feature_tier</a>(&amp;self) -&gt; &amp;<a class="enum" href="features/enum.FeatureTier.html" title="enum chess_vector_engine::features::FeatureTier">FeatureTier</a></h4></section></summary><div class="docblock"><p>Get current feature tier</p>
