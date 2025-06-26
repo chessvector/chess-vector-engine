@@ -35,7 +35,7 @@
 <a href=#35 id=35 data-nosnippet>35</a>        engine: <span class="kw-2">&amp;mut </span><span class="kw">crate</span>::ChessVectorEngine,
 <a href=#36 id=36 data-nosnippet>36</a>    ) -&gt; <span class="prelude-ty">Result</span>&lt;(), Box&lt;<span class="kw">dyn </span>std::error::Error&gt;&gt; {
 <a href=#37 id=37 data-nosnippet>37</a>        <span class="kw">let </span>path_ref = path.as_ref();
-<a href=#38 id=38 data-nosnippet>38</a>        <span class="macro">println!</span>(<span class="string">"Operation complete"</span>);;
+<a href=#38 id=38 data-nosnippet>38</a>        <span class="macro">println!</span>(<span class="string">"Operation complete"</span>);
 <a href=#39 id=39 data-nosnippet>39</a>
 <a href=#40 id=40 data-nosnippet>40</a>        <span class="kw">let </span>file_size = std::fs::metadata(path_ref)<span class="question-mark">?</span>.len();
 <a href=#41 id=41 data-nosnippet>41</a>        <span class="macro">println!</span>(<span class="string">"📊 File size: {:.1} MB"</span>, file_size <span class="kw">as </span>f64 / <span class="number">1_000_000.0</span>);
