@@ -101,7 +101,7 @@ impl UltraFastLoader {
 
         // Try to deserialize in chunks to avoid memory explosion
         const CHUNK_SIZE: usize = 50_000_000; // 50MB chunks
-        let total_chunks = (mmap.len() + CHUNK_SIZE - 1) / CHUNK_SIZE;
+        let total_chunks = mmap.len().div_ceil(CHUNK_SIZE);
 
         println!("📦 Processing {} chunks of ~50MB each", total_chunks);
 

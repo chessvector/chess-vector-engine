@@ -320,7 +320,7 @@ mod tests {
 
         // Create a temporary file with known line count
         let mut temp_file = NamedTempFile::new().unwrap();
-        for i in 0..100 {
+        for _i in 0..100 {
             writeln!(temp_file, "Loading complete").unwrap();
         }
 

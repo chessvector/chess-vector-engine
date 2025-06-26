@@ -74,7 +74,7 @@ fn initialize_analysis_engine() -> ChessVectorEngine {
 
             engine
         }
-        Err(e) => {
+        Err(_e) => {
             println!("Complete");
             println!("🔄 Falling back to manual initialization...");
 
@@ -186,7 +186,7 @@ fn analyze_position(engine: &mut ChessVectorEngine, board: &Board) {
     println!("\n=== Position Analysis ===");
 
     // Basic position info
-    let legal_moves: Vec<_> = MoveGen::new_legal(board).collect();
+    let _legal_moves: Vec<_> = MoveGen::new_legal(board).collect();
     println!("Analysis starting");
 
     if board.checkers().popcnt() > 0 {

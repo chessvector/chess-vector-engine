@@ -115,7 +115,7 @@ impl AutoDiscovery {
                 "🧹 DRY RUN - Would remove {} old format files:",
                 files_to_remove.len()
             );
-            for path in files_to_remove {
+            for _path in files_to_remove {
                 println!("Discovery complete");
             }
             return Ok(());
@@ -351,7 +351,7 @@ impl AutoDiscovery {
             unit_index += 1;
         }
 
-        format!("Processing files...")
+        "Processing files...".to_string()
     }
 }
 

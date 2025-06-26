@@ -39,7 +39,7 @@ impl VariationalEncoder {
 
         // Create shared hidden layers
         for (i, &hidden_dim) in hidden_dims.iter().enumerate() {
-            let layer = linear(prev_dim, hidden_dim, vs.pp(format!("Processing...")))?;
+            let layer = linear(prev_dim, hidden_dim, vs.pp(format!("encoder.layer{}", i)))?;
             shared_layers.push(layer);
             prev_dim = hidden_dim;
         }
@@ -92,7 +92,7 @@ impl VariationalDecoder {
 
         // Create hidden layers (reverse of encoder)
         for (i, &hidden_dim) in hidden_dims.iter().rev().enumerate() {
-            let layer = linear(prev_dim, hidden_dim, vs.pp(format!("Processing...")))?;
+            let layer = linear(prev_dim, hidden_dim, vs.pp(format!("decoder.layer{}", i)))?;
             layers.push(layer);
             prev_dim = hidden_dim;
         }
@@ -147,9 +147,9 @@ impl VariationalAutoencoder {
 
         let encoder =
             VariationalEncoder::new(vs.clone(), self.input_dim, hidden_dims, self.latent_dim)
-                .map_err(|e| format!("Processing..."))?;
+                .map_err(|_e| "Processing...".to_string())?;
         let decoder = VariationalDecoder::new(vs, self.latent_dim, hidden_dims, self.input_dim)
-            .map_err(|e| format!("Processing..."))?;
+            .map_err(|_e| "Processing...".to_string())?;
 
         // Initialize AdamW optimizer with lower learning rate for VAE stability
         let adamw_params = ParamsAdamW {
@@ -160,7 +160,7 @@ impl VariationalAutoencoder {
             weight_decay: 1e-4,
         };
         let optimizer = AdamW::new(self.var_map.all_vars(), adamw_params)
-            .map_err(|e| format!("Processing..."))?;
+            .map_err(|_e| "Processing...".to_string())?;
 
         self.encoder = Some(encoder);
         self.decoder = Some(decoder);
@@ -240,26 +240,26 @@ impl VariationalAutoencoder {
         // Forward pass
         let (reconstruction, mean, logvar) = self
             .forward(&batch_tensor)
-            .map_err(|e| format!("Processing..."))?;
+            .map_err(|_e| "Processing...".to_string())?;
 
         // Compute loss
         let loss = self
             .compute_loss(&batch_tensor, &reconstruction, &mean, &logvar)
-            .map_err(|e| format!("Processing..."))?;
+            .map_err(|_e| "Processing...".to_string())?;
 
         // Get loss value for return
         let loss_value = loss
             .to_scalar::<f32>()
-            .map_err(|e| format!("Processing..."))?;
+            .map_err(|_e| "Processing...".to_string())?;
 
         // Backward pass
-        let grads = loss.backward().map_err(|e| format!("Processing..."))?;
+        let grads = loss.backward().map_err(|_e| "Processing...".to_string())?;
 
         // Now get optimizer and step
         let optimizer = self.optimizer.as_mut().ok_or("Optimizer not initialized")?;
         optimizer
             .step(&grads)
-            .map_err(|e| format!("Processing..."))?;
+            .map_err(|_e| "Processing...".to_string())?;
 
         // Return loss value
         Ok(loss_value)
@@ -272,7 +272,7 @@ impl VariationalAutoencoder {
         let input_tensor = self.array_to_tensor(vectors)?;
         let (mean, logvar) = encoder
             .encode(&input_tensor)
-            .map_err(|e| format!("Processing..."))?;
+            .map_err(|_e| "Processing...".to_string())?;
 
         let mean_array = self.tensor_to_array(&mean)?;
         let logvar_array = self.tensor_to_array(&logvar)?;
@@ -293,7 +293,7 @@ impl VariationalAutoencoder {
 
         let z = encoder
             .reparameterize(&mean_tensor, &logvar_tensor)
-            .map_err(|e| format!("Processing..."))?;
+            .map_err(|_e| "Processing...".to_string())?;
 
         self.tensor_to_array(&z)
     }
@@ -305,7 +305,7 @@ impl VariationalAutoencoder {
         let latent_tensor = self.array_to_tensor(latent_vectors)?;
         let output = decoder
             .forward(&latent_tensor)
-            .map_err(|e| format!("Processing..."))?;
+            .map_err(|_e| "Processing...".to_string())?;
 
         self.tensor_to_array(&output)
     }
@@ -338,7 +338,7 @@ impl VariationalAutoencoder {
         let input_tensor = self.array_to_tensor(vectors)?;
         let (reconstruction, _mean, _logvar) = self
             .forward(&input_tensor)
-            .map_err(|e| format!("Processing..."))?;
+            .map_err(|_e| "Processing...".to_string())?;
 
         let reconstruction_array = self.tensor_to_array(&reconstruction)?;
 
@@ -388,7 +388,7 @@ impl VariationalAutoencoder {
         let shape = array.shape();
         let data: Vec<f32> = array.iter().cloned().collect();
         Tensor::from_vec(data, (shape[0], shape[1]), &self.device)
-            .map_err(|e| format!("Processing..."))
+            .map_err(|_e| "Processing...".to_string())
     }
 
     fn tensor_to_array(&self, tensor: &Tensor) -> Result<Array2<f32>, String> {
@@ -399,10 +399,10 @@ impl VariationalAutoencoder {
 
         let data = tensor
             .to_vec2::<f32>()
-            .map_err(|e| format!("Processing..."))?;
+            .map_err(|_e| "Processing...".to_string())?;
 
         Array2::from_shape_vec((shape.dims()[0], shape.dims()[1]), data.concat())
-            .map_err(|e| format!("Processing..."))
+            .map_err(|_e| "Processing...".to_string())
     }
 }
 

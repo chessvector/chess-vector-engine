@@ -27,7 +27,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let legal_moves: Vec<ChessMove> = MoveGen::new_legal(&board).collect();
     println!("✅ Generated {} legal moves", legal_moves.len());
 
-    for (i, mv) in legal_moves.iter().take(10).enumerate() {
+    for _mv in legal_moves.iter().take(10) {
         println!("Complete");
     }
 
@@ -59,7 +59,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     // Test making moves to see if any specific move causes issues
     println!("\n🔍 Testing individual moves...");
-    for (i, &mv) in legal_moves.iter().take(5).enumerate() {
+    for &mv in legal_moves.iter().take(5) {
         println!("Complete");
 
         // Try to make the move

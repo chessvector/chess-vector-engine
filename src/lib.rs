@@ -1071,7 +1071,7 @@ impl ChessVectorEngine {
 
         for (i, (file_path, file_type)) in available_files.iter().enumerate() {
             pb.set_position(i as u64);
-            pb.set_message(format!("Processing..."));
+            pb.set_message("Processing...".to_string());
 
             let result = match *file_type {
                 "training" => self.load_training_data_incremental(file_path).map(|_| {
@@ -1091,7 +1091,7 @@ impl ChessVectorEngine {
                 _ => Ok(()),
             };
 
-            if let Err(e) = result {
+            if let Err(_e) = result {
                 println!("Loading complete");
             }
         }
@@ -1157,7 +1157,7 @@ impl ChessVectorEngine {
                 "🚀 Created engine with auto-loaded training data from {} files",
                 loaded_files.len()
             );
-            let stats = engine.training_stats();
+            let _stats = engine.training_stats();
             println!("Loading complete");
             println!("Loading complete");
         }
@@ -1174,7 +1174,7 @@ impl ChessVectorEngine {
         engine.enable_opening_book();
 
         // Enable database persistence for manifold model loading
-        if let Err(e) = engine.enable_persistence("chess_vector_engine.db") {
+        if let Err(_e) = engine.enable_persistence("chess_vector_engine.db") {
             println!("Loading complete");
         }
 
@@ -1211,7 +1211,7 @@ impl ChessVectorEngine {
 
             for (i, file_path) in existing_binary_files.iter().enumerate() {
                 pb.set_position(i as u64);
-                pb.set_message(format!("Processing..."));
+                pb.set_message("Processing...".to_string());
 
                 if engine.load_training_data_binary(file_path).is_ok() {
                     loaded_count += 1;
@@ -1248,7 +1248,7 @@ impl ChessVectorEngine {
         engine.enable_opening_book();
 
         // Enable database persistence for manifold model loading
-        if let Err(e) = engine.enable_persistence("chess_vector_engine.db") {
+        if let Err(_e) = engine.enable_persistence("chess_vector_engine.db") {
             println!("Loading complete");
         }
 
@@ -1308,7 +1308,7 @@ impl ChessVectorEngine {
         engine.enable_opening_book();
 
         // Enable database persistence for manifold model loading
-        if let Err(e) = engine.enable_persistence("chess_vector_engine.db") {
+        if let Err(_e) = engine.enable_persistence("chess_vector_engine.db") {
             println!("Loading complete");
         }
 
@@ -1318,7 +1318,7 @@ impl ChessVectorEngine {
         if discovered_files.is_empty() {
             // No user training data found, load starter dataset
             println!("ℹ️  No user training data found, loading starter dataset...");
-            if let Err(e) = engine.load_starter_dataset() {
+            if let Err(_e) = engine.load_starter_dataset() {
                 println!("Loading complete");
                 println!("ℹ️  Starting with empty engine");
             } else {
@@ -1446,7 +1446,7 @@ impl ChessVectorEngine {
                 println!("🔥 GPU acceleration available and ready");
                 Ok(())
             }
-            Err(e) => Err(format!("Processing...").into()),
+            Err(_e) => Err("Processing...".to_string().into()),
         }
     }
 
@@ -1528,7 +1528,7 @@ impl ChessVectorEngine {
             "BINARY" => self.load_training_data_streaming_binary(path),
             "ZSTD" => self.load_training_data_compressed(path),
             "JSON" => self.load_training_data_streaming_json_v2(path),
-            _ => Err(format!("Processing...").into()),
+            _ => Err("Processing...".to_string().into()),
         }
     }
 
@@ -1705,13 +1705,13 @@ impl ChessVectorEngine {
                                 })
                                 .collect()
                         } else {
-                            return Err(format!("Processing...").into());
+                            return Err("Processing...".to_string().into());
                         }
                     } else {
                         Vec::new()
                     }
                 }
-                _ => return Err(format!("Processing...").into()),
+                _ => return Err("Processing...".to_string().into()),
             };
 
             if data.is_empty() {
@@ -1926,7 +1926,7 @@ impl ChessVectorEngine {
                             Vec::new()
                         }
                     }
-                    _ => return Err(format!("Processing...").into()),
+                    _ => return Err("Processing...".to_string().into()),
                 }
             } else if input_file.ends_with(".msgpack") {
                 let file = File::open(input_path)?;
@@ -1996,7 +1996,7 @@ impl ChessVectorEngine {
 
         for (i, json_file) in existing_json_files.iter().enumerate() {
             pb.set_position(i as u64);
-            pb.set_message(format!("Processing..."));
+            pb.set_message("Processing...".to_string());
 
             let binary_file = std::path::Path::new(json_file).with_extension("bin");
 
@@ -2023,7 +2023,7 @@ impl ChessVectorEngine {
         if !converted_files.is_empty() {
             println!("🚀 Binary conversion complete! Startup will be 5-15x faster next time.");
             println!("📊 Conversion summary:");
-            for conversion in &converted_files {
+            for _conversion in &converted_files {
                 println!("Loading complete");
             }
         }
@@ -2719,7 +2719,7 @@ impl ChessVectorEngine {
         if self.database.is_some() {
             match self.save_to_database() {
                 Ok(_) => println!("💾 Saved {} positions to database", positions_added),
-                Err(e) => println!("Loading complete"),
+                Err(_e) => println!("Loading complete"),
             }
         }
 
@@ -2772,7 +2772,7 @@ impl ChessVectorEngine {
                 if let Some(path) = save_path {
                     match self.save_training_data_binary(path) {
                         Ok(_) => println!("💾 Progress saved to {} (binary format)", path),
-                        Err(e) => println!("Loading complete"),
+                        Err(_e) => println!("Loading complete"),
                     }
                 }
 
@@ -2783,7 +2783,7 @@ impl ChessVectorEngine {
                             "💾 Database synchronized ({} total positions)",
                             self.knowledge_base_size()
                         ),
-                        Err(e) => println!("Loading complete"),
+                        Err(_e) => println!("Loading complete"),
                     }
                 }
             }
@@ -2831,7 +2831,7 @@ impl ChessVectorEngine {
             if self.database.is_some() {
                 match self.save_to_database() {
                     Ok(_) => println!("💾 Adaptive training progress saved to database"),
-                    Err(e) => println!("Loading complete"),
+                    Err(_e) => println!("Loading complete"),
                 }
             }
 

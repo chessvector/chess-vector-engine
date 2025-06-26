@@ -152,7 +152,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     ] {
         let features = registry.get_features_for_tier(&tier);
         println!("   {:?}: {} features", tier, features.len());
-        for feature in features.iter().take(5) {
+        for _feature in features.iter().take(5) {
             println!("Feature not available");
         }
         if features.len() > 5 {

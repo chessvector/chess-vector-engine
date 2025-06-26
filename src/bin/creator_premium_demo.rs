@@ -25,7 +25,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     ];
 
     for feature in &premium_features {
-        let available = engine_dev.is_feature_available(feature);
+        let _available = engine_dev.is_feature_available(feature);
         println!("Error occurred");
     }
 

@@ -230,7 +230,7 @@ impl ManifoldLearner {
         }
 
         let num_samples = data.nrows();
-        let num_batches = (num_samples + batch_size - 1) / batch_size;
+        let num_batches = num_samples.div_ceil(batch_size);
 
         println!(
             "Training autoencoder for {} epochs with {} batches of size {} (parallel)",
@@ -318,7 +318,7 @@ impl ManifoldLearner {
         }
 
         let num_samples = data.nrows();
-        let num_batches = (num_samples + batch_size - 1) / batch_size;
+        let num_batches = num_samples.div_ceil(batch_size);
 
         println!(
             "Training autoencoder for {} epochs with {} batches of size {} (memory efficient)",
@@ -442,7 +442,7 @@ impl ManifoldLearner {
                                 metadata.compression_ratio
                             );
                         }
-                        Err(e) => {
+                        Err(_e) => {
                             println!("Failed to deserialize metadata");
                         }
                     }
@@ -536,7 +536,7 @@ impl ManifoldLearner {
 
         // Initialize network architecture first
         self.init_network()
-            .map_err(|e| Box::new(std::io::Error::new(std::io::ErrorKind::Other, e)))?;
+            .map_err(|e| Box::new(std::io::Error::other(e)))?;
 
         // Load weights into the initialized network
         self.load_weights_into_network(loaded_tensors)?;

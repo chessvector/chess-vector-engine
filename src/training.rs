@@ -358,7 +358,7 @@ impl StockfishEvaluator {
             pb.set_style(style.progress_chars("#>-"));
         }
 
-        for (i, data) in positions.iter_mut().enumerate() {
+        for data in positions.iter_mut() {
             match self.evaluate_position(&data.board) {
                 Ok(eval) => {
                     data.evaluation = eval;
@@ -420,6 +420,7 @@ struct StockfishProcess {
     child: Child,
     stdin: BufWriter<std::process::ChildStdin>,
     stdout: BufReader<std::process::ChildStdout>,
+    #[allow(dead_code)]
     depth: u8,
 }
 

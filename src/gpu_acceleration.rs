@@ -227,7 +227,7 @@ impl GPUAccelerator {
         let data = tensor.to_vec2::<f32>()?;
         let flat_data: Vec<f32> = data.into_iter().flatten().collect();
         Array2::from_shape_vec((dims[0], dims[1]), flat_data)
-            .map_err(|e| candle_core::Error::Msg(format!("Processing...")))
+            .map_err(|_e| candle_core::Error::Msg("Processing...".to_string()))
     }
 
     /// Accelerated cosine similarity computation
@@ -375,7 +375,7 @@ impl GPUAccelerator {
             self.device_count()
         );
 
-        let chunk_size = (vectors.nrows() + self.device_count() - 1) / self.device_count();
+        let chunk_size = vectors.nrows().div_ceil(self.device_count());
         let mut results = Vec::new();
 
         // Process chunks in parallel across different GPUs
@@ -449,7 +449,7 @@ impl GPUAccelerator {
 
         use rayon::prelude::*;
 
-        let chunk_size = (data.len() + self.device_count() - 1) / self.device_count();
+        let chunk_size = data.len().div_ceil(self.device_count());
 
         println!(
             "🚀 Multi-GPU batch processing: {} items across {} devices",

@@ -49,7 +49,7 @@ impl OpeningBook {
         eco_code: Option<String>,
     ) -> Result<(), String> {
         // Validate FEN by parsing it
-        Board::from_str(fen).map_err(|e| format!("Processing..."))?;
+        Board::from_str(fen).map_err(|_e| "Processing...".to_string())?;
 
         let entry = OpeningEntry {
             evaluation,

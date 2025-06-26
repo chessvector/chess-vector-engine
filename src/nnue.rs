@@ -110,12 +110,8 @@ impl NNUE {
         let mut hidden_layers = Vec::new();
         let mut prev_size = config.hidden_size;
 
-        for i in 0..config.num_hidden_layers {
-            let layer = linear(
-                prev_size,
-                config.hidden_size,
-                vs.pp(format!("Processing...")),
-            )?;
+        for _i in 0..config.num_hidden_layers {
+            let layer = linear(prev_size, config.hidden_size, vs.pp("Processing..."))?;
             hidden_layers.push(layer);
             prev_size = config.hidden_size;
         }
