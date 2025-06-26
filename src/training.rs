@@ -1562,10 +1562,10 @@ impl<'de> serde::Deserialize<'de> for TrainingData {
                 let game_id = game_id.unwrap_or(0); // Default to 0 for backward compatibility
 
                 // Convert evaluation from centipawns to pawns if needed
-                // If evaluation is outside typical pawn range (-10 to +10), 
+                // If evaluation is outside typical pawn range (-10 to +10),
                 // assume it's in centipawns and convert to pawns
                 if evaluation.abs() > 15.0 {
-                    evaluation = evaluation / 100.0;
+                    evaluation /= 100.0;
                 }
 
                 let board =

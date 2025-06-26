@@ -858,14 +858,14 @@ impl ChessVectorEngine {
                     // Skip duplicates
                     if !self.position_boards.contains(&board) {
                         let mut evaluation = binary_data.evaluations[i];
-                        
+
                         // Convert evaluation from centipawns to pawns if needed
-                        // If evaluation is outside typical pawn range (-10 to +10), 
+                        // If evaluation is outside typical pawn range (-10 to +10),
                         // assume it's in centipawns and convert to pawns
                         if evaluation.abs() > 15.0 {
-                            evaluation = evaluation / 100.0;
+                            evaluation /= 100.0;
                         }
-                        
+
                         self.add_position(&board, evaluation);
                         added_count += 1;
                     }
@@ -1617,13 +1617,13 @@ impl ChessVectorEngine {
                         Ok(board) => {
                             // Convert evaluation from centipawns to pawns if needed
                             let mut eval = eval_f64 as f32;
-                            
-                            // If evaluation is outside typical pawn range (-10 to +10), 
+
+                            // If evaluation is outside typical pawn range (-10 to +10),
                             // assume it's in centipawns and convert to pawns
                             if eval.abs() > 15.0 {
-                                eval = eval / 100.0;
+                                eval /= 100.0;
                             }
-                            
+
                             self.add_position(&board, eval);
                         }
                         Err(_) => {
@@ -1817,14 +1817,14 @@ impl ChessVectorEngine {
                                         if tuple.len() >= 2 {
                                             let fen = tuple[0].as_str()?.to_string();
                                             let mut eval = tuple[1].as_f64()? as f32;
-                                            
+
                                             // Convert evaluation from centipawns to pawns if needed
-                                            // If evaluation is outside typical pawn range (-10 to +10), 
+                                            // If evaluation is outside typical pawn range (-10 to +10),
                                             // assume it's in centipawns and convert to pawns
                                             if eval.abs() > 15.0 {
-                                                eval = eval / 100.0;
+                                                eval /= 100.0;
                                             }
-                                            
+
                                             Some((fen, eval))
                                         } else {
                                             None
@@ -1841,14 +1841,14 @@ impl ChessVectorEngine {
                                     if let Value::Object(obj) = item {
                                         let fen = obj.get("fen")?.as_str()?.to_string();
                                         let mut eval = obj.get("evaluation")?.as_f64()? as f32;
-                                        
+
                                         // Convert evaluation from centipawns to pawns if needed
-                                        // If evaluation is outside typical pawn range (-10 to +10), 
+                                        // If evaluation is outside typical pawn range (-10 to +10),
                                         // assume it's in centipawns and convert to pawns
                                         if eval.abs() > 15.0 {
-                                            eval = eval / 100.0;
+                                            eval /= 100.0;
                                         }
-                                        
+
                                         Some((fen, eval))
                                     } else {
                                         None
@@ -2048,14 +2048,14 @@ impl ChessVectorEngine {
                                             if tuple.len() >= 2 {
                                                 let fen = tuple[0].as_str()?.to_string();
                                                 let mut eval = tuple[1].as_f64()? as f32;
-                                                
+
                                                 // Convert evaluation from centipawns to pawns if needed
-                                                // If evaluation is outside typical pawn range (-10 to +10), 
+                                                // If evaluation is outside typical pawn range (-10 to +10),
                                                 // assume it's in centipawns and convert to pawns
                                                 if eval.abs() > 15.0 {
-                                                    eval = eval / 100.0;
+                                                    eval /= 100.0;
                                                 }
-                                                
+
                                                 Some((fen, eval))
                                             } else {
                                                 None
@@ -2072,14 +2072,14 @@ impl ChessVectorEngine {
                                         if let Value::Object(obj) = item {
                                             let fen = obj.get("fen")?.as_str()?.to_string();
                                             let mut eval = obj.get("evaluation")?.as_f64()? as f32;
-                                            
+
                                             // Convert evaluation from centipawns to pawns if needed
-                                            // If evaluation is outside typical pawn range (-10 to +10), 
+                                            // If evaluation is outside typical pawn range (-10 to +10),
                                             // assume it's in centipawns and convert to pawns
                                             if eval.abs() > 15.0 {
-                                                eval = eval / 100.0;
+                                                eval /= 100.0;
                                             }
-                                            
+
                                             Some((fen, eval))
                                         } else {
                                             None
@@ -2705,12 +2705,12 @@ impl ChessVectorEngine {
                 let vector: Vec<f32> = position_data.vector.iter().map(|&x| x as f32).collect();
                 let vector_array = Array1::from(vector);
                 let mut evaluation = position_data.evaluation.unwrap_or(0.0) as f32;
-                
+
                 // Convert evaluation from centipawns to pawns if needed
-                // If evaluation is outside typical pawn range (-10 to +10), 
+                // If evaluation is outside typical pawn range (-10 to +10),
                 // assume it's in centipawns and convert to pawns
                 if evaluation.abs() > 15.0 {
-                    evaluation = evaluation / 100.0;
+                    evaluation /= 100.0;
                 }
 
                 // Add to similarity search
