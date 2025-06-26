@@ -1,5 +1,5 @@
 use chess::{Board, ChessMove, Color, Game, MoveGen, Piece, Square};
-use chess_vector_engine::{ChessVectorEngine, FeatureTier};
+use chess_vector_engine::{ChessVectorEngine, FeatureTier, HybridConfig};
 use chrono::{DateTime, Utc};
 use clap::{Arg, Command};
 use std::io::{BufRead, BufReader, BufWriter, Write};
@@ -8,15 +8,15 @@ use std::str::FromStr;
 
 /// Normalize evaluation to be from White's perspective and in reasonable units
 fn normalize_evaluation(raw_eval: f32, _side_to_move: Color) -> f32 {
-    // Convert from centipawns to pawns (tactical search returns centipawns)
-    let eval = raw_eval / 100.0;
+    // Tactical search now returns pawn values directly (not centipawns)
+    // No conversion needed - just clamp to reasonable range
 
-    // The tactical search now always returns evaluation from White's perspective
+    // The tactical search always returns evaluation from White's perspective
     // (positive = good for White, negative = good for Black)
     // No perspective conversion needed
 
     // Clamp to reasonable range (-10 to +10 pawns)
-    eval.clamp(-10.0, 10.0)
+    raw_eval.clamp(-10.0, 10.0)
 }
 
 /// Convert a ChessMove to Standard Algebraic Notation (SAN)
@@ -534,11 +534,22 @@ fn play_game(
         extended_futility_margin: 40.0,
     };
 
-    chess_vector_engine.enable_tactical_search(strong_tactical_config);
+    chess_vector_engine.enable_tactical_search(strong_tactical_config.clone());
     println!(
         "⚔️  Strong tactical search enabled ({} ply depth, {}ms time, 2M nodes, 8 threads)",
         tactical_depth, time_per_move
     );
+
+    // Configure hybrid evaluation with lower confidence threshold for more tactical search usage
+    let hybrid_config = HybridConfig {
+        pattern_confidence_threshold: 0.65, // Lower threshold to allow more tactical search
+        enable_tactical_refinement: true,
+        tactical_config: strong_tactical_config,
+        pattern_weight: 0.6, // Balanced blend of pattern and tactical evaluation
+        min_similar_positions: 3,
+    };
+    chess_vector_engine.configure_hybrid_evaluation(hybrid_config);
+    println!("🎯 Hybrid evaluation configured (confidence threshold: 0.65, pattern weight: 0.6)");
 
     // Try to load training data for pattern recognition
     println!("🧠 Loading training data for pattern recognition...");

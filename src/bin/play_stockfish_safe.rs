@@ -10,15 +10,15 @@ use std::str::FromStr;
 
 /// Normalize evaluation to be from White's perspective and in reasonable units
 fn normalize_evaluation(raw_eval: f32, _side_to_move: Color) -> f32 {
-    // Convert from centipawns to pawns (tactical search returns centipawns)
-    let eval = raw_eval / 100.0;
+    // Tactical search now returns pawn values directly (not centipawns)
+    // No conversion needed - just clamp to reasonable range
 
-    // The tactical search now always returns evaluation from White's perspective
+    // The tactical search always returns evaluation from White's perspective
     // (positive = good for White, negative = good for Black)
     // No perspective conversion needed
 
     // Clamp to reasonable range (-10 to +10 pawns)
-    eval.clamp(-10.0, 10.0)
+    raw_eval.clamp(-10.0, 10.0)
 }
 
 /// Convert a ChessMove to Standard Algebraic Notation (SAN)
