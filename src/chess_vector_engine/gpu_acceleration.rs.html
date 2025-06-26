@@ -224,8 +224,8 @@
 <a href=#224 id=224 data-nosnippet>224</a>        }
 <a href=#225 id=225 data-nosnippet>225</a>        <span class="kw">let </span>data = tensor.to_vec2::&lt;f32&gt;()<span class="question-mark">?</span>;
 <a href=#226 id=226 data-nosnippet>226</a>        <span class="kw">let </span>flat_data: Vec&lt;f32&gt; = data.into_iter().flatten().collect();
-<a href=#227 id=227 data-nosnippet>227</a>        <span class="prelude-val">Ok</span>(Array2::from_shape_vec((dims[<span class="number">0</span>], dims[<span class="number">1</span>]), flat_data)
-<a href=#228 id=228 data-nosnippet>228</a>            .map_err(|e| candle_core::Error::Msg(<span class="macro">format!</span>(<span class="string">"Array reshape error: {}"</span>, e)))<span class="question-mark">?</span>)
+<a href=#227 id=227 data-nosnippet>227</a>        Array2::from_shape_vec((dims[<span class="number">0</span>], dims[<span class="number">1</span>]), flat_data)
+<a href=#228 id=228 data-nosnippet>228</a>            .map_err(|e| candle_core::Error::Msg(<span class="macro">format!</span>(<span class="string">"Array reshape error: {}"</span>, e)))
 <a href=#229 id=229 data-nosnippet>229</a>    }
 <a href=#230 id=230 data-nosnippet>230</a>
 <a href=#231 id=231 data-nosnippet>231</a>    <span class="doccomment">/// Accelerated cosine similarity computation

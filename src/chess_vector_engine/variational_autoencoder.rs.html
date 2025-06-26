@@ -42,7 +42,7 @@
 <a href=#42 id=42 data-nosnippet>42</a>            <span class="kw">let </span>layer = linear(
 <a href=#43 id=43 data-nosnippet>43</a>                prev_dim,
 <a href=#44 id=44 data-nosnippet>44</a>                hidden_dim,
-<a href=#45 id=45 data-nosnippet>45</a>                vs.pp(<span class="kw-2">&amp;</span><span class="macro">format!</span>(<span class="string">"encoder.shared.{}"</span>, i)),
+<a href=#45 id=45 data-nosnippet>45</a>                vs.pp(<span class="macro">format!</span>(<span class="string">"encoder.shared.{}"</span>, i)),
 <a href=#46 id=46 data-nosnippet>46</a>            )<span class="question-mark">?</span>;
 <a href=#47 id=47 data-nosnippet>47</a>            shared_layers.push(layer);
 <a href=#48 id=48 data-nosnippet>48</a>            prev_dim = hidden_dim;
@@ -99,7 +99,7 @@
 <a href=#99 id=99 data-nosnippet>99</a>            <span class="kw">let </span>layer = linear(
 <a href=#100 id=100 data-nosnippet>100</a>                prev_dim,
 <a href=#101 id=101 data-nosnippet>101</a>                hidden_dim,
-<a href=#102 id=102 data-nosnippet>102</a>                vs.pp(<span class="kw-2">&amp;</span><span class="macro">format!</span>(<span class="string">"decoder.hidden.{}"</span>, i)),
+<a href=#102 id=102 data-nosnippet>102</a>                vs.pp(<span class="macro">format!</span>(<span class="string">"decoder.hidden.{}"</span>, i)),
 <a href=#103 id=103 data-nosnippet>103</a>            )<span class="question-mark">?</span>;
 <a href=#104 id=104 data-nosnippet>104</a>            layers.push(layer);
 <a href=#105 id=105 data-nosnippet>105</a>            prev_dim = hidden_dim;
@@ -221,7 +221,7 @@
 <a href=#221 id=221 data-nosnippet>221</a>        </span><span class="kw">let </span>kl_div = {
 <a href=#222 id=222 data-nosnippet>222</a>            <span class="kw">let </span>var = logvar.exp()<span class="question-mark">?</span>;
 <a href=#223 id=223 data-nosnippet>223</a>            <span class="kw">let </span>mean_sq = mean.powf(<span class="number">2.0</span>)<span class="question-mark">?</span>;
-<a href=#224 id=224 data-nosnippet>224</a>            <span class="kw">let </span>one_tensor = Tensor::ones_like(<span class="kw-2">&amp;</span>logvar)<span class="question-mark">?</span>;
+<a href=#224 id=224 data-nosnippet>224</a>            <span class="kw">let </span>one_tensor = Tensor::ones_like(logvar)<span class="question-mark">?</span>;
 <a href=#225 id=225 data-nosnippet>225</a>            <span class="kw">let </span>logvar_plus_one = (logvar + <span class="kw-2">&amp;</span>one_tensor)<span class="question-mark">?</span>;
 <a href=#226 id=226 data-nosnippet>226</a>            <span class="kw">let </span>minus_mean_sq = (<span class="kw-2">&amp;</span>logvar_plus_one - <span class="kw-2">&amp;</span>mean_sq)<span class="question-mark">?</span>;
 <a href=#227 id=227 data-nosnippet>227</a>            <span class="kw">let </span>kl_per_dim = (<span class="kw-2">&amp;</span>minus_mean_sq - <span class="kw-2">&amp;</span>var)<span class="question-mark">?</span>;

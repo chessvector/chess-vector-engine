@@ -7,7 +7,7 @@
 <a href=#7 id=7 data-nosnippet>7</a>
 <a href=#8 id=8 data-nosnippet>8</a>    <span class="comment">// Method 1: Direct tier setting (for development/testing)
 <a href=#9 id=9 data-nosnippet>9</a>    </span><span class="macro">println!</span>(<span class="string">"\n🔧 Method 1: Direct Premium Tier Access (Development Mode)"</span>);
-<a href=#10 id=10 data-nosnippet>10</a>    <span class="kw">let </span><span class="kw-2">mut </span>engine_dev = ChessVectorEngine::new_with_tier(<span class="number">1024</span>, FeatureTier::Premium);
+<a href=#10 id=10 data-nosnippet>10</a>    <span class="kw">let </span>engine_dev = ChessVectorEngine::new_with_tier(<span class="number">1024</span>, FeatureTier::Premium);
 <a href=#11 id=11 data-nosnippet>11</a>
 <a href=#12 id=12 data-nosnippet>12</a>    <span class="macro">println!</span>(<span class="string">"✅ Engine created with Premium tier directly"</span>);
 <a href=#13 id=13 data-nosnippet>13</a>    <span class="macro">println!</span>(<span class="string">"📊 Available features:"</span>);
@@ -31,10 +31,10 @@
 <a href=#31 id=31 data-nosnippet>31</a>
 <a href=#32 id=32 data-nosnippet>32</a>    <span class="comment">// Method 2: Using creator license key (for production)
 <a href=#33 id=33 data-nosnippet>33</a>    </span><span class="macro">println!</span>(<span class="string">"\n🔑 Method 2: Creator License Key (Production Mode)"</span>);
-<a href=#34 id=34 data-nosnippet>34</a>    <span class="kw">let </span><span class="kw-2">mut </span>engine_licensed = ChessVectorEngine::new_with_offline_license(<span class="number">1024</span>);
+<a href=#34 id=34 data-nosnippet>34</a>    <span class="kw">let </span>engine_licensed = ChessVectorEngine::new_with_offline_license(<span class="number">1024</span>);
 <a href=#35 id=35 data-nosnippet>35</a>
 <a href=#36 id=36 data-nosnippet>36</a>    <span class="comment">// Creator license key (this would be your actual license in production)
-<a href=#37 id=37 data-nosnippet>37</a>    </span><span class="kw">let </span>creator_key = <span class="string">"CREATOR-PREMIUM-UNLIMITED-ACCESS-KEY"</span>;
+<a href=#37 id=37 data-nosnippet>37</a>    </span><span class="kw">let </span>_creator_key = <span class="string">"CREATOR-PREMIUM-UNLIMITED-ACCESS-KEY"</span>;
 <a href=#38 id=38 data-nosnippet>38</a>
 <a href=#39 id=39 data-nosnippet>39</a>    <span class="comment">// Note: In production, use proper license activation:
 <a href=#40 id=40 data-nosnippet>40</a>    // engine_licensed.activate_license(creator_key).await?;
@@ -67,7 +67,7 @@
 <a href=#67 id=67 data-nosnippet>67</a>    </span><span class="macro">println!</span>(<span class="string">"\n📚 Lichess Puzzle Loading Comparison:"</span>);
 <a href=#68 id=68 data-nosnippet>68</a>
 <a href=#69 id=69 data-nosnippet>69</a>    <span class="comment">// Basic tier loading (limited)
-<a href=#70 id=70 data-nosnippet>70</a>    </span><span class="kw">let </span>basic_engine = ChessVectorEngine::new(<span class="number">1024</span>);
+<a href=#70 id=70 data-nosnippet>70</a>    </span><span class="kw">let </span>_basic_engine = ChessVectorEngine::new(<span class="number">1024</span>);
 <a href=#71 id=71 data-nosnippet>71</a>    <span class="macro">println!</span>(<span class="string">"❌ Basic Tier: Limited to 50,000 puzzles max"</span>);
 <a href=#72 id=72 data-nosnippet>72</a>    <span class="macro">println!</span>(<span class="string">"   📊 Rating range: 1000-2000"</span>);
 <a href=#73 id=73 data-nosnippet>73</a>    <span class="macro">println!</span>(<span class="string">"   ⚡ Batch size: 10,000"</span>);
@@ -112,7 +112,7 @@
 <a href=#112 id=112 data-nosnippet>112</a>    <span class="comment">// Demo actual premium loading (if file exists)
 <a href=#113 id=113 data-nosnippet>113</a>    </span><span class="kw">let </span>lichess_path = <span class="string">"~/Downloads/lichess_db_puzzle.csv"</span>;
 <a href=#114 id=114 data-nosnippet>114</a>    <span class="kw">let </span>expanded_path = <span class="kw">if </span>lichess_path.starts_with(<span class="string">"~/"</span>) {
-<a href=#115 id=115 data-nosnippet>115</a>        <span class="kw">if let </span><span class="prelude-val">Some</span>(home) = std::env::var(<span class="string">"HOME"</span>).ok() {
+<a href=#115 id=115 data-nosnippet>115</a>        <span class="kw">if let </span><span class="prelude-val">Ok</span>(home) = std::env::var(<span class="string">"HOME"</span>) {
 <a href=#116 id=116 data-nosnippet>116</a>            lichess_path.replace(<span class="string">"~"</span>, <span class="kw-2">&amp;</span>home)
 <a href=#117 id=117 data-nosnippet>117</a>        } <span class="kw">else </span>{
 <a href=#118 id=118 data-nosnippet>118</a>            lichess_path.to_string()

@@ -326,6 +326,6 @@
 <a href=#326 id=326 data-nosnippet>326</a>
 <a href=#327 id=327 data-nosnippet>327</a>        <span class="kw">let </span>estimated = loader.estimate_line_count(temp_file.path()).unwrap();
 <a href=#328 id=328 data-nosnippet>328</a>        <span class="comment">// Should be approximately 100 (within reasonable range)
-<a href=#329 id=329 data-nosnippet>329</a>        </span><span class="macro">assert!</span>(estimated &gt;= <span class="number">80 </span>&amp;&amp; estimated &lt;= <span class="number">120</span>);
+<a href=#329 id=329 data-nosnippet>329</a>        </span><span class="macro">assert!</span>((<span class="number">80</span>..=<span class="number">120</span>).contains(<span class="kw-2">&amp;</span>estimated));
 <a href=#330 id=330 data-nosnippet>330</a>    }
 <a href=#331 id=331 data-nosnippet>331</a>}</code></pre></div></section></main></body></html>
