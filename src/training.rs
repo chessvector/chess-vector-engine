@@ -1556,10 +1556,17 @@ impl<'de> serde::Deserialize<'de> for TrainingData {
                 }
 
                 let fen: String = fen.ok_or_else(|| de::Error::missing_field("fen"))?;
-                let evaluation =
+                let mut evaluation: f32 =
                     evaluation.ok_or_else(|| de::Error::missing_field("evaluation"))?;
                 let depth = depth.ok_or_else(|| de::Error::missing_field("depth"))?;
                 let game_id = game_id.unwrap_or(0); // Default to 0 for backward compatibility
+
+                // Convert evaluation from centipawns to pawns if needed
+                // If evaluation is outside typical pawn range (-10 to +10), 
+                // assume it's in centipawns and convert to pawns
+                if evaluation.abs() > 15.0 {
+                    evaluation = evaluation / 100.0;
+                }
 
                 let board =
                     Board::from_str(&fen).map_err(|e| de::Error::custom(format!("Error: {e}")))?;

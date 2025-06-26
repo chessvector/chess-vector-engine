@@ -11,6 +11,8 @@ fn normalize_evaluation(raw_eval: f32, _side_to_move: Color) -> f32 {
     // Tactical search now returns pawn values directly (not centipawns)
     // No conversion needed - just clamp to reasonable range
 
+    // Note: Training data centipawn conversion is now handled automatically
+
     // The tactical search always returns evaluation from White's perspective
     // (positive = good for White, negative = good for Black)
     // No perspective conversion needed
@@ -540,16 +542,16 @@ fn play_game(
         tactical_depth, time_per_move
     );
 
-    // Configure hybrid evaluation with lower confidence threshold for more tactical search usage
+    // Configure hybrid evaluation with much lower confidence threshold to force tactical search
     let hybrid_config = HybridConfig {
-        pattern_confidence_threshold: 0.65, // Lower threshold to allow more tactical search
+        pattern_confidence_threshold: 0.3, // Much lower threshold to force more tactical search
         enable_tactical_refinement: true,
         tactical_config: strong_tactical_config,
-        pattern_weight: 0.6, // Balanced blend of pattern and tactical evaluation
+        pattern_weight: 0.3, // Heavily favor tactical evaluation over patterns
         min_similar_positions: 3,
     };
     chess_vector_engine.configure_hybrid_evaluation(hybrid_config);
-    println!("🎯 Hybrid evaluation configured (confidence threshold: 0.65, pattern weight: 0.6)");
+    println!("🎯 Hybrid evaluation configured (confidence threshold: 0.3, pattern weight: 0.3)");
 
     // Try to load training data for pattern recognition
     println!("🧠 Loading training data for pattern recognition...");

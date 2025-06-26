@@ -952,9 +952,9 @@ impl TacticalSearch {
         match board.status() {
             chess::BoardStatus::Checkmate => {
                 if board.side_to_move() == Color::White {
-                    -100.0 // Black wins (100 pawn units)
+                    -10.0 // Black wins (10 pawn units - strong but reasonable)
                 } else {
-                    100.0 // White wins (100 pawn units)
+                    10.0 // White wins (10 pawn units - strong but reasonable)
                 }
             }
             chess::BoardStatus::Stalemate => 0.0,

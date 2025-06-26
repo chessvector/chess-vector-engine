@@ -964,23 +964,8 @@ impl OpeningBook {
             );
         }
 
-        // HIPPOPOTAMUS DEFENSE
-        if let Ok(board) =
-            Board::from_str("rnbqkbnr/pppppppp/8/8/4P3/8/PPPP1PPP/RNBQKBNR b KQkq - 0 1")
-        {
-            let moves = vec![
-                (ChessMove::from_str("g8h6").unwrap(), 0.4), // Unusual knight development
-                (ChessMove::from_str("a7a6").unwrap(), 0.3), // Hippo setup
-                (ChessMove::from_str("b7b6").unwrap(), 0.3), // Fianchetto prep
-            ];
-            let _ = self.add_opening(
-                &board.to_string(),
-                0.0,
-                moves,
-                "Hippopotamus Defense".to_string(),
-                Some("A00".to_string()),
-            );
-        }
+        // HIPPOPOTAMUS DEFENSE REMOVED - contained objectively bad moves like Nh6
+        // The real Hippopotamus Defense doesn't start with such terrible moves
     }
 
     /// Get statistics about the opening book

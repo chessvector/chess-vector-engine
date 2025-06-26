@@ -143,11 +143,11 @@ impl NNUE {
         let features = self.extract_features(board)?;
         let output = self.forward(&features)?;
 
-        // Convert to centipaws (typical NNUE output scaling)
+        // Return evaluation in pawn units (consistent with rest of engine)
         // Extract the single value from the [1, 1] tensor
-        let eval_cp = output.to_vec2::<f32>()?[0][0] * 100.0;
+        let eval_pawn_units = output.to_vec2::<f32>()?[0][0];
 
-        Ok(eval_cp)
+        Ok(eval_pawn_units)
     }
 
     /// Hybrid evaluation combining NNUE with vector-based analysis
@@ -269,8 +269,8 @@ impl NNUE {
             // Forward pass
             let prediction = self.forward(&features)?;
 
-            // Create target tensor
-            let target = Tensor::from_vec(vec![*target_eval / 100.0], (1, 1), &self.device)?; // Scale to NNUE range
+            // Create target tensor (target_eval is already in pawn units)
+            let target = Tensor::from_vec(vec![*target_eval], (1, 1), &self.device)?;
 
             // Compute loss (MSE)
             let diff = (&prediction - &target)?;
