@@ -837,8 +837,7 @@ impl ChessVectorEngine {
         }
 
         println!(
-            "🚀 Processing {} positions from binary format...",
-            total_positions
+            "🚀 Processing {total_positions} positions from binary format..."
         );
 
         // Progress bar for loading positions
@@ -874,10 +873,10 @@ impl ChessVectorEngine {
 
             if i % 1000 == 0 || i == total_positions - 1 {
                 pb.set_position((i + 1) as u64);
-                pb.set_message(format!("{} new positions", added_count));
+                pb.set_message(format!("{added_count} new positions"));
             }
         }
-        pb.finish_with_message(format!("✅ Loaded {} new positions", added_count));
+        pb.finish_with_message(format!("✅ Loaded {added_count} new positions"));
 
         println!(
             "🎯 Binary loading complete: {} new positions (total: {})",
@@ -1082,12 +1081,12 @@ impl ChessVectorEngine {
                 loaded_count += 1;
 
                 if loaded_count % 1000 == 0 {
-                    pb.set_message(format!("Loaded {} positions", loaded_count));
+                    pb.set_message(format!("Loaded {loaded_count} positions"));
                 }
             }
         }
 
-        pb.finish_with_message(format!("✅ Loaded {} new positions", loaded_count));
+        pb.finish_with_message(format!("✅ Loaded {loaded_count} new positions"));
 
         println!(
             "🎯 Ultra-fast loading complete: {} new positions (total: {})",
@@ -1254,8 +1253,7 @@ impl ChessVectorEngine {
         max_puzzles: usize,
     ) -> Result<(), Box<dyn std::error::Error>> {
         println!(
-            "📚 Loading Lichess puzzles (basic tier, limited to {} puzzles)...",
-            max_puzzles
+            "📚 Loading Lichess puzzles (basic tier, limited to {max_puzzles} puzzles)..."
         );
         let puzzle_entries =
             crate::lichess_loader::load_lichess_puzzles_basic_with_moves(csv_path, max_puzzles)?;
@@ -1345,7 +1343,7 @@ impl ChessVectorEngine {
             }
 
             pb.set_position(existing_binary_files.len() as u64);
-            pb.finish_with_message(format!("✅ Loaded {} binary files", loaded_count));
+            pb.finish_with_message(format!("✅ Loaded {loaded_count} binary files"));
         } else {
             println!("📦 No binary files found, falling back to JSON auto-loading...");
             let _ = engine.auto_load_training_data()?;
@@ -1353,7 +1351,7 @@ impl ChessVectorEngine {
 
         // Try to load pre-trained manifold models for fast compressed similarity search
         if let Err(e) = engine.load_manifold_models() {
-            println!("⚠️  No pre-trained manifold models found ({})", e);
+            println!("⚠️  No pre-trained manifold models found ({e})");
             println!("   Use --rebuild-models flag to train new models");
         }
 
@@ -1398,7 +1396,7 @@ impl ChessVectorEngine {
             let loaded_count = engine.knowledge_base_size() - initial_size;
             total_loaded += loaded_count;
 
-            println!("   ✅ Loaded {} positions", loaded_count);
+            println!("   ✅ Loaded {loaded_count} positions");
         }
 
         // Clean up old formats (dry run first to show what would be removed)
@@ -1415,7 +1413,7 @@ impl ChessVectorEngine {
 
         // Try to load pre-trained manifold models
         if let Err(e) = engine.load_manifold_models() {
-            println!("⚠️  No pre-trained manifold models found ({})", e);
+            println!("⚠️  No pre-trained manifold models found ({e})");
         }
 
         println!(
@@ -1473,7 +1471,7 @@ impl ChessVectorEngine {
 
         // Try to load pre-trained manifold models
         if let Err(e) = engine.load_manifold_models() {
-            println!("⚠️  No pre-trained manifold models found ({})", e);
+            println!("⚠️  No pre-trained manifold models found ({e})");
         }
 
         println!(
@@ -1796,8 +1794,7 @@ impl ChessVectorEngine {
 
             let output_file_path = input_file.replace(".json", ".msgpack");
             println!(
-                "🔄 Converting {} → {} (MessagePack format)",
-                input_file, output_file_path
+                "🔄 Converting {input_file} → {output_file_path} (MessagePack format)"
             );
 
             // Load JSON data and handle both formats
@@ -1905,8 +1902,7 @@ impl ChessVectorEngine {
         }
 
         println!(
-            "🔄 Converting A100 binary data {} → {} (JSON format)",
-            binary_path, json_path
+            "🔄 Converting A100 binary data {binary_path} → {json_path} (JSON format)"
         );
 
         // Load binary data using the existing binary loader
@@ -1969,8 +1965,7 @@ impl ChessVectorEngine {
             }
 
             println!(
-                "🔄 Converting {} → {} (Zstd compression)",
-                input_file, output_file
+                "🔄 Converting {input_file} → {output_file} (Zstd compression)"
             );
 
             let input_file = File::open(input_path)?;
@@ -2026,8 +2021,7 @@ impl ChessVectorEngine {
             }
 
             println!(
-                "🔄 Converting {} → {} (Memory-mapped format)",
-                input_file, output_file
+                "🔄 Converting {input_file} → {output_file} (Memory-mapped format)"
             );
 
             // Load data based on input format
@@ -2175,7 +2169,7 @@ impl ChessVectorEngine {
             {
                 if temp_engine.save_training_data_binary(&binary_file).is_ok() {
                     converted_files.push(binary_file.to_string_lossy().to_string());
-                    println!("✅ Converted {} to binary format", json_file);
+                    println!("✅ Converted {json_file} to binary format");
                 } else {
                     println!("Loading complete");
                 }
@@ -2264,8 +2258,7 @@ impl ChessVectorEngine {
             self.use_manifold = true;
 
             println!(
-                "Manifold learning training completed. Compression ratio: {:.1}x",
-                compression_ratio
+                "Manifold learning training completed. Compression ratio: {compression_ratio:.1}x"
             );
         }
 
@@ -2342,8 +2335,7 @@ impl ChessVectorEngine {
                 Some(learner) => {
                     let compression_ratio = learner.compression_ratio();
                     println!(
-                        "🧠 Loaded pre-trained manifold learner (compression: {:.1}x)",
-                        compression_ratio
+                        "🧠 Loaded pre-trained manifold learner (compression: {compression_ratio:.1}x)"
                     );
 
                     // Enable manifold learning and rebuild indices
@@ -2670,7 +2662,7 @@ impl ChessVectorEngine {
         // Batch save all positions in a single transaction (much faster!)
         if !position_data_batch.is_empty() {
             let saved_count = db.save_positions_batch(&position_data_batch)?;
-            println!("📊 Batch saved {} positions", saved_count);
+            println!("📊 Batch saved {saved_count} positions");
         }
 
         // Save LSH configuration if enabled
@@ -2779,7 +2771,7 @@ impl ChessVectorEngine {
                 println!("Loaded existing engine from database");
             }
             Err(e) => {
-                println!("Starting fresh engine (load failed: {})", e);
+                println!("Starting fresh engine (load failed: {e})");
             }
         }
 
@@ -2831,8 +2823,7 @@ impl ChessVectorEngine {
             tactical_search.config.enable_parallel_search = true;
             tactical_search.config.num_threads = num_threads;
             println!(
-                "🧵 Parallel tactical search enabled with {} threads",
-                num_threads
+                "🧵 Parallel tactical search enabled with {num_threads} threads"
             );
         }
     }
@@ -2892,14 +2883,13 @@ impl ChessVectorEngine {
         // Save to database if persistence is enabled
         if self.database.is_some() {
             match self.save_to_database() {
-                Ok(_) => println!("💾 Saved {} positions to database", positions_added),
+                Ok(_) => println!("💾 Saved {positions_added} positions to database"),
                 Err(_e) => println!("Loading complete"),
             }
         }
 
         println!(
-            "🧠 Self-play training complete: {} new positions learned",
-            positions_added
+            "🧠 Self-play training complete: {positions_added} new positions learned"
         );
         Ok(positions_added)
     }
@@ -2915,12 +2905,11 @@ impl ChessVectorEngine {
         let mut trainer = training::SelfPlayTrainer::new(config.clone());
 
         println!(
-            "🔄 Starting continuous self-play training for {} iterations...",
-            iterations
+            "🔄 Starting continuous self-play training for {iterations} iterations..."
         );
 
         for iteration in 1..=iterations {
-            println!("\n--- Self-Play Iteration {}/{} ---", iteration, iterations);
+            println!("\n--- Self-Play Iteration {iteration}/{iterations} ---");
 
             // Generate new training data
             let new_data = trainer.generate_training_data(self);
@@ -2945,7 +2934,7 @@ impl ChessVectorEngine {
                 // Save to binary file if path provided (faster than JSON)
                 if let Some(path) = save_path {
                     match self.save_training_data_binary(path) {
-                        Ok(_) => println!("💾 Progress saved to {} (binary format)", path),
+                        Ok(_) => println!("💾 Progress saved to {path} (binary format)"),
                         Err(_e) => println!("Loading complete"),
                     }
                 }
@@ -2973,8 +2962,7 @@ impl ChessVectorEngine {
         }
 
         println!(
-            "\n🎉 Continuous self-play complete: {} total new positions",
-            total_positions
+            "\n🎉 Continuous self-play complete: {total_positions} total new positions"
         );
         Ok(total_positions)
     }
@@ -2990,12 +2978,11 @@ impl ChessVectorEngine {
         let mut iteration = 1;
 
         println!(
-            "🎯 Starting adaptive self-play training (target strength: {:.2})...",
-            target_strength
+            "🎯 Starting adaptive self-play training (target strength: {target_strength:.2})..."
         );
 
         loop {
-            println!("\n--- Adaptive Iteration {} ---", iteration);
+            println!("\n--- Adaptive Iteration {iteration} ---");
 
             // Run self-play with current configuration
             let positions_added = self.self_play_training(current_config.clone())?;
@@ -3013,8 +3000,7 @@ impl ChessVectorEngine {
             let current_strength = self.knowledge_base_size() as f32 / 10000.0; // Simple heuristic
 
             println!(
-                "📊 Current strength estimate: {:.2} (target: {:.2})",
-                current_strength, target_strength
+                "📊 Current strength estimate: {current_strength:.2} (target: {target_strength:.2})"
             );
 
             if current_strength >= target_strength {

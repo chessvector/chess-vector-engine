@@ -233,8 +233,7 @@ impl ManifoldLearner {
         let num_batches = num_samples.div_ceil(batch_size);
 
         println!(
-            "Training autoencoder for {} epochs with {} batches of size {} (parallel)",
-            epochs, num_batches, batch_size
+            "Training autoencoder for {epochs} epochs with {num_batches} batches of size {batch_size} (parallel)"
         );
 
         // Training loop with parallel batch processing
@@ -264,7 +263,7 @@ impl ManifoldLearner {
 
             if epoch % 10 == 0 {
                 let avg_loss = total_loss / num_batches as f32;
-                println!("Epoch {}: Average Loss = {:.6}", epoch, avg_loss);
+                println!("Epoch {epoch}: Average Loss = {avg_loss:.6}");
             }
         }
 
@@ -321,8 +320,7 @@ impl ManifoldLearner {
         let num_batches = num_samples.div_ceil(batch_size);
 
         println!(
-            "Training autoencoder for {} epochs with {} batches of size {} (memory efficient)",
-            epochs, num_batches, batch_size
+            "Training autoencoder for {epochs} epochs with {num_batches} batches of size {batch_size} (memory efficient)"
         );
 
         // Training loop with sequential batch processing
@@ -376,7 +374,7 @@ impl ManifoldLearner {
 
             if epoch % 10 == 0 {
                 let avg_loss = total_loss / num_batches as f32;
-                println!("Epoch {}: Average Loss = {:.6}", epoch, avg_loss);
+                println!("Epoch {epoch}: Average Loss = {avg_loss:.6}");
             }
         }
 

@@ -350,11 +350,11 @@ impl NNUE {
         let config = self.get_config();
         let config_json = serde_json::to_string_pretty(&config)?;
 
-        let mut file = File::create(format!("{}.config", path))?;
+        let mut file = File::create(format!("{path}.config"))?;
         file.write_all(config_json.as_bytes())?;
 
         // In production, would save actual tensor weights using safetensors
-        println!("Model configuration saved to {}.config", path);
+        println!("Model configuration saved to {path}.config");
         println!("Note: Full weight serialization requires safetensors integration");
 
         Ok(())
@@ -365,7 +365,7 @@ impl NNUE {
         use std::fs;
 
         // Load model configuration
-        let config_path = format!("{}.config", path);
+        let config_path = format!("{path}.config");
         if std::path::Path::new(&config_path).exists() {
             let config_json = fs::read_to_string(config_path)?;
             let config: NNUEConfig = serde_json::from_str(&config_json)?;
@@ -377,7 +377,7 @@ impl NNUE {
             println!("Operation complete");
             println!("Note: Full weight loading requires safetensors integration");
         } else {
-            return Err(format!("Model config file not found: {}.config", path).into());
+            return Err(format!("Model config file not found: {path}.config").into());
         }
 
         Ok(())

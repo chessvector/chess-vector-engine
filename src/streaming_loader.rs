@@ -39,7 +39,7 @@ impl StreamingLoader {
 
         // Estimate total lines for progress tracking
         let total_lines = self.estimate_line_count(path_ref)?;
-        println!("📊 Estimated {} lines to process", total_lines);
+        println!("📊 Estimated {total_lines} lines to process");
 
         let pb = ProgressBar::new(total_lines as u64);
         pb.set_style(
@@ -79,8 +79,8 @@ impl StreamingLoader {
                             self.process_batch(engine, &mut batch_boards, &mut batch_evaluations)?;
 
                             pb.set_message(format!(
-                                "{} loaded, {} dupes",
-                                self.loaded_count, self.duplicate_count
+                                "{loaded} loaded, {dupes} dupes",
+                                loaded = self.loaded_count, dupes = self.duplicate_count
                             ));
                         }
                     } else {
@@ -108,7 +108,7 @@ impl StreamingLoader {
         ));
 
         let new_positions = engine.position_boards.len() - initial_size;
-        println!("🎯 Added {} new positions to engine", new_positions);
+        println!("🎯 Added {new_positions} new positions to engine");
 
         Ok(())
     }
@@ -143,7 +143,7 @@ impl StreamingLoader {
         // Deserialize positions
         let positions: Vec<(String, f32)> = bincode::deserialize(&decompressed_data)?;
         let total_positions = positions.len();
-        println!("📊 Loaded {} positions from binary", total_positions);
+        println!("📊 Loaded {total_positions} positions from binary");
 
         if total_positions == 0 {
             return Ok(());
@@ -185,10 +185,10 @@ impl StreamingLoader {
             }
 
             pb.set_position(processed as u64);
-            pb.set_message(format!("{} loaded", self.loaded_count));
+            pb.set_message(format!("{count} loaded", count = self.loaded_count));
         }
 
-        pb.finish_with_message(format!("✅ Loaded {} positions", self.loaded_count));
+        pb.finish_with_message(format!("✅ Loaded {count} positions", count = self.loaded_count));
 
         Ok(())
     }

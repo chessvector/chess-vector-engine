@@ -63,7 +63,7 @@ impl GPUAccelerator {
                     return Ok(accelerator);
                 }
                 Err(e) => {
-                    println!("Metal initialization failed: {}, falling back to CPU", e);
+                    println!("Metal initialization failed: {e}, falling back to CPU");
                 }
             }
         }
@@ -97,7 +97,7 @@ impl GPUAccelerator {
             return Err(candle_core::Error::Msg("No CUDA devices available".into()));
         }
 
-        println!("🚀 Detected {} CUDA device(s)", device_count);
+        println!("🚀 Detected {device_count} CUDA device(s)");
 
         Ok(GPUAccelerator {
             device: available_devices[0].clone(),
@@ -133,7 +133,7 @@ impl GPUAccelerator {
             return Err(candle_core::Error::Msg("No Metal devices available".into()));
         }
 
-        println!("🍎 Detected {} Metal device(s)", device_count);
+        println!("🍎 Detected {device_count} Metal device(s)");
 
         Ok(GPUAccelerator {
             device: available_devices[0].clone(),

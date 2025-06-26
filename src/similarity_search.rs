@@ -112,7 +112,7 @@ impl SimilaritySearch {
             match self.gpu_accelerated_search(query, k) {
                 Ok(results) => return results,
                 Err(e) => {
-                    println!("GPU search failed ({}), falling back to CPU", e);
+                    println!("GPU search failed ({e}), falling back to CPU");
                 }
             }
         }

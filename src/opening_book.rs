@@ -1153,8 +1153,7 @@ mod tests {
         for (fen, entry) in &book.entries {
             assert!(
                 Board::from_str(fen).is_ok(),
-                "Invalid FEN in opening book: {}",
-                fen
+                "Invalid FEN in opening book: {fen}",
             );
             assert!(!entry.name.is_empty(), "Empty opening name");
             assert!(

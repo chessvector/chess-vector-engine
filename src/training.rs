@@ -541,8 +541,7 @@ impl StockfishPool {
         let mut processes = Vec::with_capacity(pool_size);
 
         println!(
-            "🚀 Initializing Stockfish pool with {} processes...",
-            pool_size
+            "🚀 Initializing Stockfish pool with {pool_size} processes..."
         );
 
         for i in 0..pool_size {
@@ -1472,8 +1471,8 @@ impl EngineEvaluator {
 
         if valid_comparisons > 0 {
             let mean_absolute_error = total_error / valid_comparisons as f32;
-            println!("Mean Absolute Error: {:.3} pawns", mean_absolute_error);
-            println!("Evaluated {} positions", valid_comparisons);
+            println!("Mean Absolute Error: {mean_absolute_error:.3} pawns");
+            println!("Evaluated {valid_comparisons} positions");
             Ok(mean_absolute_error)
         } else {
             Ok(f32::INFINITY)
@@ -1665,14 +1664,12 @@ impl TacticalPuzzleParser {
             }
 
             pb.set_message(format!(
-                "Parsing tactical puzzles: {} (skipped: {})",
-                processed, skipped
+                "Parsing tactical puzzles: {processed} (skipped: {skipped})"
             ));
         }
 
         pb.finish_with_message(format!(
-            "Parsed {} puzzles (skipped: {})",
-            processed, skipped
+            "Parsed {processed} puzzles (skipped: {skipped})"
         ));
 
         Ok(tactical_data)

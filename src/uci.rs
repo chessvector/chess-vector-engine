@@ -251,16 +251,14 @@ impl UCIEngine {
             match option {
                 UCIOption::Check { default, .. } => {
                     response.push_str(&format!(
-                        "option name {} type check default {}\n",
-                        name, default
+                        "option name {name} type check default {default}\n"
                     ));
                 }
                 UCIOption::Spin {
                     default, min, max, ..
                 } => {
                     response.push_str(&format!(
-                        "option name {} type spin default {} min {} max {}\n",
-                        name, default, min, max
+                        "option name {name} type spin default {default} min {min} max {max}\n"
                     ));
                 }
                 UCIOption::Combo {
@@ -268,17 +266,15 @@ impl UCIEngine {
                 } => {
                     let combo_options = options.join(" var ");
                     response.push_str(&format!(
-                        "option name {} type combo default {} var {}\n",
-                        name, default, combo_options
+                        "option name {name} type combo default {default} var {combo_options}\n"
                     ));
                 }
                 UCIOption::Button => {
-                    response.push_str(&format!("option name {} type button\n", name));
+                    response.push_str(&format!("option name {name} type button\n"));
                 }
                 UCIOption::String { default, .. } => {
                     response.push_str(&format!(
-                        "option name {} type string default {}\n",
-                        name, default
+                        "option name {name} type string default {default}\n"
                     ));
                 }
             }
@@ -703,7 +699,7 @@ impl UCIEngine {
                 // Perform deep search on pondered position
                 if let Some(eval) = engine.evaluate_position(&ponder_board) {
                     if debug {
-                        println!("info string Ponder evaluation: {:.2}", eval);
+                        println!("info string Ponder evaluation: {eval:.2}");
                     }
                 }
 

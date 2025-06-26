@@ -72,7 +72,7 @@ impl UltraFastLoader {
         };
 
         let total_positions = positions.len();
-        println!("📦 Loaded {} positions from binary", total_positions);
+        println!("📦 Loaded {total_positions} positions from binary");
 
         if total_positions == 0 {
             return Ok(());
@@ -103,7 +103,7 @@ impl UltraFastLoader {
         const CHUNK_SIZE: usize = 50_000_000; // 50MB chunks
         let total_chunks = mmap.len().div_ceil(CHUNK_SIZE);
 
-        println!("📦 Processing {} chunks of ~50MB each", total_chunks);
+        println!("📦 Processing {total_chunks} chunks of ~50MB each");
 
         // For very large files, we need a different approach
         // Try to parse as streaming format instead
@@ -164,7 +164,7 @@ impl UltraFastLoader {
             return Ok(());
         }
 
-        println!("📊 Processing {} lines", total_lines);
+        println!("📊 Processing {total_lines} lines");
 
         let pb = ProgressBar::new(total_lines as u64);
         pb.set_style(
@@ -252,7 +252,7 @@ impl UltraFastLoader {
         engine: &mut crate::ChessVectorEngine,
     ) -> Result<(), Box<dyn std::error::Error>> {
         let total_positions = positions.len();
-        println!("🔄 Parallel batch loading {} positions", total_positions);
+        println!("🔄 Parallel batch loading {total_positions} positions");
 
         let pb = ProgressBar::new(total_positions as u64);
         pb.set_style(
@@ -301,18 +301,17 @@ impl UltraFastLoader {
             // Update progress
             pb.set_position(((chunk_idx + 1) * chunk_size).min(total_positions) as u64);
             pb.set_message(format!(
-                "{} loaded, {} dupes",
-                total_loaded, total_duplicates
+                "{total_loaded} loaded, {total_duplicates} dupes"
             ));
         }
 
-        pb.finish_with_message(format!("✅ Loaded {} positions", total_loaded));
+        pb.finish_with_message(format!("✅ Loaded {total_loaded} positions"));
 
         self.loaded_count = total_loaded;
         self.duplicate_count = total_duplicates;
 
         println!("📊 Final stats:");
-        println!("   Loaded: {} positions", self.loaded_count);
+        println!("   Loaded: {count} positions", count = self.loaded_count);
         println!("Operation complete");
         println!("Operation complete");
 
