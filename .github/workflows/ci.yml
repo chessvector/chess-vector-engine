@@ -50,6 +50,7 @@ jobs:
       run: cargo fmt --all -- --check
 
     - name: 📎 Run Clippy
+      shell: bash
       run: |
         if [[ "${{ matrix.rust }}" == "beta" ]]; then
           # More lenient on beta - only fail on errors, not warnings

@@ -126,6 +126,10 @@ zstd = "0.13"         # High-performance compression
 crossbeam = "0.8"     # Lock-free data structures
 dashmap = "5.5"       # Concurrent hash map for parallel loading
 
+# Note: Some dependencies are pinned to specific versions via Cargo.lock
+# to maintain compatibility with MSRV (rust-version = "1.81")
+# Use: cargo update <package> --precise <version> to control versions
+
 [features]
 default = []
 # GPU features - implemented via conditional compilation in code
