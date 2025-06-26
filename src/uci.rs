@@ -194,7 +194,7 @@ impl UCIEngine {
                 Ok(command) => {
                     let response = self.process_command(command.trim());
                     if !response.is_empty() {
-                        let _ = writeln!(stdout, "{}", response);
+                        let _ = writeln!(stdout, "{response}");
                         let _ = stdout.flush();
                     }
 
@@ -204,7 +204,7 @@ impl UCIEngine {
                 }
                 Err(e) => {
                     if self.debug {
-                        let _ = writeln!(stdout, "info string Error reading input: {}", e);
+                        let _ = writeln!(stdout, "Error reading input: {e}");
                     }
                     break;
                 }
@@ -233,7 +233,7 @@ impl UCIEngine {
             "quit" => String::new(),
             _ => {
                 if self.debug {
-                    format!("info string Unknown command: {}", command)
+                    format!("Unknown command: {command}")
                 } else {
                     String::new()
                 }
@@ -451,7 +451,7 @@ impl UCIEngine {
                     if board.legal(chess_move) {
                         board = board.make_move_new(chess_move);
                     } else if self.debug {
-                        return format!("info string Illegal move: {}", move_str);
+                        return format!("info string Illegal move: {move_str}");
                     }
                 }
             }
@@ -666,7 +666,7 @@ impl UCIEngine {
             }
 
             // Send best move
-            println!("bestmove {}", best_move);
+            println!("bestmove {best_move}");
         });
     }
 
@@ -691,7 +691,7 @@ impl UCIEngine {
             self.ponder_board = Some(self.board.make_move_new(ponder_move));
 
             if self.debug {
-                println!("info string Starting to ponder on move {}", ponder_move);
+                println!("info string Pondering on {ponder_move}");
             }
 
             // Start pondering in background thread
@@ -773,7 +773,7 @@ impl UCIEngine {
                 if !legal_moves.is_empty() {
                     let best_move = legal_moves[0]; // Simple fallback
                     thread::spawn(move || {
-                        println!("bestmove {}", best_move);
+                        println!("bestmove {best_move}");
                     });
                 }
             }

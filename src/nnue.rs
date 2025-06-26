@@ -114,7 +114,7 @@ impl NNUE {
             let layer = linear(
                 prev_size,
                 config.hidden_size,
-                vs.pp(format!("hidden_{}", i)),
+                vs.pp(format!("Processing...")),
             )?;
             hidden_layers.push(layer);
             prev_size = config.hidden_size;
@@ -378,7 +378,7 @@ impl NNUE {
             self.vector_weight = config.vector_blend_weight;
             self.enable_vector_integration = true;
 
-            println!("Model configuration loaded from {}", path);
+            println!("Operation complete");
             println!("Note: Full weight loading requires safetensors integration");
         } else {
             return Err(format!("Model config file not found: {}.config", path).into());

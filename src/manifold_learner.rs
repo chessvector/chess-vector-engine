@@ -106,9 +106,9 @@ impl ManifoldLearner {
         let hidden_dim = (self.input_dim + self.output_dim) / 2;
 
         let encoder = Encoder::new(vs.clone(), self.input_dim, hidden_dim, self.output_dim)
-            .map_err(|e| format!("Failed to create encoder: {}", e))?;
+            .map_err(|e| format!("Error: {e}"))?;
         let decoder = Decoder::new(vs, self.output_dim, hidden_dim, self.input_dim)
-            .map_err(|e| format!("Failed to create decoder: {}", e))?;
+            .map_err(|e| format!("Error: {e}"))?;
 
         // Initialize AdamW optimizer with learning rate 0.001
         let adamw_params = ParamsAdamW {
@@ -116,7 +116,7 @@ impl ManifoldLearner {
             ..Default::default()
         };
         let optimizer = AdamW::new(self.var_map.all_vars(), adamw_params)
-            .map_err(|e| format!("Failed to create optimizer: {}", e))?;
+            .map_err(|e| format!("Error: {e}"))?;
 
         self.encoder = Some(encoder);
         self.decoder = Some(decoder);
@@ -257,7 +257,7 @@ impl ManifoldLearner {
                 for loss_result in batch_losses {
                     match loss_result {
                         Ok(loss) => total_loss += loss,
-                        Err(e) => return Err(format!("Batch processing failed: {}", e)),
+                        Err(e) => return Err(format!("Error: {e}")),
                     }
                 }
             }
@@ -296,7 +296,7 @@ impl ManifoldLearner {
 
         // Convert batch to tensor
         let _data_tensor = Tensor::from_slice(&batch_vec, (rows, cols), &device)
-            .map_err(|e| format!("Failed to create tensor: {}", e))?;
+            .map_err(|e| format!("Error: {e}"))?;
 
         // For parallel processing, we need to simulate the forward pass
         // In a real implementation, this would use thread-safe network clones
@@ -347,36 +347,36 @@ impl ManifoldLearner {
                 {
                     // Convert batch to tensor
                     let data_tensor = Tensor::from_slice(&batch_vec, (rows, cols), &self.device)
-                        .map_err(|e| format!("Failed to create tensor: {}", e))?;
+                        .map_err(|e| format!("Error: {e}"))?;
 
                     // Forward pass
                     let encoded = encoder
                         .forward(&data_tensor)
-                        .map_err(|e| format!("Encoder forward failed: {}", e))?;
+                        .map_err(|e| format!("Error: {e}"))?;
                     let decoded = decoder
                         .forward(&encoded)
-                        .map_err(|e| format!("Decoder forward failed: {}", e))?;
+                        .map_err(|e| format!("Error: {e}"))?;
 
                     // Calculate reconstruction loss (MSE)
                     let loss = (&data_tensor - &decoded)
                         .and_then(|diff| diff.powf(2.0))
                         .and_then(|squared| squared.mean_all())
-                        .map_err(|e| format!("Loss calculation failed: {}", e))?;
+                        .map_err(|e| format!("Error: {e}"))?;
 
                     // Accumulate loss for reporting
                     total_loss += loss
                         .to_scalar::<f32>()
-                        .map_err(|e| format!("Loss scalar conversion failed: {}", e))?;
+                        .map_err(|e| format!("Error: {e}"))?;
 
                     // Compute gradients through backpropagation
                     let grads = loss
                         .backward()
-                        .map_err(|e| format!("Backward pass failed: {}", e))?;
+                        .map_err(|e| format!("Error: {e}"))?;
 
                     // Update weights using the optimizer
                     optimizer
                         .step(&grads)
-                        .map_err(|e| format!("Optimizer step failed: {}", e))?;
+                        .map_err(|e| format!("Error: {e}"))?;
                 }
             }
 
@@ -449,7 +449,7 @@ impl ManifoldLearner {
                             );
                         }
                         Err(e) => {
-                            println!("Warning: Could not deserialize manifold metadata: {}", e);
+                            println!("Failed to deserialize metadata");
                         }
                     }
                 }
@@ -508,7 +508,7 @@ impl ManifoldLearner {
             let name = if i < var_names.len() {
                 var_names[i].to_string()
             } else {
-                format!("var_{}", i)
+                format!("var_{i}")
             };
 
             // Convert tensor to CPU and get raw data

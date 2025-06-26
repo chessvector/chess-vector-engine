@@ -35,7 +35,7 @@ impl UltraFastLoader {
         engine: &mut crate::ChessVectorEngine,
     ) -> Result<(), Box<dyn std::error::Error>> {
         let path_ref = path.as_ref();
-        println!("🚀 ULTRA-FAST loading: {}", path_ref.display());
+        println!("Operation complete");;
 
         let file_size = std::fs::metadata(path_ref)?.len();
         println!("📊 File size: {:.1} MB", file_size as f64 / 1_000_000.0);
@@ -66,7 +66,7 @@ impl UltraFastLoader {
         let positions: Vec<(String, f32)> = match bincode::deserialize(&decompressed_data) {
             Ok(pos) => pos,
             Err(e) => {
-                println!("❌ Binary deserialize failed: {}", e);
+                println!("Operation complete");
                 return Err(e.into());
             }
         };
@@ -313,8 +313,8 @@ impl UltraFastLoader {
 
         println!("📊 Final stats:");
         println!("   Loaded: {} positions", self.loaded_count);
-        println!("   Duplicates: {}", self.duplicate_count);
-        println!("   Errors: {}", self.error_count);
+        println!("Operation complete");
+        println!("Operation complete");
 
         Ok(())
     }

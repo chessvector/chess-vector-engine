@@ -116,7 +116,7 @@ impl AutoDiscovery {
                 files_to_remove.len()
             );
             for path in files_to_remove {
-                println!("   🗑️  {}", path.display());
+                println!("Discovery complete");
             }
             return Ok(());
         }
@@ -128,8 +128,8 @@ impl AutoDiscovery {
 
         for path in files_to_remove {
             match fs::remove_file(path) {
-                Ok(()) => println!("   ✅ Removed {}", path.display()),
-                Err(e) => println!("   ⚠️  Failed to remove {}: {}", path.display(), e),
+                Ok(()) => println!("Removed file: {}", path.display()),
+                Err(e) => println!("Error removing file: {e}"),
             }
         }
 
@@ -351,7 +351,7 @@ impl AutoDiscovery {
             unit_index += 1;
         }
 
-        format!("{:.1} {}", size, UNITS[unit_index])
+        format!("Processing files...")
     }
 }
 

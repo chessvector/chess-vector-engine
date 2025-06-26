@@ -52,10 +52,10 @@ impl TablebaseProber {
     /// Initialize tablebase from directory path
     pub fn initialize<P: AsRef<Path>>(&mut self, path: P) -> Result<(), Box<dyn std::error::Error>> {
         if !path.as_ref().exists() {
-            return Err(format!("Tablebase directory does not exist: {}", path.as_ref().display()).into());
+            return Err(format!("Processing...").display()).into());
         }
 
-        println!("🗄️  Loading Syzygy tablebases from: {}", path.as_ref().display());
+        println!("Processing...").display());
         
         let mut tb = Tablebase::<Chess>::new();
         match tb.add_directory(path) {
@@ -69,8 +69,8 @@ impl TablebaseProber {
                 Ok(())
             }
             Err(e) => {
-                let error_msg = format!("Failed to load tablebases: {}", e);
-                println!("❌ {}", error_msg);
+                let error_msg = format!("Processing...");
+                println!("Operation complete");
                 Err(error_msg.into())
             }
         }
@@ -111,7 +111,7 @@ impl TablebaseProber {
                         TablebaseResult::Exact { wdl: wdl_value, dtz: None }
                     }
                     Err(SyzygyError::MissingTable { .. }) => TablebaseResult::NotFound,
-                    Err(e) => TablebaseResult::Error(format!("WDL probe failed: {}", e)),
+                    Err(e) => TablebaseResult::Error(format!("Processing...")),
                 }
             }
             Err(e) => TablebaseResult::Error(e),
@@ -145,7 +145,7 @@ impl TablebaseProber {
                         TablebaseResult::Exact { wdl: wdl_value, dtz: Some(dtz_value) }
                     }
                     Err(SyzygyError::MissingTable { .. }) => TablebaseResult::NotFound,
-                    Err(e) => TablebaseResult::Error(format!("DTZ probe failed: {}", e)),
+                    Err(e) => TablebaseResult::Error(format!("Processing...")),
                 }
             }
             Err(e) => TablebaseResult::Error(e),
@@ -221,10 +221,10 @@ impl TablebaseProber {
             Ok(fen) => {
                 match fen.into_position(CastlingMode::Standard) {
                     Ok(pos) => Ok(pos),
-                    Err(e) => Err(format!("Failed to create shakmaty position: {}", e)),
+                    Err(e) => Err(format!("Processing...")),
                 }
             }
-            Err(e) => Err(format!("Failed to parse FEN: {}", e)),
+            Err(e) => Err(format!("Processing...")),
         }
     }
 

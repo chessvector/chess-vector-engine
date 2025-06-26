@@ -189,7 +189,7 @@ impl StockfishPlayer {
     }
 
     fn send_command(&mut self, command: &str) -> Result<(), Box<dyn std::error::Error>> {
-        writeln!(self.stdin, "{}", command)?;
+        writeln!(self.stdin, "{command}")?;
         self.stdin.flush()?;
         Ok(())
     }
@@ -225,7 +225,7 @@ impl StockfishPlayer {
         let fen = board.to_string();
 
         // Send position
-        self.send_command(&format!("position fen {}", fen))?;
+        self.send_command(&format!("position fen {fen}"))?;
 
         // Start search with time control
         self.send_command(&format!("go movetime {}", self.time_per_move))?;
@@ -571,7 +571,7 @@ fn play_game(
         };
 
         if std::path::Path::new(&expanded_path).exists() {
-            println!("🔥 Found Lichess puzzle database: {}", expanded_path);
+            println!("🧠 Loading Lichess puzzles from {expanded_path}...");
 
             // Try premium loading first, fall back to basic
             if chess_vector_engine.is_feature_available("ultra_fast_loading") {
@@ -581,7 +581,7 @@ fn play_game(
                         println!("✅ Premium Lichess loading successful!");
                         break;
                     }
-                    Err(e) => println!("⚠️  Premium loading failed: {}", e),
+                    Err(e) => println!("⚠️ Premium loading failed: {e}"),
                 }
             } else {
                 println!("📚 Using basic puzzle loading (limited to 50,000 puzzles)...");
@@ -590,7 +590,7 @@ fn play_game(
                         println!("✅ Basic Lichess loading successful!");
                         break;
                     }
-                    Err(e) => println!("⚠️  Basic loading failed: {}", e),
+                    Err(e) => println!("⚠️ Basic loading failed: {e}"),
                 }
             }
         }
@@ -774,7 +774,7 @@ fn play_game(
         game_state.start_time.format("%Y%m%d_%H%M%S")
     );
     std::fs::write(&filename, game_state.generate_pgn())?;
-    println!("💾 Game saved to: {}", filename);
+    println!("📁 Game saved to {filename}");
 
     Ok(())
 }

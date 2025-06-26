@@ -179,10 +179,10 @@ impl<'de> serde::Deserialize<'de> for TacticalTrainingData {
                     tactical_value.ok_or_else(|| de::Error::missing_field("tactical_value"))?;
 
                 let position = Board::from_str(&fen)
-                    .map_err(|e| de::Error::custom(format!("Invalid FEN: {}", e)))?;
+                    .map_err(|e| de::Error::custom(format!("Error: {e}")))?;
 
                 let solution_move = ChessMove::from_str(&solution_move_str)
-                    .map_err(|e| de::Error::custom(format!("Invalid move: {}", e)))?;
+                    .map_err(|e| de::Error::custom(format!("Error: {e}")))?;
 
                 Ok(TacticalTrainingData {
                     position,
@@ -314,7 +314,7 @@ impl StockfishEvaluator {
         use std::io::Write;
         writeln!(stdin, "uci")?;
         writeln!(stdin, "isready")?;
-        writeln!(stdin, "position fen {}", fen)?;
+        writeln!(stdin, "position fen {fen}")?;
         writeln!(stdin, "go depth {}", self.depth)?;
         writeln!(stdin, "quit")?;
 
@@ -365,7 +365,7 @@ impl StockfishEvaluator {
                     data.depth = self.depth;
                 }
                 Err(e) => {
-                    eprintln!("Error evaluating position {}: {}", i, e);
+                    eprintln!("Evaluation error: {e}");
                     data.evaluation = 0.0;
                 }
             }
@@ -461,7 +461,7 @@ impl StockfishProcess {
     }
 
     fn send_command(&mut self, command: &str) -> Result<(), Box<dyn std::error::Error>> {
-        writeln!(self.stdin, "{}", command)?;
+        writeln!(self.stdin, "{command}")?;
         self.stdin.flush()?;
         Ok(())
     }
@@ -482,8 +482,8 @@ impl StockfishProcess {
         let fen = board.to_string();
 
         // Send position and evaluation commands
-        self.send_command(&format!("position fen {}", fen))?;
-        self.send_command(&format!("go depth {}", self.depth))?;
+        self.send_command(&format!("position fen {fen}"))?;
+        self.send_command(&format!("position fen {fen}"))?;
 
         // Read response until we get bestmove
         let mut line = String::new();
@@ -554,7 +554,7 @@ impl StockfishPool {
                     }
                 }
                 Err(e) => {
-                    eprintln!("Failed to create Stockfish process {}: {}", i, e);
+                    eprintln!("Evaluation error: {e}");
                     return Err(e);
                 }
             }
@@ -671,7 +671,7 @@ impl TrainingDataset {
                 let cursor = std::io::Cursor::new(&pgn_content);
                 let mut reader = BufferedReader::new(cursor);
                 if let Err(e) = reader.read_all(&mut extractor) {
-                    eprintln!("Error parsing game {}: {}", games_processed + 1, e);
+                    eprintln!("Evaluation error: {e}");
                 }
 
                 games_processed += 1;
@@ -913,7 +913,7 @@ impl TrainingDataset {
                 write!(file, ",")?;
             }
             let json = serde_json::to_string(data)?;
-            write!(file, "\n  {}", json)?;
+            write!(file, "{json}")?;
         }
 
         // Close the JSON array
@@ -1561,7 +1561,7 @@ impl<'de> serde::Deserialize<'de> for TrainingData {
                 let game_id = game_id.unwrap_or(0); // Default to 0 for backward compatibility
 
                 let board = Board::from_str(&fen)
-                    .map_err(|e| de::Error::custom(format!("Invalid FEN: {}", e)))?;
+                    .map_err(|e| de::Error::custom(format!("Error: {e}")))?;
 
                 Ok(TrainingData {
                     board,
@@ -1632,7 +1632,7 @@ impl TacticalPuzzleParser {
                 Ok(r) => r,
                 Err(e) => {
                     skipped += 1;
-                    println!("CSV parse error: {}", e);
+                    println!("CSV parsing error: {e}");
                     continue;
                 }
             };

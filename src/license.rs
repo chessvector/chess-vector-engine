@@ -39,19 +39,19 @@ impl std::fmt::Display for LicenseError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             LicenseError::InvalidKey(key) => {
-                write!(f, "Invalid license key: {}", key)
+                write!(f, "Invalid license key: {key}")
             }
             LicenseError::Expired { key, expired_at } => {
-                write!(f, "License key '{}' expired at {}", key, expired_at)
+                write!(f, "License key '{key}' expired at {expired_at}")
             }
             LicenseError::NetworkError(msg) => {
-                write!(f, "Network error during license verification: {}", msg)
+                write!(f, "Network error during license verification: {msg}")
             }
             LicenseError::InvalidFormat(msg) => {
-                write!(f, "Invalid license format: {}", msg)
+                write!(f, "Invalid license format: {msg}")
             }
             LicenseError::FeatureNotLicensed { feature, tier } => {
-                write!(f, "Feature '{}' not licensed for {:?} tier", feature, tier)
+                write!(f, "Feature '{feature}' not licensed for {tier:?} tier")
             }
         }
     }

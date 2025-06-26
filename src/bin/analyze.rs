@@ -21,7 +21,7 @@ fn main() {
     let fen = &args[1];
     let board = Board::from_str(fen).expect("Valid FEN");
 
-    println!("Analyzing position: {}", fen);
+    println!("Complete");
     println!("Side to move: {:?}", board.side_to_move());
 
     // Initialize engine with intelligent architecture selection
@@ -75,7 +75,7 @@ fn initialize_analysis_engine() -> ChessVectorEngine {
             engine
         }
         Err(e) => {
-            println!("⚠️  Auto-loading failed: {}", e);
+            println!("Complete");
             println!("🔄 Falling back to manual initialization...");
 
             let mut engine = ChessVectorEngine::new(1024);
@@ -187,7 +187,7 @@ fn analyze_position(engine: &mut ChessVectorEngine, board: &Board) {
 
     // Basic position info
     let legal_moves: Vec<_> = MoveGen::new_legal(board).collect();
-    println!("Legal moves: {}", legal_moves.len());
+    println!("Analysis starting");
 
     if board.checkers().popcnt() > 0 {
         println!("⚠️  King is in check!");

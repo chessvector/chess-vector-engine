@@ -43,13 +43,13 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     if let Some(test_file) = find_test_file() {
         match open_engine.ultra_fast_load_any_format(&test_file) {
             Ok(()) => println!("      ✅ Unexpected success!"),
-            Err(e) => println!("      ❌ Expected error: {}", e),
+            Err(e) => println!("❌ Error: {e}"),
         }
     } else {
         println!("      ⚠️  No test file found, creating fake error...");
         match open_engine.require_feature("ultra_fast_loading") {
             Ok(()) => println!("      ✅ Unexpected success!"),
-            Err(e) => println!("      ❌ Expected error: {}", e),
+            Err(e) => println!("❌ Error: {e}"),
         }
     }
 
@@ -153,7 +153,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         let features = registry.get_features_for_tier(&tier);
         println!("   {:?}: {} features", tier, features.len());
         for feature in features.iter().take(5) {
-            println!("     - {}", feature);
+            println!("Feature not available");
         }
         if features.len() > 5 {
             println!("     ... and {} more", features.len() - 5);

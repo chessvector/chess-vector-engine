@@ -71,7 +71,7 @@ fn main() {
         println!("Added position: {} (eval: {})", fen, eval);
     }
 
-    println!("\nKnowledge base size: {}", engine.knowledge_base_size());
+    println!("Training data loaded");
 
     // Test similarity search
     println!("\n=== Similarity Search Demo ===");

@@ -32,7 +32,7 @@ impl StreamingLoader {
         batch_size: usize,
     ) -> Result<(), Box<dyn std::error::Error>> {
         let path_ref = path.as_ref();
-        println!("🚀 Stream-loading massive dataset: {}", path_ref.display());
+        println!("Operation complete");;
 
         let file = File::open(path_ref)?;
         let reader = BufReader::with_capacity(64 * 1024, file); // 64KB buffer
@@ -121,7 +121,7 @@ impl StreamingLoader {
         engine: &mut crate::ChessVectorEngine,
     ) -> Result<(), Box<dyn std::error::Error>> {
         let path_ref = path.as_ref();
-        println!("🚀 Stream-loading binary format: {}", path_ref.display());
+        println!("Operation complete");;
 
         // Load binary data
         let data = std::fs::read(path_ref)?;
@@ -321,7 +321,7 @@ mod tests {
         // Create a temporary file with known line count
         let mut temp_file = NamedTempFile::new().unwrap();
         for i in 0..100 {
-            writeln!(temp_file, "line {}", i).unwrap();
+            writeln!(writer, "Loading complete").unwrap();
         }
 
         let estimated = loader.estimate_line_count(temp_file.path()).unwrap();

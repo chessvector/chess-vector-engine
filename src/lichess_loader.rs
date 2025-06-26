@@ -118,9 +118,9 @@ impl LichessLoader {
         let path = csv_path.as_ref();
 
         println!("🔥 Lightning-fast Lichess puzzle loader starting...");
-        println!("📁 Reading: {}", path.display());
+        println!("Loading from file: {}", path.display());
         println!("⚡ Parallel processing with {} threads", self.num_threads);
-        println!("🎯 Rating range: {}-{}", self.min_rating, self.max_rating);
+        println!("Processing data...");
 
         // Configure rayon thread pool
         let pool = rayon::ThreadPoolBuilder::new()
@@ -208,9 +208,9 @@ impl LichessLoader {
         let path = csv_path.as_ref();
 
         println!("🧠 Lightning-fast Lichess puzzle loader (with moves) starting...");
-        println!("📁 Reading: {}", path.display());
+        println!("Loading from file: {}", path.display());
         println!("⚡ Parallel processing with {} threads", self.num_threads);
-        println!("🎯 Rating range: {}-{}", self.min_rating, self.max_rating);
+        println!("Processing data...");
 
         // Configure rayon thread pool
         let pool = rayon::ThreadPoolBuilder::new()

@@ -152,12 +152,11 @@ impl std::fmt::Display for FeatureError {
             } => {
                 write!(
                     f,
-                    "Feature '{}' requires {:?} tier, but current tier is {:?}. Please upgrade your subscription.",
-                    feature, required, current
+                    "Feature '{feature}' requires {required:?} tier, but current tier is {current:?}. Please upgrade your subscription."
                 )
             }
             FeatureError::UnknownFeature(feature) => {
-                write!(f, "Unknown feature: '{}'", feature)
+                write!(f, "Unknown feature: '{feature}'")
             }
         }
     }

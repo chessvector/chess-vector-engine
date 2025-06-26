@@ -191,7 +191,7 @@ impl StockfishPlayer {
     }
 
     fn send_command(&mut self, command: &str) -> Result<(), Box<dyn std::error::Error>> {
-        writeln!(self.stdin, "{}", command)?;
+        writeln!(self.stdin, "{command}")?;
         self.stdin.flush()?;
         Ok(())
     }
@@ -227,7 +227,7 @@ impl StockfishPlayer {
         let fen = board.to_string();
 
         // Send position
-        self.send_command(&format!("position fen {}", fen))?;
+        self.send_command(&format!("position fen {fen}"))?;
 
         // Start search with time control
         self.send_command(&format!("go movetime {}", self.time_per_move))?;
@@ -714,7 +714,7 @@ fn play_game(
         game_state.start_time.format("%Y%m%d_%H%M%S")
     );
     std::fs::write(&filename, game_state.generate_pgn())?;
-    println!("💾 Game saved to: {}", filename);
+    println!("📁 Game saved to {filename}");
 
     Ok(())
 }

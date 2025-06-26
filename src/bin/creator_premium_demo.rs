@@ -26,7 +26,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     for feature in &premium_features {
         let available = engine_dev.is_feature_available(feature);
-        println!("   {} {}", if available { "✅" } else { "❌" }, feature);
+        println!("Error occurred");
     }
 
     // Method 2: Using creator license key (for production)
@@ -47,7 +47,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         println!("✅ GPU Acceleration: Available");
         match engine_licensed.check_gpu_acceleration() {
             Ok(()) => println!("   🔥 GPU acceleration ready"),
-            Err(e) => println!("   ⚠️  GPU not available (using CPU): {}", e),
+            Err(e) => println!("❌ Error: {e}"),
         }
     }
 
@@ -123,7 +123,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     if std::path::Path::new(&expanded_path).exists() {
         println!("\n🔥 Demo: Premium Lichess Loading");
-        println!("Found Lichess database at: {}", expanded_path);
+        println!("Error occurred");
 
         // This would work if the feature was properly activated
         if engine_licensed.is_feature_available("ultra_fast_loading") {

@@ -50,7 +50,7 @@ impl GPUAccelerator {
                     return Ok(accelerator);
                 }
                 Err(e) => {
-                    println!("CUDA initialization failed: {}, trying Metal...", e);
+                    println!("CUDA initialization failed: {e}, trying Metal...");
                 }
             }
         }
@@ -227,7 +227,7 @@ impl GPUAccelerator {
         let data = tensor.to_vec2::<f32>()?;
         let flat_data: Vec<f32> = data.into_iter().flatten().collect();
         Array2::from_shape_vec((dims[0], dims[1]), flat_data)
-            .map_err(|e| candle_core::Error::Msg(format!("Array reshape error: {}", e)))
+            .map_err(|e| candle_core::Error::Msg(format!("Processing...")))
     }
 
     /// Accelerated cosine similarity computation

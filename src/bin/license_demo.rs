@@ -23,7 +23,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             println!("   Current engine tier: {:?}", engine.get_feature_tier());
         }
         Err(e) => {
-            println!("❌ License activation failed: {}", e);
+            println!("❌ Error: {e}");
         }
     }
 
@@ -34,12 +34,12 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         .await
     {
         Ok(()) => println!("   ✅ basic_position_encoding: Available"),
-        Err(e) => println!("   ❌ basic_position_encoding: {}", e),
+        Err(e) => println!("❌ Error: {e}"),
     }
 
     match engine.check_licensed_feature("gpu_acceleration").await {
         Ok(()) => println!("   ✅ gpu_acceleration: Available"),
-        Err(e) => println!("   ❌ gpu_acceleration: {}", e),
+        Err(e) => println!("❌ Error: {e}"),
     }
 
     // Test 2: Premium License
@@ -53,7 +53,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             println!("   New tier: {:?}", tier);
         }
         Err(e) => {
-            println!("❌ Premium activation failed: {}", e);
+            println!("❌ Error: {e}");
         }
     }
 
@@ -71,7 +71,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     for feature in &premium_features {
         match engine.check_licensed_feature(feature).await {
             Ok(()) => println!("   ✅ {}: Available", feature),
-            Err(e) => println!("   ❌ {}: {}", feature, e),
+            Err(e) => println!("❌ Error: {e}"),
         }
     }
 
@@ -86,7 +86,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     for feature in &enterprise_features {
         match engine.check_licensed_feature(feature).await {
             Ok(()) => println!("   ✅ {}: Available", feature),
-            Err(e) => println!("   ❌ {}: {}", feature, e),
+            Err(e) => println!("❌ Error: {e}"),
         }
     }
 
@@ -101,7 +101,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             println!("   New tier: {:?}", tier);
         }
         Err(e) => {
-            println!("❌ Enterprise activation failed: {}", e);
+            println!("❌ Error: {e}");
         }
     }
 
@@ -125,7 +125,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     for feature in &all_features {
         match engine.check_licensed_feature(feature).await {
             Ok(()) => println!("   ✅ {}: Available", feature),
-            Err(e) => println!("   ❌ {}: {}", feature, e),
+            Err(e) => println!("❌ Error: {e}"),
         }
     }
 
@@ -151,7 +151,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             println!("✅ Cached license works! Tier: {:?}", tier);
         }
         Err(e) => {
-            println!("❌ Cached license failed: {}", e);
+            println!("❌ Error: {e}");
         }
     }
 
@@ -168,7 +168,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             );
         }
         Err(e) => {
-            println!("✅ Expected failure: {}", e);
+            println!("❌ Error: {e}");
         }
     }
 
@@ -200,7 +200,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             println!("✅ Manual license verification: {:?}", status);
         }
         Err(e) => {
-            println!("❌ Manual license verification failed: {}", e);
+            println!("❌ Error: {e}");
         }
     }
 
@@ -213,7 +213,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             println!("✅ Feature 'gpu_acceleration' is licensed");
         }
         Err(e) => {
-            println!("❌ Feature check failed: {}", e);
+            println!("❌ Error: {e}");
         }
     }
 
