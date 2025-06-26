@@ -952,9 +952,9 @@ impl TacticalSearch {
         match board.status() {
             chess::BoardStatus::Checkmate => {
                 if board.side_to_move() == Color::White {
-                    -10000.0 // Black wins
+                    -100.0 // Black wins (100 pawn units)
                 } else {
-                    10000.0 // White wins
+                    100.0 // White wins (100 pawn units)
                 }
             }
             chess::BoardStatus::Stalemate => 0.0,
@@ -965,11 +965,11 @@ impl TacticalSearch {
     /// Calculate material balance
     fn material_balance(&self, board: &Board) -> f32 {
         let piece_values = [
-            (chess::Piece::Pawn, 100.0),
-            (chess::Piece::Knight, 320.0),
-            (chess::Piece::Bishop, 330.0),
-            (chess::Piece::Rook, 500.0),
-            (chess::Piece::Queen, 900.0),
+            (chess::Piece::Pawn, 1.0),
+            (chess::Piece::Knight, 3.2),
+            (chess::Piece::Bishop, 3.3),
+            (chess::Piece::Rook, 5.0),
+            (chess::Piece::Queen, 9.0),
         ];
 
         let mut balance = 0.0;
@@ -990,11 +990,11 @@ impl TacticalSearch {
 
         // Simple tactical evaluation based on piece mobility and center control
         let legal_moves: Vec<_> = MoveGen::new_legal(board).collect();
-        let mobility_bonus = legal_moves.len() as f32 * 0.5;
+        let mobility_bonus = legal_moves.len() as f32 * 0.005; // Small mobility bonus
 
         // Add bonus for captures available
         let captures = self.generate_captures(board);
-        let capture_bonus = captures.len() as f32 * 10.0;
+        let capture_bonus = captures.len() as f32 * 0.1; // Small capture bonus
 
         // Perspective-based scoring
         if board.side_to_move() == Color::White {
