@@ -230,7 +230,7 @@
 <a href=#230 id=230 data-nosnippet>230</a>        }
 <a href=#231 id=231 data-nosnippet>231</a>
 <a href=#232 id=232 data-nosnippet>232</a>        <span class="kw">let </span>num_samples = data.nrows();
-<a href=#233 id=233 data-nosnippet>233</a>        <span class="kw">let </span>num_batches = (num_samples + batch_size - <span class="number">1</span>) / batch_size;
+<a href=#233 id=233 data-nosnippet>233</a>        <span class="kw">let </span>num_batches = num_samples.div_ceil(batch_size);
 <a href=#234 id=234 data-nosnippet>234</a>
 <a href=#235 id=235 data-nosnippet>235</a>        <span class="macro">println!</span>(
 <a href=#236 id=236 data-nosnippet>236</a>            <span class="string">"Training autoencoder for {} epochs with {} batches of size {} (parallel)"</span>,
@@ -318,7 +318,7 @@
 <a href=#318 id=318 data-nosnippet>318</a>        }
 <a href=#319 id=319 data-nosnippet>319</a>
 <a href=#320 id=320 data-nosnippet>320</a>        <span class="kw">let </span>num_samples = data.nrows();
-<a href=#321 id=321 data-nosnippet>321</a>        <span class="kw">let </span>num_batches = (num_samples + batch_size - <span class="number">1</span>) / batch_size;
+<a href=#321 id=321 data-nosnippet>321</a>        <span class="kw">let </span>num_batches = num_samples.div_ceil(batch_size);
 <a href=#322 id=322 data-nosnippet>322</a>
 <a href=#323 id=323 data-nosnippet>323</a>        <span class="macro">println!</span>(
 <a href=#324 id=324 data-nosnippet>324</a>            <span class="string">"Training autoencoder for {} epochs with {} batches of size {} (memory efficient)"</span>,
@@ -442,7 +442,7 @@
 <a href=#442 id=442 data-nosnippet>442</a>                                metadata.compression_ratio
 <a href=#443 id=443 data-nosnippet>443</a>                            );
 <a href=#444 id=444 data-nosnippet>444</a>                        }
-<a href=#445 id=445 data-nosnippet>445</a>                        <span class="prelude-val">Err</span>(e) =&gt; {
+<a href=#445 id=445 data-nosnippet>445</a>                        <span class="prelude-val">Err</span>(_e) =&gt; {
 <a href=#446 id=446 data-nosnippet>446</a>                            <span class="macro">println!</span>(<span class="string">"Failed to deserialize metadata"</span>);
 <a href=#447 id=447 data-nosnippet>447</a>                        }
 <a href=#448 id=448 data-nosnippet>448</a>                    }
@@ -536,7 +536,7 @@
 <a href=#536 id=536 data-nosnippet>536</a>
 <a href=#537 id=537 data-nosnippet>537</a>        <span class="comment">// Initialize network architecture first
 <a href=#538 id=538 data-nosnippet>538</a>        </span><span class="self">self</span>.init_network()
-<a href=#539 id=539 data-nosnippet>539</a>            .map_err(|e| Box::new(std::io::Error::new(std::io::ErrorKind::Other, e)))<span class="question-mark">?</span>;
+<a href=#539 id=539 data-nosnippet>539</a>            .map_err(|e| Box::new(std::io::Error::other(e)))<span class="question-mark">?</span>;
 <a href=#540 id=540 data-nosnippet>540</a>
 <a href=#541 id=541 data-nosnippet>541</a>        <span class="comment">// Load weights into the initialized network
 <a href=#542 id=542 data-nosnippet>542</a>        </span><span class="self">self</span>.load_weights_into_network(loaded_tensors)<span class="question-mark">?</span>;

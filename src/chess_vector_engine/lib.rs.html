@@ -1071,7 +1071,7 @@
 <a href=#1071 id=1071 data-nosnippet>1071</a>
 <a href=#1072 id=1072 data-nosnippet>1072</a>        <span class="kw">for </span>(i, (file_path, file_type)) <span class="kw">in </span>available_files.iter().enumerate() {
 <a href=#1073 id=1073 data-nosnippet>1073</a>            pb.set_position(i <span class="kw">as </span>u64);
-<a href=#1074 id=1074 data-nosnippet>1074</a>            pb.set_message(<span class="macro">format!</span>(<span class="string">"Processing..."</span>));
+<a href=#1074 id=1074 data-nosnippet>1074</a>            pb.set_message(<span class="string">"Processing..."</span>.to_string());
 <a href=#1075 id=1075 data-nosnippet>1075</a>
 <a href=#1076 id=1076 data-nosnippet>1076</a>            <span class="kw">let </span>result = <span class="kw">match </span><span class="kw-2">*</span>file_type {
 <a href=#1077 id=1077 data-nosnippet>1077</a>                <span class="string">"training" </span>=&gt; <span class="self">self</span>.load_training_data_incremental(file_path).map(|<span class="kw">_</span>| {
@@ -1091,7 +1091,7 @@
 <a href=#1091 id=1091 data-nosnippet>1091</a>                <span class="kw">_ </span>=&gt; <span class="prelude-val">Ok</span>(()),
 <a href=#1092 id=1092 data-nosnippet>1092</a>            };
 <a href=#1093 id=1093 data-nosnippet>1093</a>
-<a href=#1094 id=1094 data-nosnippet>1094</a>            <span class="kw">if let </span><span class="prelude-val">Err</span>(e) = result {
+<a href=#1094 id=1094 data-nosnippet>1094</a>            <span class="kw">if let </span><span class="prelude-val">Err</span>(_e) = result {
 <a href=#1095 id=1095 data-nosnippet>1095</a>                <span class="macro">println!</span>(<span class="string">"Loading complete"</span>);
 <a href=#1096 id=1096 data-nosnippet>1096</a>            }
 <a href=#1097 id=1097 data-nosnippet>1097</a>        }
@@ -1157,7 +1157,7 @@
 <a href=#1157 id=1157 data-nosnippet>1157</a>                <span class="string">"🚀 Created engine with auto-loaded training data from {} files"</span>,
 <a href=#1158 id=1158 data-nosnippet>1158</a>                loaded_files.len()
 <a href=#1159 id=1159 data-nosnippet>1159</a>            );
-<a href=#1160 id=1160 data-nosnippet>1160</a>            <span class="kw">let </span>stats = engine.training_stats();
+<a href=#1160 id=1160 data-nosnippet>1160</a>            <span class="kw">let </span>_stats = engine.training_stats();
 <a href=#1161 id=1161 data-nosnippet>1161</a>            <span class="macro">println!</span>(<span class="string">"Loading complete"</span>);
 <a href=#1162 id=1162 data-nosnippet>1162</a>            <span class="macro">println!</span>(<span class="string">"Loading complete"</span>);
 <a href=#1163 id=1163 data-nosnippet>1163</a>        }
@@ -1174,7 +1174,7 @@
 <a href=#1174 id=1174 data-nosnippet>1174</a>        engine.enable_opening_book();
 <a href=#1175 id=1175 data-nosnippet>1175</a>
 <a href=#1176 id=1176 data-nosnippet>1176</a>        <span class="comment">// Enable database persistence for manifold model loading
-<a href=#1177 id=1177 data-nosnippet>1177</a>        </span><span class="kw">if let </span><span class="prelude-val">Err</span>(e) = engine.enable_persistence(<span class="string">"chess_vector_engine.db"</span>) {
+<a href=#1177 id=1177 data-nosnippet>1177</a>        </span><span class="kw">if let </span><span class="prelude-val">Err</span>(_e) = engine.enable_persistence(<span class="string">"chess_vector_engine.db"</span>) {
 <a href=#1178 id=1178 data-nosnippet>1178</a>            <span class="macro">println!</span>(<span class="string">"Loading complete"</span>);
 <a href=#1179 id=1179 data-nosnippet>1179</a>        }
 <a href=#1180 id=1180 data-nosnippet>1180</a>
@@ -1211,7 +1211,7 @@
 <a href=#1211 id=1211 data-nosnippet>1211</a>
 <a href=#1212 id=1212 data-nosnippet>1212</a>            <span class="kw">for </span>(i, file_path) <span class="kw">in </span>existing_binary_files.iter().enumerate() {
 <a href=#1213 id=1213 data-nosnippet>1213</a>                pb.set_position(i <span class="kw">as </span>u64);
-<a href=#1214 id=1214 data-nosnippet>1214</a>                pb.set_message(<span class="macro">format!</span>(<span class="string">"Processing..."</span>));
+<a href=#1214 id=1214 data-nosnippet>1214</a>                pb.set_message(<span class="string">"Processing..."</span>.to_string());
 <a href=#1215 id=1215 data-nosnippet>1215</a>
 <a href=#1216 id=1216 data-nosnippet>1216</a>                <span class="kw">if </span>engine.load_training_data_binary(file_path).is_ok() {
 <a href=#1217 id=1217 data-nosnippet>1217</a>                    loaded_count += <span class="number">1</span>;
@@ -1248,7 +1248,7 @@
 <a href=#1248 id=1248 data-nosnippet>1248</a>        engine.enable_opening_book();
 <a href=#1249 id=1249 data-nosnippet>1249</a>
 <a href=#1250 id=1250 data-nosnippet>1250</a>        <span class="comment">// Enable database persistence for manifold model loading
-<a href=#1251 id=1251 data-nosnippet>1251</a>        </span><span class="kw">if let </span><span class="prelude-val">Err</span>(e) = engine.enable_persistence(<span class="string">"chess_vector_engine.db"</span>) {
+<a href=#1251 id=1251 data-nosnippet>1251</a>        </span><span class="kw">if let </span><span class="prelude-val">Err</span>(_e) = engine.enable_persistence(<span class="string">"chess_vector_engine.db"</span>) {
 <a href=#1252 id=1252 data-nosnippet>1252</a>            <span class="macro">println!</span>(<span class="string">"Loading complete"</span>);
 <a href=#1253 id=1253 data-nosnippet>1253</a>        }
 <a href=#1254 id=1254 data-nosnippet>1254</a>
@@ -1308,7 +1308,7 @@
 <a href=#1308 id=1308 data-nosnippet>1308</a>        engine.enable_opening_book();
 <a href=#1309 id=1309 data-nosnippet>1309</a>
 <a href=#1310 id=1310 data-nosnippet>1310</a>        <span class="comment">// Enable database persistence for manifold model loading
-<a href=#1311 id=1311 data-nosnippet>1311</a>        </span><span class="kw">if let </span><span class="prelude-val">Err</span>(e) = engine.enable_persistence(<span class="string">"chess_vector_engine.db"</span>) {
+<a href=#1311 id=1311 data-nosnippet>1311</a>        </span><span class="kw">if let </span><span class="prelude-val">Err</span>(_e) = engine.enable_persistence(<span class="string">"chess_vector_engine.db"</span>) {
 <a href=#1312 id=1312 data-nosnippet>1312</a>            <span class="macro">println!</span>(<span class="string">"Loading complete"</span>);
 <a href=#1313 id=1313 data-nosnippet>1313</a>        }
 <a href=#1314 id=1314 data-nosnippet>1314</a>
@@ -1318,7 +1318,7 @@
 <a href=#1318 id=1318 data-nosnippet>1318</a>        <span class="kw">if </span>discovered_files.is_empty() {
 <a href=#1319 id=1319 data-nosnippet>1319</a>            <span class="comment">// No user training data found, load starter dataset
 <a href=#1320 id=1320 data-nosnippet>1320</a>            </span><span class="macro">println!</span>(<span class="string">"ℹ️  No user training data found, loading starter dataset..."</span>);
-<a href=#1321 id=1321 data-nosnippet>1321</a>            <span class="kw">if let </span><span class="prelude-val">Err</span>(e) = engine.load_starter_dataset() {
+<a href=#1321 id=1321 data-nosnippet>1321</a>            <span class="kw">if let </span><span class="prelude-val">Err</span>(_e) = engine.load_starter_dataset() {
 <a href=#1322 id=1322 data-nosnippet>1322</a>                <span class="macro">println!</span>(<span class="string">"Loading complete"</span>);
 <a href=#1323 id=1323 data-nosnippet>1323</a>                <span class="macro">println!</span>(<span class="string">"ℹ️  Starting with empty engine"</span>);
 <a href=#1324 id=1324 data-nosnippet>1324</a>            } <span class="kw">else </span>{
@@ -1446,7 +1446,7 @@
 <a href=#1446 id=1446 data-nosnippet>1446</a>                <span class="macro">println!</span>(<span class="string">"🔥 GPU acceleration available and ready"</span>);
 <a href=#1447 id=1447 data-nosnippet>1447</a>                <span class="prelude-val">Ok</span>(())
 <a href=#1448 id=1448 data-nosnippet>1448</a>            }
-<a href=#1449 id=1449 data-nosnippet>1449</a>            <span class="prelude-val">Err</span>(e) =&gt; <span class="prelude-val">Err</span>(<span class="macro">format!</span>(<span class="string">"Processing..."</span>).into()),
+<a href=#1449 id=1449 data-nosnippet>1449</a>            <span class="prelude-val">Err</span>(_e) =&gt; <span class="prelude-val">Err</span>(<span class="string">"Processing..."</span>.to_string().into()),
 <a href=#1450 id=1450 data-nosnippet>1450</a>        }
 <a href=#1451 id=1451 data-nosnippet>1451</a>    }
 <a href=#1452 id=1452 data-nosnippet>1452</a>
@@ -1528,7 +1528,7 @@
 <a href=#1528 id=1528 data-nosnippet>1528</a>            <span class="string">"BINARY" </span>=&gt; <span class="self">self</span>.load_training_data_streaming_binary(path),
 <a href=#1529 id=1529 data-nosnippet>1529</a>            <span class="string">"ZSTD" </span>=&gt; <span class="self">self</span>.load_training_data_compressed(path),
 <a href=#1530 id=1530 data-nosnippet>1530</a>            <span class="string">"JSON" </span>=&gt; <span class="self">self</span>.load_training_data_streaming_json_v2(path),
-<a href=#1531 id=1531 data-nosnippet>1531</a>            <span class="kw">_ </span>=&gt; <span class="prelude-val">Err</span>(<span class="macro">format!</span>(<span class="string">"Processing..."</span>).into()),
+<a href=#1531 id=1531 data-nosnippet>1531</a>            <span class="kw">_ </span>=&gt; <span class="prelude-val">Err</span>(<span class="string">"Processing..."</span>.to_string().into()),
 <a href=#1532 id=1532 data-nosnippet>1532</a>        }
 <a href=#1533 id=1533 data-nosnippet>1533</a>    }
 <a href=#1534 id=1534 data-nosnippet>1534</a>
@@ -1705,13 +1705,13 @@
 <a href=#1705 id=1705 data-nosnippet>1705</a>                                })
 <a href=#1706 id=1706 data-nosnippet>1706</a>                                .collect()
 <a href=#1707 id=1707 data-nosnippet>1707</a>                        } <span class="kw">else </span>{
-<a href=#1708 id=1708 data-nosnippet>1708</a>                            <span class="kw">return </span><span class="prelude-val">Err</span>(<span class="macro">format!</span>(<span class="string">"Processing..."</span>).into());
+<a href=#1708 id=1708 data-nosnippet>1708</a>                            <span class="kw">return </span><span class="prelude-val">Err</span>(<span class="string">"Processing..."</span>.to_string().into());
 <a href=#1709 id=1709 data-nosnippet>1709</a>                        }
 <a href=#1710 id=1710 data-nosnippet>1710</a>                    } <span class="kw">else </span>{
 <a href=#1711 id=1711 data-nosnippet>1711</a>                        Vec::new()
 <a href=#1712 id=1712 data-nosnippet>1712</a>                    }
 <a href=#1713 id=1713 data-nosnippet>1713</a>                }
-<a href=#1714 id=1714 data-nosnippet>1714</a>                <span class="kw">_ </span>=&gt; <span class="kw">return </span><span class="prelude-val">Err</span>(<span class="macro">format!</span>(<span class="string">"Processing..."</span>).into()),
+<a href=#1714 id=1714 data-nosnippet>1714</a>                <span class="kw">_ </span>=&gt; <span class="kw">return </span><span class="prelude-val">Err</span>(<span class="string">"Processing..."</span>.to_string().into()),
 <a href=#1715 id=1715 data-nosnippet>1715</a>            };
 <a href=#1716 id=1716 data-nosnippet>1716</a>
 <a href=#1717 id=1717 data-nosnippet>1717</a>            <span class="kw">if </span>data.is_empty() {
@@ -1926,7 +1926,7 @@
 <a href=#1926 id=1926 data-nosnippet>1926</a>                            Vec::new()
 <a href=#1927 id=1927 data-nosnippet>1927</a>                        }
 <a href=#1928 id=1928 data-nosnippet>1928</a>                    }
-<a href=#1929 id=1929 data-nosnippet>1929</a>                    <span class="kw">_ </span>=&gt; <span class="kw">return </span><span class="prelude-val">Err</span>(<span class="macro">format!</span>(<span class="string">"Processing..."</span>).into()),
+<a href=#1929 id=1929 data-nosnippet>1929</a>                    <span class="kw">_ </span>=&gt; <span class="kw">return </span><span class="prelude-val">Err</span>(<span class="string">"Processing..."</span>.to_string().into()),
 <a href=#1930 id=1930 data-nosnippet>1930</a>                }
 <a href=#1931 id=1931 data-nosnippet>1931</a>            } <span class="kw">else if </span>input_file.ends_with(<span class="string">".msgpack"</span>) {
 <a href=#1932 id=1932 data-nosnippet>1932</a>                <span class="kw">let </span>file = File::open(input_path)<span class="question-mark">?</span>;
@@ -1996,7 +1996,7 @@
 <a href=#1996 id=1996 data-nosnippet>1996</a>
 <a href=#1997 id=1997 data-nosnippet>1997</a>        <span class="kw">for </span>(i, json_file) <span class="kw">in </span>existing_json_files.iter().enumerate() {
 <a href=#1998 id=1998 data-nosnippet>1998</a>            pb.set_position(i <span class="kw">as </span>u64);
-<a href=#1999 id=1999 data-nosnippet>1999</a>            pb.set_message(<span class="macro">format!</span>(<span class="string">"Processing..."</span>));
+<a href=#1999 id=1999 data-nosnippet>1999</a>            pb.set_message(<span class="string">"Processing..."</span>.to_string());
 <a href=#2000 id=2000 data-nosnippet>2000</a>
 <a href=#2001 id=2001 data-nosnippet>2001</a>            <span class="kw">let </span>binary_file = std::path::Path::new(json_file).with_extension(<span class="string">"bin"</span>);
 <a href=#2002 id=2002 data-nosnippet>2002</a>
@@ -2023,7 +2023,7 @@
 <a href=#2023 id=2023 data-nosnippet>2023</a>        <span class="kw">if </span>!converted_files.is_empty() {
 <a href=#2024 id=2024 data-nosnippet>2024</a>            <span class="macro">println!</span>(<span class="string">"🚀 Binary conversion complete! Startup will be 5-15x faster next time."</span>);
 <a href=#2025 id=2025 data-nosnippet>2025</a>            <span class="macro">println!</span>(<span class="string">"📊 Conversion summary:"</span>);
-<a href=#2026 id=2026 data-nosnippet>2026</a>            <span class="kw">for </span>conversion <span class="kw">in </span><span class="kw-2">&amp;</span>converted_files {
+<a href=#2026 id=2026 data-nosnippet>2026</a>            <span class="kw">for </span>_conversion <span class="kw">in </span><span class="kw-2">&amp;</span>converted_files {
 <a href=#2027 id=2027 data-nosnippet>2027</a>                <span class="macro">println!</span>(<span class="string">"Loading complete"</span>);
 <a href=#2028 id=2028 data-nosnippet>2028</a>            }
 <a href=#2029 id=2029 data-nosnippet>2029</a>        }
@@ -2719,7 +2719,7 @@
 <a href=#2719 id=2719 data-nosnippet>2719</a>        </span><span class="kw">if </span><span class="self">self</span>.database.is_some() {
 <a href=#2720 id=2720 data-nosnippet>2720</a>            <span class="kw">match </span><span class="self">self</span>.save_to_database() {
 <a href=#2721 id=2721 data-nosnippet>2721</a>                <span class="prelude-val">Ok</span>(<span class="kw">_</span>) =&gt; <span class="macro">println!</span>(<span class="string">"💾 Saved {} positions to database"</span>, positions_added),
-<a href=#2722 id=2722 data-nosnippet>2722</a>                <span class="prelude-val">Err</span>(e) =&gt; <span class="macro">println!</span>(<span class="string">"Loading complete"</span>),
+<a href=#2722 id=2722 data-nosnippet>2722</a>                <span class="prelude-val">Err</span>(_e) =&gt; <span class="macro">println!</span>(<span class="string">"Loading complete"</span>),
 <a href=#2723 id=2723 data-nosnippet>2723</a>            }
 <a href=#2724 id=2724 data-nosnippet>2724</a>        }
 <a href=#2725 id=2725 data-nosnippet>2725</a>
@@ -2772,7 +2772,7 @@
 <a href=#2772 id=2772 data-nosnippet>2772</a>                </span><span class="kw">if let </span><span class="prelude-val">Some</span>(path) = save_path {
 <a href=#2773 id=2773 data-nosnippet>2773</a>                    <span class="kw">match </span><span class="self">self</span>.save_training_data_binary(path) {
 <a href=#2774 id=2774 data-nosnippet>2774</a>                        <span class="prelude-val">Ok</span>(<span class="kw">_</span>) =&gt; <span class="macro">println!</span>(<span class="string">"💾 Progress saved to {} (binary format)"</span>, path),
-<a href=#2775 id=2775 data-nosnippet>2775</a>                        <span class="prelude-val">Err</span>(e) =&gt; <span class="macro">println!</span>(<span class="string">"Loading complete"</span>),
+<a href=#2775 id=2775 data-nosnippet>2775</a>                        <span class="prelude-val">Err</span>(_e) =&gt; <span class="macro">println!</span>(<span class="string">"Loading complete"</span>),
 <a href=#2776 id=2776 data-nosnippet>2776</a>                    }
 <a href=#2777 id=2777 data-nosnippet>2777</a>                }
 <a href=#2778 id=2778 data-nosnippet>2778</a>
@@ -2783,7 +2783,7 @@
 <a href=#2783 id=2783 data-nosnippet>2783</a>                            <span class="string">"💾 Database synchronized ({} total positions)"</span>,
 <a href=#2784 id=2784 data-nosnippet>2784</a>                            <span class="self">self</span>.knowledge_base_size()
 <a href=#2785 id=2785 data-nosnippet>2785</a>                        ),
-<a href=#2786 id=2786 data-nosnippet>2786</a>                        <span class="prelude-val">Err</span>(e) =&gt; <span class="macro">println!</span>(<span class="string">"Loading complete"</span>),
+<a href=#2786 id=2786 data-nosnippet>2786</a>                        <span class="prelude-val">Err</span>(_e) =&gt; <span class="macro">println!</span>(<span class="string">"Loading complete"</span>),
 <a href=#2787 id=2787 data-nosnippet>2787</a>                    }
 <a href=#2788 id=2788 data-nosnippet>2788</a>                }
 <a href=#2789 id=2789 data-nosnippet>2789</a>            }
@@ -2831,7 +2831,7 @@
 <a href=#2831 id=2831 data-nosnippet>2831</a>            </span><span class="kw">if </span><span class="self">self</span>.database.is_some() {
 <a href=#2832 id=2832 data-nosnippet>2832</a>                <span class="kw">match </span><span class="self">self</span>.save_to_database() {
 <a href=#2833 id=2833 data-nosnippet>2833</a>                    <span class="prelude-val">Ok</span>(<span class="kw">_</span>) =&gt; <span class="macro">println!</span>(<span class="string">"💾 Adaptive training progress saved to database"</span>),
-<a href=#2834 id=2834 data-nosnippet>2834</a>                    <span class="prelude-val">Err</span>(e) =&gt; <span class="macro">println!</span>(<span class="string">"Loading complete"</span>),
+<a href=#2834 id=2834 data-nosnippet>2834</a>                    <span class="prelude-val">Err</span>(_e) =&gt; <span class="macro">println!</span>(<span class="string">"Loading complete"</span>),
 <a href=#2835 id=2835 data-nosnippet>2835</a>                }
 <a href=#2836 id=2836 data-nosnippet>2836</a>            }
 <a href=#2837 id=2837 data-nosnippet>2837</a>

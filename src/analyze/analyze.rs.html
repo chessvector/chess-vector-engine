@@ -74,7 +74,7 @@
 <a href=#74 id=74 data-nosnippet>74</a>
 <a href=#75 id=75 data-nosnippet>75</a>            engine
 <a href=#76 id=76 data-nosnippet>76</a>        }
-<a href=#77 id=77 data-nosnippet>77</a>        <span class="prelude-val">Err</span>(e) =&gt; {
+<a href=#77 id=77 data-nosnippet>77</a>        <span class="prelude-val">Err</span>(_e) =&gt; {
 <a href=#78 id=78 data-nosnippet>78</a>            <span class="macro">println!</span>(<span class="string">"Complete"</span>);
 <a href=#79 id=79 data-nosnippet>79</a>            <span class="macro">println!</span>(<span class="string">"🔄 Falling back to manual initialization..."</span>);
 <a href=#80 id=80 data-nosnippet>80</a>
@@ -186,7 +186,7 @@
 <a href=#186 id=186 data-nosnippet>186</a>    <span class="macro">println!</span>(<span class="string">"\n=== Position Analysis ==="</span>);
 <a href=#187 id=187 data-nosnippet>187</a>
 <a href=#188 id=188 data-nosnippet>188</a>    <span class="comment">// Basic position info
-<a href=#189 id=189 data-nosnippet>189</a>    </span><span class="kw">let </span>legal_moves: Vec&lt;<span class="kw">_</span>&gt; = MoveGen::new_legal(board).collect();
+<a href=#189 id=189 data-nosnippet>189</a>    </span><span class="kw">let </span>_legal_moves: Vec&lt;<span class="kw">_</span>&gt; = MoveGen::new_legal(board).collect();
 <a href=#190 id=190 data-nosnippet>190</a>    <span class="macro">println!</span>(<span class="string">"Analysis starting"</span>);
 <a href=#191 id=191 data-nosnippet>191</a>
 <a href=#192 id=192 data-nosnippet>192</a>    <span class="kw">if </span>board.checkers().popcnt() &gt; <span class="number">0 </span>{

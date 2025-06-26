@@ -227,7 +227,7 @@
 <a href=#227 id=227 data-nosnippet>227</a>        <span class="kw">let </span>data = tensor.to_vec2::&lt;f32&gt;()<span class="question-mark">?</span>;
 <a href=#228 id=228 data-nosnippet>228</a>        <span class="kw">let </span>flat_data: Vec&lt;f32&gt; = data.into_iter().flatten().collect();
 <a href=#229 id=229 data-nosnippet>229</a>        Array2::from_shape_vec((dims[<span class="number">0</span>], dims[<span class="number">1</span>]), flat_data)
-<a href=#230 id=230 data-nosnippet>230</a>            .map_err(|e| candle_core::Error::Msg(<span class="macro">format!</span>(<span class="string">"Processing..."</span>)))
+<a href=#230 id=230 data-nosnippet>230</a>            .map_err(|_e| candle_core::Error::Msg(<span class="string">"Processing..."</span>.to_string()))
 <a href=#231 id=231 data-nosnippet>231</a>    }
 <a href=#232 id=232 data-nosnippet>232</a>
 <a href=#233 id=233 data-nosnippet>233</a>    <span class="doccomment">/// Accelerated cosine similarity computation
@@ -375,7 +375,7 @@
 <a href=#375 id=375 data-nosnippet>375</a>            <span class="self">self</span>.device_count()
 <a href=#376 id=376 data-nosnippet>376</a>        );
 <a href=#377 id=377 data-nosnippet>377</a>
-<a href=#378 id=378 data-nosnippet>378</a>        <span class="kw">let </span>chunk_size = (vectors.nrows() + <span class="self">self</span>.device_count() - <span class="number">1</span>) / <span class="self">self</span>.device_count();
+<a href=#378 id=378 data-nosnippet>378</a>        <span class="kw">let </span>chunk_size = vectors.nrows().div_ceil(<span class="self">self</span>.device_count());
 <a href=#379 id=379 data-nosnippet>379</a>        <span class="kw">let </span><span class="kw-2">mut </span>results = Vec::new();
 <a href=#380 id=380 data-nosnippet>380</a>
 <a href=#381 id=381 data-nosnippet>381</a>        <span class="comment">// Process chunks in parallel across different GPUs
@@ -449,7 +449,7 @@
 <a href=#449 id=449 data-nosnippet>449</a>
 <a href=#450 id=450 data-nosnippet>450</a>        <span class="kw">use </span>rayon::prelude::<span class="kw-2">*</span>;
 <a href=#451 id=451 data-nosnippet>451</a>
-<a href=#452 id=452 data-nosnippet>452</a>        <span class="kw">let </span>chunk_size = (data.len() + <span class="self">self</span>.device_count() - <span class="number">1</span>) / <span class="self">self</span>.device_count();
+<a href=#452 id=452 data-nosnippet>452</a>        <span class="kw">let </span>chunk_size = data.len().div_ceil(<span class="self">self</span>.device_count());
 <a href=#453 id=453 data-nosnippet>453</a>
 <a href=#454 id=454 data-nosnippet>454</a>        <span class="macro">println!</span>(
 <a href=#455 id=455 data-nosnippet>455</a>            <span class="string">"🚀 Multi-GPU batch processing: {} items across {} devices"</span>,

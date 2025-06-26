@@ -27,7 +27,7 @@
 <a href=#27 id=27 data-nosnippet>27</a>    <span class="kw">let </span>legal_moves: Vec&lt;ChessMove&gt; = MoveGen::new_legal(<span class="kw-2">&amp;</span>board).collect();
 <a href=#28 id=28 data-nosnippet>28</a>    <span class="macro">println!</span>(<span class="string">"✅ Generated {} legal moves"</span>, legal_moves.len());
 <a href=#29 id=29 data-nosnippet>29</a>
-<a href=#30 id=30 data-nosnippet>30</a>    <span class="kw">for </span>(i, mv) <span class="kw">in </span>legal_moves.iter().take(<span class="number">10</span>).enumerate() {
+<a href=#30 id=30 data-nosnippet>30</a>    <span class="kw">for </span>_mv <span class="kw">in </span>legal_moves.iter().take(<span class="number">10</span>) {
 <a href=#31 id=31 data-nosnippet>31</a>        <span class="macro">println!</span>(<span class="string">"Complete"</span>);
 <a href=#32 id=32 data-nosnippet>32</a>    }
 <a href=#33 id=33 data-nosnippet>33</a>
@@ -59,7 +59,7 @@
 <a href=#59 id=59 data-nosnippet>59</a>
 <a href=#60 id=60 data-nosnippet>60</a>    <span class="comment">// Test making moves to see if any specific move causes issues
 <a href=#61 id=61 data-nosnippet>61</a>    </span><span class="macro">println!</span>(<span class="string">"\n🔍 Testing individual moves..."</span>);
-<a href=#62 id=62 data-nosnippet>62</a>    <span class="kw">for </span>(i, <span class="kw-2">&amp;</span>mv) <span class="kw">in </span>legal_moves.iter().take(<span class="number">5</span>).enumerate() {
+<a href=#62 id=62 data-nosnippet>62</a>    <span class="kw">for </span><span class="kw-2">&amp;</span>mv <span class="kw">in </span>legal_moves.iter().take(<span class="number">5</span>) {
 <a href=#63 id=63 data-nosnippet>63</a>        <span class="macro">println!</span>(<span class="string">"Complete"</span>);
 <a href=#64 id=64 data-nosnippet>64</a>
 <a href=#65 id=65 data-nosnippet>65</a>        <span class="comment">// Try to make the move

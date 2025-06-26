@@ -101,7 +101,7 @@
 <a href=#101 id=101 data-nosnippet>101</a>
 <a href=#102 id=102 data-nosnippet>102</a>        <span class="comment">// Try to deserialize in chunks to avoid memory explosion
 <a href=#103 id=103 data-nosnippet>103</a>        </span><span class="kw">const </span>CHUNK_SIZE: usize = <span class="number">50_000_000</span>; <span class="comment">// 50MB chunks
-<a href=#104 id=104 data-nosnippet>104</a>        </span><span class="kw">let </span>total_chunks = (mmap.len() + CHUNK_SIZE - <span class="number">1</span>) / CHUNK_SIZE;
+<a href=#104 id=104 data-nosnippet>104</a>        </span><span class="kw">let </span>total_chunks = mmap.len().div_ceil(CHUNK_SIZE);
 <a href=#105 id=105 data-nosnippet>105</a>
 <a href=#106 id=106 data-nosnippet>106</a>        <span class="macro">println!</span>(<span class="string">"📦 Processing {} chunks of ~50MB each"</span>, total_chunks);
 <a href=#107 id=107 data-nosnippet>107</a>

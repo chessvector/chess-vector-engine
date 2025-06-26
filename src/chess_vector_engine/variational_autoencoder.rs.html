@@ -39,7 +39,7 @@
 <a href=#39 id=39 data-nosnippet>39</a>
 <a href=#40 id=40 data-nosnippet>40</a>        <span class="comment">// Create shared hidden layers
 <a href=#41 id=41 data-nosnippet>41</a>        </span><span class="kw">for </span>(i, <span class="kw-2">&amp;</span>hidden_dim) <span class="kw">in </span>hidden_dims.iter().enumerate() {
-<a href=#42 id=42 data-nosnippet>42</a>            <span class="kw">let </span>layer = linear(prev_dim, hidden_dim, vs.pp(<span class="macro">format!</span>(<span class="string">"Processing..."</span>)))<span class="question-mark">?</span>;
+<a href=#42 id=42 data-nosnippet>42</a>            <span class="kw">let </span>layer = linear(prev_dim, hidden_dim, vs.pp(<span class="macro">format!</span>(<span class="string">"encoder.layer{}"</span>, i)))<span class="question-mark">?</span>;
 <a href=#43 id=43 data-nosnippet>43</a>            shared_layers.push(layer);
 <a href=#44 id=44 data-nosnippet>44</a>            prev_dim = hidden_dim;
 <a href=#45 id=45 data-nosnippet>45</a>        }
@@ -92,7 +92,7 @@
 <a href=#92 id=92 data-nosnippet>92</a>
 <a href=#93 id=93 data-nosnippet>93</a>        <span class="comment">// Create hidden layers (reverse of encoder)
 <a href=#94 id=94 data-nosnippet>94</a>        </span><span class="kw">for </span>(i, <span class="kw-2">&amp;</span>hidden_dim) <span class="kw">in </span>hidden_dims.iter().rev().enumerate() {
-<a href=#95 id=95 data-nosnippet>95</a>            <span class="kw">let </span>layer = linear(prev_dim, hidden_dim, vs.pp(<span class="macro">format!</span>(<span class="string">"Processing..."</span>)))<span class="question-mark">?</span>;
+<a href=#95 id=95 data-nosnippet>95</a>            <span class="kw">let </span>layer = linear(prev_dim, hidden_dim, vs.pp(<span class="macro">format!</span>(<span class="string">"decoder.layer{}"</span>, i)))<span class="question-mark">?</span>;
 <a href=#96 id=96 data-nosnippet>96</a>            layers.push(layer);
 <a href=#97 id=97 data-nosnippet>97</a>            prev_dim = hidden_dim;
 <a href=#98 id=98 data-nosnippet>98</a>        }
@@ -147,9 +147,9 @@
 <a href=#147 id=147 data-nosnippet>147</a>
 <a href=#148 id=148 data-nosnippet>148</a>        <span class="kw">let </span>encoder =
 <a href=#149 id=149 data-nosnippet>149</a>            VariationalEncoder::new(vs.clone(), <span class="self">self</span>.input_dim, hidden_dims, <span class="self">self</span>.latent_dim)
-<a href=#150 id=150 data-nosnippet>150</a>                .map_err(|e| <span class="macro">format!</span>(<span class="string">"Processing..."</span>))<span class="question-mark">?</span>;
+<a href=#150 id=150 data-nosnippet>150</a>                .map_err(|_e| <span class="string">"Processing..."</span>.to_string())<span class="question-mark">?</span>;
 <a href=#151 id=151 data-nosnippet>151</a>        <span class="kw">let </span>decoder = VariationalDecoder::new(vs, <span class="self">self</span>.latent_dim, hidden_dims, <span class="self">self</span>.input_dim)
-<a href=#152 id=152 data-nosnippet>152</a>            .map_err(|e| <span class="macro">format!</span>(<span class="string">"Processing..."</span>))<span class="question-mark">?</span>;
+<a href=#152 id=152 data-nosnippet>152</a>            .map_err(|_e| <span class="string">"Processing..."</span>.to_string())<span class="question-mark">?</span>;
 <a href=#153 id=153 data-nosnippet>153</a>
 <a href=#154 id=154 data-nosnippet>154</a>        <span class="comment">// Initialize AdamW optimizer with lower learning rate for VAE stability
 <a href=#155 id=155 data-nosnippet>155</a>        </span><span class="kw">let </span>adamw_params = ParamsAdamW {
@@ -160,7 +160,7 @@
 <a href=#160 id=160 data-nosnippet>160</a>            weight_decay: <span class="number">1e-4</span>,
 <a href=#161 id=161 data-nosnippet>161</a>        };
 <a href=#162 id=162 data-nosnippet>162</a>        <span class="kw">let </span>optimizer = AdamW::new(<span class="self">self</span>.var_map.all_vars(), adamw_params)
-<a href=#163 id=163 data-nosnippet>163</a>            .map_err(|e| <span class="macro">format!</span>(<span class="string">"Processing..."</span>))<span class="question-mark">?</span>;
+<a href=#163 id=163 data-nosnippet>163</a>            .map_err(|_e| <span class="string">"Processing..."</span>.to_string())<span class="question-mark">?</span>;
 <a href=#164 id=164 data-nosnippet>164</a>
 <a href=#165 id=165 data-nosnippet>165</a>        <span class="self">self</span>.encoder = <span class="prelude-val">Some</span>(encoder);
 <a href=#166 id=166 data-nosnippet>166</a>        <span class="self">self</span>.decoder = <span class="prelude-val">Some</span>(decoder);
@@ -240,26 +240,26 @@
 <a href=#240 id=240 data-nosnippet>240</a>        <span class="comment">// Forward pass
 <a href=#241 id=241 data-nosnippet>241</a>        </span><span class="kw">let </span>(reconstruction, mean, logvar) = <span class="self">self
 <a href=#242 id=242 data-nosnippet>242</a>            </span>.forward(<span class="kw-2">&amp;</span>batch_tensor)
-<a href=#243 id=243 data-nosnippet>243</a>            .map_err(|e| <span class="macro">format!</span>(<span class="string">"Processing..."</span>))<span class="question-mark">?</span>;
+<a href=#243 id=243 data-nosnippet>243</a>            .map_err(|_e| <span class="string">"Processing..."</span>.to_string())<span class="question-mark">?</span>;
 <a href=#244 id=244 data-nosnippet>244</a>
 <a href=#245 id=245 data-nosnippet>245</a>        <span class="comment">// Compute loss
 <a href=#246 id=246 data-nosnippet>246</a>        </span><span class="kw">let </span>loss = <span class="self">self
 <a href=#247 id=247 data-nosnippet>247</a>            </span>.compute_loss(<span class="kw-2">&amp;</span>batch_tensor, <span class="kw-2">&amp;</span>reconstruction, <span class="kw-2">&amp;</span>mean, <span class="kw-2">&amp;</span>logvar)
-<a href=#248 id=248 data-nosnippet>248</a>            .map_err(|e| <span class="macro">format!</span>(<span class="string">"Processing..."</span>))<span class="question-mark">?</span>;
+<a href=#248 id=248 data-nosnippet>248</a>            .map_err(|_e| <span class="string">"Processing..."</span>.to_string())<span class="question-mark">?</span>;
 <a href=#249 id=249 data-nosnippet>249</a>
 <a href=#250 id=250 data-nosnippet>250</a>        <span class="comment">// Get loss value for return
 <a href=#251 id=251 data-nosnippet>251</a>        </span><span class="kw">let </span>loss_value = loss
 <a href=#252 id=252 data-nosnippet>252</a>            .to_scalar::&lt;f32&gt;()
-<a href=#253 id=253 data-nosnippet>253</a>            .map_err(|e| <span class="macro">format!</span>(<span class="string">"Processing..."</span>))<span class="question-mark">?</span>;
+<a href=#253 id=253 data-nosnippet>253</a>            .map_err(|_e| <span class="string">"Processing..."</span>.to_string())<span class="question-mark">?</span>;
 <a href=#254 id=254 data-nosnippet>254</a>
 <a href=#255 id=255 data-nosnippet>255</a>        <span class="comment">// Backward pass
-<a href=#256 id=256 data-nosnippet>256</a>        </span><span class="kw">let </span>grads = loss.backward().map_err(|e| <span class="macro">format!</span>(<span class="string">"Processing..."</span>))<span class="question-mark">?</span>;
+<a href=#256 id=256 data-nosnippet>256</a>        </span><span class="kw">let </span>grads = loss.backward().map_err(|_e| <span class="string">"Processing..."</span>.to_string())<span class="question-mark">?</span>;
 <a href=#257 id=257 data-nosnippet>257</a>
 <a href=#258 id=258 data-nosnippet>258</a>        <span class="comment">// Now get optimizer and step
 <a href=#259 id=259 data-nosnippet>259</a>        </span><span class="kw">let </span>optimizer = <span class="self">self</span>.optimizer.as_mut().ok_or(<span class="string">"Optimizer not initialized"</span>)<span class="question-mark">?</span>;
 <a href=#260 id=260 data-nosnippet>260</a>        optimizer
 <a href=#261 id=261 data-nosnippet>261</a>            .step(<span class="kw-2">&amp;</span>grads)
-<a href=#262 id=262 data-nosnippet>262</a>            .map_err(|e| <span class="macro">format!</span>(<span class="string">"Processing..."</span>))<span class="question-mark">?</span>;
+<a href=#262 id=262 data-nosnippet>262</a>            .map_err(|_e| <span class="string">"Processing..."</span>.to_string())<span class="question-mark">?</span>;
 <a href=#263 id=263 data-nosnippet>263</a>
 <a href=#264 id=264 data-nosnippet>264</a>        <span class="comment">// Return loss value
 <a href=#265 id=265 data-nosnippet>265</a>        </span><span class="prelude-val">Ok</span>(loss_value)
@@ -272,7 +272,7 @@
 <a href=#272 id=272 data-nosnippet>272</a>        <span class="kw">let </span>input_tensor = <span class="self">self</span>.array_to_tensor(vectors)<span class="question-mark">?</span>;
 <a href=#273 id=273 data-nosnippet>273</a>        <span class="kw">let </span>(mean, logvar) = encoder
 <a href=#274 id=274 data-nosnippet>274</a>            .encode(<span class="kw-2">&amp;</span>input_tensor)
-<a href=#275 id=275 data-nosnippet>275</a>            .map_err(|e| <span class="macro">format!</span>(<span class="string">"Processing..."</span>))<span class="question-mark">?</span>;
+<a href=#275 id=275 data-nosnippet>275</a>            .map_err(|_e| <span class="string">"Processing..."</span>.to_string())<span class="question-mark">?</span>;
 <a href=#276 id=276 data-nosnippet>276</a>
 <a href=#277 id=277 data-nosnippet>277</a>        <span class="kw">let </span>mean_array = <span class="self">self</span>.tensor_to_array(<span class="kw-2">&amp;</span>mean)<span class="question-mark">?</span>;
 <a href=#278 id=278 data-nosnippet>278</a>        <span class="kw">let </span>logvar_array = <span class="self">self</span>.tensor_to_array(<span class="kw-2">&amp;</span>logvar)<span class="question-mark">?</span>;
@@ -293,7 +293,7 @@
 <a href=#293 id=293 data-nosnippet>293</a>
 <a href=#294 id=294 data-nosnippet>294</a>        <span class="kw">let </span>z = encoder
 <a href=#295 id=295 data-nosnippet>295</a>            .reparameterize(<span class="kw-2">&amp;</span>mean_tensor, <span class="kw-2">&amp;</span>logvar_tensor)
-<a href=#296 id=296 data-nosnippet>296</a>            .map_err(|e| <span class="macro">format!</span>(<span class="string">"Processing..."</span>))<span class="question-mark">?</span>;
+<a href=#296 id=296 data-nosnippet>296</a>            .map_err(|_e| <span class="string">"Processing..."</span>.to_string())<span class="question-mark">?</span>;
 <a href=#297 id=297 data-nosnippet>297</a>
 <a href=#298 id=298 data-nosnippet>298</a>        <span class="self">self</span>.tensor_to_array(<span class="kw-2">&amp;</span>z)
 <a href=#299 id=299 data-nosnippet>299</a>    }
@@ -305,7 +305,7 @@
 <a href=#305 id=305 data-nosnippet>305</a>        <span class="kw">let </span>latent_tensor = <span class="self">self</span>.array_to_tensor(latent_vectors)<span class="question-mark">?</span>;
 <a href=#306 id=306 data-nosnippet>306</a>        <span class="kw">let </span>output = decoder
 <a href=#307 id=307 data-nosnippet>307</a>            .forward(<span class="kw-2">&amp;</span>latent_tensor)
-<a href=#308 id=308 data-nosnippet>308</a>            .map_err(|e| <span class="macro">format!</span>(<span class="string">"Processing..."</span>))<span class="question-mark">?</span>;
+<a href=#308 id=308 data-nosnippet>308</a>            .map_err(|_e| <span class="string">"Processing..."</span>.to_string())<span class="question-mark">?</span>;
 <a href=#309 id=309 data-nosnippet>309</a>
 <a href=#310 id=310 data-nosnippet>310</a>        <span class="self">self</span>.tensor_to_array(<span class="kw-2">&amp;</span>output)
 <a href=#311 id=311 data-nosnippet>311</a>    }
@@ -338,7 +338,7 @@
 <a href=#338 id=338 data-nosnippet>338</a>        <span class="kw">let </span>input_tensor = <span class="self">self</span>.array_to_tensor(vectors)<span class="question-mark">?</span>;
 <a href=#339 id=339 data-nosnippet>339</a>        <span class="kw">let </span>(reconstruction, _mean, _logvar) = <span class="self">self
 <a href=#340 id=340 data-nosnippet>340</a>            </span>.forward(<span class="kw-2">&amp;</span>input_tensor)
-<a href=#341 id=341 data-nosnippet>341</a>            .map_err(|e| <span class="macro">format!</span>(<span class="string">"Processing..."</span>))<span class="question-mark">?</span>;
+<a href=#341 id=341 data-nosnippet>341</a>            .map_err(|_e| <span class="string">"Processing..."</span>.to_string())<span class="question-mark">?</span>;
 <a href=#342 id=342 data-nosnippet>342</a>
 <a href=#343 id=343 data-nosnippet>343</a>        <span class="kw">let </span>reconstruction_array = <span class="self">self</span>.tensor_to_array(<span class="kw-2">&amp;</span>reconstruction)<span class="question-mark">?</span>;
 <a href=#344 id=344 data-nosnippet>344</a>
@@ -388,7 +388,7 @@
 <a href=#388 id=388 data-nosnippet>388</a>        <span class="kw">let </span>shape = array.shape();
 <a href=#389 id=389 data-nosnippet>389</a>        <span class="kw">let </span>data: Vec&lt;f32&gt; = array.iter().cloned().collect();
 <a href=#390 id=390 data-nosnippet>390</a>        Tensor::from_vec(data, (shape[<span class="number">0</span>], shape[<span class="number">1</span>]), <span class="kw-2">&amp;</span><span class="self">self</span>.device)
-<a href=#391 id=391 data-nosnippet>391</a>            .map_err(|e| <span class="macro">format!</span>(<span class="string">"Processing..."</span>))
+<a href=#391 id=391 data-nosnippet>391</a>            .map_err(|_e| <span class="string">"Processing..."</span>.to_string())
 <a href=#392 id=392 data-nosnippet>392</a>    }
 <a href=#393 id=393 data-nosnippet>393</a>
 <a href=#394 id=394 data-nosnippet>394</a>    <span class="kw">fn </span>tensor_to_array(<span class="kw-2">&amp;</span><span class="self">self</span>, tensor: <span class="kw-2">&amp;</span>Tensor) -&gt; <span class="prelude-ty">Result</span>&lt;Array2&lt;f32&gt;, String&gt; {
@@ -399,10 +399,10 @@
 <a href=#399 id=399 data-nosnippet>399</a>
 <a href=#400 id=400 data-nosnippet>400</a>        <span class="kw">let </span>data = tensor
 <a href=#401 id=401 data-nosnippet>401</a>            .to_vec2::&lt;f32&gt;()
-<a href=#402 id=402 data-nosnippet>402</a>            .map_err(|e| <span class="macro">format!</span>(<span class="string">"Processing..."</span>))<span class="question-mark">?</span>;
+<a href=#402 id=402 data-nosnippet>402</a>            .map_err(|_e| <span class="string">"Processing..."</span>.to_string())<span class="question-mark">?</span>;
 <a href=#403 id=403 data-nosnippet>403</a>
 <a href=#404 id=404 data-nosnippet>404</a>        Array2::from_shape_vec((shape.dims()[<span class="number">0</span>], shape.dims()[<span class="number">1</span>]), data.concat())
-<a href=#405 id=405 data-nosnippet>405</a>            .map_err(|e| <span class="macro">format!</span>(<span class="string">"Processing..."</span>))
+<a href=#405 id=405 data-nosnippet>405</a>            .map_err(|_e| <span class="string">"Processing..."</span>.to_string())
 <a href=#406 id=406 data-nosnippet>406</a>    }
 <a href=#407 id=407 data-nosnippet>407</a>}
 <a href=#408 id=408 data-nosnippet>408</a>
