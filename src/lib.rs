@@ -1,6 +1,6 @@
 //! # Chess Vector Engine
 //!
-//! A **production-ready Rust chess engine** that revolutionizes position evaluation by combining 
+//! A **production-ready Rust chess engine** that revolutionizes position evaluation by combining
 //! vector-based pattern recognition with advanced tactical search and NNUE neural network evaluation.
 //!
 //! ## Features
@@ -185,8 +185,8 @@ impl Default for HybridConfig {
 }
 
 /// **Chess Vector Engine** - Production-ready chess engine with hybrid evaluation
-/// 
-/// A powerful chess engine that combines vector-based pattern recognition with advanced 
+///
+/// A powerful chess engine that combines vector-based pattern recognition with advanced
 /// tactical search and NNUE neural network evaluation. Features an open-core architecture
 /// with runtime license verification for premium capabilities.
 ///
@@ -215,10 +215,10 @@ impl Default for HybridConfig {
 ///
 /// let mut engine = ChessVectorEngine::new(1024);
 /// let board = Board::default();
-/// 
+///
 /// // Add position with evaluation
 /// engine.add_position(&board, 0.0);
-/// 
+///
 /// // Find similar positions
 /// let similar = engine.find_similar_positions(&board, 5);
 /// ```
@@ -229,12 +229,12 @@ impl Default for HybridConfig {
 ///
 /// // Create engine with premium features (requires license)
 /// let mut engine = ChessVectorEngine::new_with_tier(1024, FeatureTier::Premium);
-/// 
-/// // Enable GPU acceleration
-/// engine.enable_gpu_acceleration()?;
-/// 
-/// // Use ultra-fast loading for large datasets
-/// engine.ultra_fast_load_any_format("training_data.bin")?;
+///
+/// // Check GPU acceleration availability  
+/// let _gpu_status = engine.check_gpu_acceleration();
+///
+/// // Premium features are now available (with valid license)
+/// println!("Engine created with premium tier access");
 /// # Ok::<(), Box<dyn std::error::Error>>(())
 /// ```
 pub struct ChessVectorEngine {
