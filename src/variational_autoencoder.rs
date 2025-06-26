@@ -39,11 +39,7 @@ impl VariationalEncoder {
 
         // Create shared hidden layers
         for (i, &hidden_dim) in hidden_dims.iter().enumerate() {
-            let layer = linear(
-                prev_dim,
-                hidden_dim,
-                vs.pp(format!("encoder.shared.{}", i)),
-            )?;
+            let layer = linear(prev_dim, hidden_dim, vs.pp(format!("encoder.shared.{}", i)))?;
             shared_layers.push(layer);
             prev_dim = hidden_dim;
         }
@@ -96,11 +92,7 @@ impl VariationalDecoder {
 
         // Create hidden layers (reverse of encoder)
         for (i, &hidden_dim) in hidden_dims.iter().rev().enumerate() {
-            let layer = linear(
-                prev_dim,
-                hidden_dim,
-                vs.pp(format!("decoder.hidden.{}", i)),
-            )?;
+            let layer = linear(prev_dim, hidden_dim, vs.pp(format!("decoder.hidden.{}", i)))?;
             layers.push(layer);
             prev_dim = hidden_dim;
         }

@@ -744,10 +744,7 @@ impl TrainingDataset {
         // Group positions by game_id
         let mut games: HashMap<usize, Vec<&TrainingData>> = HashMap::new();
         for data in &self.data {
-            games
-                .entry(data.game_id)
-                .or_default()
-                .push(data);
+            games.entry(data.game_id).or_default().push(data);
         }
 
         // Get unique game IDs and shuffle them

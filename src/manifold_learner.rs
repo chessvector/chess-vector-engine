@@ -488,7 +488,8 @@ impl ManifoldLearner {
         let vars = self.var_map.all_vars();
 
         // Use deterministic naming based on network structure
-        let var_names = ["encoder.layer1.weight",
+        let var_names = [
+            "encoder.layer1.weight",
             "encoder.layer1.bias",
             "encoder.layer2.weight",
             "encoder.layer2.bias",
@@ -499,7 +500,8 @@ impl ManifoldLearner {
             "decoder.layer2.weight",
             "decoder.layer2.bias",
             "decoder.layer3.weight",
-            "decoder.layer3.bias"];
+            "decoder.layer3.bias",
+        ];
 
         for (i, var) in vars.iter().enumerate() {
             let tensor = var.as_tensor();
@@ -557,7 +559,8 @@ impl ManifoldLearner {
         let vars = self.var_map.all_vars();
 
         // Map of expected variable names (same order as in serialization)
-        let var_names = ["encoder.layer1.weight",
+        let var_names = [
+            "encoder.layer1.weight",
             "encoder.layer1.bias",
             "encoder.layer2.weight",
             "encoder.layer2.bias",
@@ -568,7 +571,8 @@ impl ManifoldLearner {
             "decoder.layer2.weight",
             "decoder.layer2.bias",
             "decoder.layer3.weight",
-            "decoder.layer3.bias"];
+            "decoder.layer3.bias",
+        ];
 
         // Load weights in the same order they were saved
         for (i, var) in vars.iter().enumerate() {

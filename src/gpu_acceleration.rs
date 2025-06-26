@@ -108,6 +108,7 @@ impl GPUAccelerator {
     }
 
     #[cfg(not(feature = "cuda"))]
+    #[allow(dead_code)]
     fn try_cuda() -> CandleResult<Self> {
         Err(candle_core::Error::Msg("CUDA not compiled".into()))
     }
@@ -143,6 +144,7 @@ impl GPUAccelerator {
     }
 
     #[cfg(not(feature = "metal"))]
+    #[allow(dead_code)]
     fn try_metal() -> CandleResult<Self> {
         Err(candle_core::Error::Msg("Metal not compiled".into()))
     }

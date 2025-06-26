@@ -44,7 +44,10 @@ impl PartialOrd for ANNResult {
 impl Ord for ANNResult {
     fn cmp(&self, other: &Self) -> Ordering {
         // Reverse for max-heap
-        other.similarity.partial_cmp(&self.similarity).unwrap_or(Ordering::Equal)
+        other
+            .similarity
+            .partial_cmp(&self.similarity)
+            .unwrap_or(Ordering::Equal)
     }
 }
 

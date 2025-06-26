@@ -359,7 +359,10 @@ impl PositionEncoder {
             let rooks_queens = (board.pieces(Piece::Rook) | board.pieces(Piece::Queen))
                 & board.color_combined(color);
             for square in chess::ALL_SQUARES {
-                if (rooks_queens & chess::BitBoard::from_square(square)).popcnt() > 0 && (square.get_rank() == enemy_king_square.get_rank() || square.get_file() == enemy_king_square.get_file()) {
+                if (rooks_queens & chess::BitBoard::from_square(square)).popcnt() > 0
+                    && (square.get_rank() == enemy_king_square.get_rank()
+                        || square.get_file() == enemy_king_square.get_file())
+                {
                     potential_pins += 1;
                 }
             }

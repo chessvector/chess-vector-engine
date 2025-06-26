@@ -1078,17 +1078,16 @@ impl ChessVectorEngine {
                     loaded_files.push(file_path.to_string());
                     println!("📚 Auto-loaded training data from {}", file_path);
                 }),
-                "tactical" => {
-                    crate::training::TacticalPuzzleParser::load_tactical_puzzles(file_path)
-                        .map(|puzzles| {
-                            crate::training::TacticalPuzzleParser::load_into_engine_incremental(
-                                &puzzles, self,
-                            );
-                            loaded_files.push(file_path.to_string());
-                            println!("🎯 Auto-loaded tactical puzzles from {}", file_path);
-                            
-                        })
-                }
+                "tactical" => crate::training::TacticalPuzzleParser::load_tactical_puzzles(
+                    file_path,
+                )
+                .map(|puzzles| {
+                    crate::training::TacticalPuzzleParser::load_into_engine_incremental(
+                        &puzzles, self,
+                    );
+                    loaded_files.push(file_path.to_string());
+                    println!("🎯 Auto-loaded tactical puzzles from {}", file_path);
+                }),
                 _ => Ok(()),
             };
 
@@ -1962,10 +1961,12 @@ impl ChessVectorEngine {
     pub fn convert_json_to_binary() -> Result<Vec<String>, Box<dyn std::error::Error>> {
         use indicatif::{ProgressBar, ProgressStyle};
 
-        let json_files = ["training_data.json",
+        let json_files = [
+            "training_data.json",
             "tactical_training_data.json",
             "engine_training.json",
-            "chess_training.json"];
+            "chess_training.json",
+        ];
 
         // Check which JSON files exist
         let existing_json_files: Vec<_> = json_files
@@ -2003,7 +2004,10 @@ impl ChessVectorEngine {
 
             // Load from JSON and save as binary
             let mut temp_engine = Self::new(1024);
-            if temp_engine.load_training_data_incremental(json_file).is_ok() {
+            if temp_engine
+                .load_training_data_incremental(json_file)
+                .is_ok()
+            {
                 if temp_engine.save_training_data_binary(&binary_file).is_ok() {
                     converted_files.push(format!("{} -> {}", json_file, binary_file.display()));
                     println!("✅ Converted {} to binary format", json_file);
@@ -2354,7 +2358,9 @@ impl ChessVectorEngine {
 
                 // Add ordered moves with tactical confidence
                 for chess_move in ordered_moves.into_iter().take(num_recommendations) {
-                    move_data.entry(chess_move).or_insert_with(|| vec![(0.6, 0.0)]);
+                    move_data
+                        .entry(chess_move)
+                        .or_insert_with(|| vec![(0.6, 0.0)]);
                 }
             } else {
                 // Basic fallback when no tactical search available - still use move ordering
@@ -2785,7 +2791,10 @@ impl ChessVectorEngine {
             }
 
             // Rebuild manifold learning every 10 iterations for large datasets
-            if iteration % 10 == 0 && self.knowledge_base_size() > 5000 && self.manifold_learner.is_some() {
+            if iteration % 10 == 0
+                && self.knowledge_base_size() > 5000
+                && self.manifold_learner.is_some()
+            {
                 println!("🧠 Retraining manifold learning with new data...");
                 let _ = self.train_manifold_learning(5);
             }

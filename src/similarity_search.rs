@@ -51,7 +51,10 @@ impl PartialOrd for SearchResult {
 impl Ord for SearchResult {
     fn cmp(&self, other: &Self) -> Ordering {
         // Reverse ordering for max-heap behavior in BinaryHeap
-        other.similarity.partial_cmp(&self.similarity).unwrap_or(Ordering::Equal)
+        other
+            .similarity
+            .partial_cmp(&self.similarity)
+            .unwrap_or(Ordering::Equal)
     }
 }
 

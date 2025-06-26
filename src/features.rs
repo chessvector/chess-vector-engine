@@ -67,11 +67,12 @@ impl FeatureRegistry {
 
     /// Check if current tier includes required tier
     fn tier_includes(current: &FeatureTier, required: &FeatureTier) -> bool {
-        matches!((current, required), 
-            (FeatureTier::OpenSource, FeatureTier::OpenSource) |
-            (FeatureTier::Premium, FeatureTier::OpenSource) |
-            (FeatureTier::Premium, FeatureTier::Premium) |
-            (FeatureTier::Enterprise, _)
+        matches!(
+            (current, required),
+            (FeatureTier::OpenSource, FeatureTier::OpenSource)
+                | (FeatureTier::Premium, FeatureTier::OpenSource)
+                | (FeatureTier::Premium, FeatureTier::Premium)
+                | (FeatureTier::Enterprise, _)
         )
     }
 

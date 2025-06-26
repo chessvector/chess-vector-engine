@@ -640,8 +640,7 @@ impl TacticalSearch {
                 );
 
                 // If null window search fails, re-search with full window
-                if null_eval > alpha && null_eval < beta
-                {
+                if null_eval > alpha && null_eval < beta {
                     // Re-search with full window and full depth if reduced
                     let full_depth = if reduction > 0 {
                         depth - 1

@@ -71,10 +71,7 @@ impl AutoDiscovery {
 
         // Group by base name
         for file in files {
-            groups
-                .entry(file.base_name.clone())
-                .or_default()
-                .push(file);
+            groups.entry(file.base_name.clone()).or_default().push(file);
         }
 
         let mut consolidated = HashMap::new();
@@ -207,7 +204,6 @@ impl AutoDiscovery {
             .unwrap_or("unknown");
 
         // Remove known extensions to get base name
-        
 
         file_name
             .replace(".mmap", "")
@@ -247,7 +243,9 @@ impl AutoDiscovery {
         // Check by content for files that might not have proper extensions
         if (file_name.contains("training")
             || file_name.contains("position")
-            || file_name.contains("tactical")) && Self::verify_json_training_data(path)? {
+            || file_name.contains("tactical"))
+            && Self::verify_json_training_data(path)?
+        {
             return Ok(Some(("JSON".to_string(), FormatPriority::Json)));
         }
 
