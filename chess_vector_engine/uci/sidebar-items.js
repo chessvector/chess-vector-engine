@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"enum":["SearchScore","UCIOption"],"fn":["run_uci_engine","run_uci_engine_with_config"],"struct":["SearchInfo","UCIConfig","UCIEngine"]};

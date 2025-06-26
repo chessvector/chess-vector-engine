@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"fn":["generate_random_position","main","test_similarity_accuracy"]};

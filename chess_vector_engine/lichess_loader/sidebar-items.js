@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"fn":["load_lichess_puzzles_basic","load_lichess_puzzles_basic_with_moves","load_lichess_puzzles_premium","load_lichess_puzzles_premium_with_moves"],"struct":["LichessLoader"]};

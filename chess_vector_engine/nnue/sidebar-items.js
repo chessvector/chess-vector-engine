@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"enum":["ActivationType","BlendStrategy"],"struct":["EvalStats","HybridEvaluator","NNUE","NNUEConfig"]};

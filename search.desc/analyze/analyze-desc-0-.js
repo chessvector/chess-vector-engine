@@ -1,0 +1,1 @@
+searchState.loadedDescShard("analyze", 0, "Analyze material balance\nComprehensive position analysis\nAnalyze basic positional features\nCount developed pieces (not on starting squares)\nInitialize analysis engine with advanced features based on …\nLoad a basic opening book with evaluations")

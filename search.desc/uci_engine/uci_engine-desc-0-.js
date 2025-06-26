@@ -1,0 +1,1 @@
+searchState.loadedDescShard("uci_engine", 0, "UCI chess engine binary")

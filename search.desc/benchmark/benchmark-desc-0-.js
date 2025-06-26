@@ -1,0 +1,1 @@
+searchState.loadedDescShard("benchmark", 0, "Generate a semi-random chess position by playing random …\nTest similarity calculation accuracy with known …")

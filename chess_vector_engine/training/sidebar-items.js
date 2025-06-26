@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"struct":["EngineEvaluator","GameExtractor","SelfPlayConfig","SelfPlayTrainer","StockfishEvaluator","StockfishPool","TacticalPuzzle","TacticalPuzzleParser","TacticalTrainingData","TrainingData","TrainingDataset"]};

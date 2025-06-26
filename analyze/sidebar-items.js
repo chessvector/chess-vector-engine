@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"fn":["analyze_material","analyze_position","analyze_positional_features","count_developed_pieces","initialize_analysis_engine","load_opening_book","main"]};

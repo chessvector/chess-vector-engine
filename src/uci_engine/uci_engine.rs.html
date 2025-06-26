@@ -1,0 +1,39 @@
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="Source of the Rust file `src/bin/uci_engine.rs`."><title>uci_engine.rs - source</title><script>if(window.location.protocol!=="file:")document.head.insertAdjacentHTML("beforeend","SourceSerif4-Regular-6b053e98.ttf.woff2,FiraSans-Italic-81dc35de.woff2,FiraSans-Regular-0fe48ade.woff2,FiraSans-MediumItalic-ccf7e434.woff2,FiraSans-Medium-e1aa3f0a.woff2,SourceCodePro-Regular-8badfe75.ttf.woff2,SourceCodePro-Semibold-aa29a496.ttf.woff2".split(",").map(f=>`<link rel="preload" as="font" type="font/woff2" crossorigin href="../../static.files/${f}">`).join(""))</script><link rel="stylesheet" href="../../static.files/normalize-9960930a.css"><link rel="stylesheet" href="../../static.files/rustdoc-916cea96.css"><meta name="rustdoc-vars" data-root-path="../../" data-static-root-path="../../static.files/" data-current-crate="uci_engine" data-themes="" data-resource-suffix="" data-rustdoc-version="1.87.0 (17067e9ac 2025-05-09)" data-channel="1.87.0" data-search-js="search-e7298875.js" data-settings-js="settings-d72f25bb.js" ><script src="../../static.files/storage-82c7156e.js"></script><script defer src="../../static.files/src-script-63605ae7.js"></script><script defer src="../../src-files.js"></script><script defer src="../../static.files/main-fb8c74a8.js"></script><noscript><link rel="stylesheet" href="../../static.files/noscript-893ab5e7.css"></noscript><link rel="alternate icon" type="image/png" href="../../static.files/favicon-32x32-6580c154.png"><link rel="icon" type="image/svg+xml" href="../../static.files/favicon-044be391.svg"></head><body class="rustdoc src"><!--[if lte IE 11]><div class="warning">This old browser is unsupported and will most likely display funky things.</div><![endif]--><nav class="sidebar"><div class="src-sidebar-title"><h2>Files</h2></div></nav><div class="sidebar-resizer"></div><main><rustdoc-search></rustdoc-search><section id="main-content" class="content"><div class="main-heading"><h1><div class="sub-heading">uci_engine/</div>uci_engine.rs</h1><rustdoc-toolbar></rustdoc-toolbar></div><div class="example-wrap digits-2"><pre class="rust"><code><a href=#1 id=1 data-nosnippet>1</a><span class="kw">use </span>chess_vector_engine::run_uci_engine;
+<a href=#2 id=2 data-nosnippet>2</a>
+<a href=#3 id=3 data-nosnippet>3</a><span class="doccomment">/// UCI chess engine binary
+<a href=#4 id=4 data-nosnippet>4</a>///
+<a href=#5 id=5 data-nosnippet>5</a>/// This binary provides a UCI (Universal Chess Interface) compliant chess engine
+<a href=#6 id=6 data-nosnippet>6</a>/// that can be used with any UCI-compatible chess GUI such as:
+<a href=#7 id=7 data-nosnippet>7</a>/// - Arena
+<a href=#8 id=8 data-nosnippet>8</a>/// - ChessBase
+<a href=#9 id=9 data-nosnippet>9</a>/// - Fritz
+<a href=#10 id=10 data-nosnippet>10</a>/// - Scid vs. PC
+<a href=#11 id=11 data-nosnippet>11</a>/// - BanksiaGUI
+<a href=#12 id=12 data-nosnippet>12</a>/// - And many others
+<a href=#13 id=13 data-nosnippet>13</a>///
+<a href=#14 id=14 data-nosnippet>14</a>/// Usage:
+<a href=#15 id=15 data-nosnippet>15</a>/// 1. Compile: `cargo build --release --bin uci_engine`
+<a href=#16 id=16 data-nosnippet>16</a>/// 2. Add the resulting binary to your chess GUI as a new engine
+<a href=#17 id=17 data-nosnippet>17</a>/// 3. The engine will communicate using standard UCI protocol
+<a href=#18 id=18 data-nosnippet>18</a>///
+<a href=#19 id=19 data-nosnippet>19</a>/// Features:
+<a href=#20 id=20 data-nosnippet>20</a>/// - Hybrid evaluation combining pattern recognition and tactical search
+<a href=#21 id=21 data-nosnippet>21</a>/// - GPU acceleration when available (CUDA/Metal) with CPU fallback
+<a href=#22 id=22 data-nosnippet>22</a>/// - Opening book integration
+<a href=#23 id=23 data-nosnippet>23</a>/// - Configurable search depth and time management
+<a href=#24 id=24 data-nosnippet>24</a>/// - Advanced pattern-based move recommendations
+<a href=#25 id=25 data-nosnippet>25</a>/// - LSH-accelerated similarity search
+<a href=#26 id=26 data-nosnippet>26</a>///
+<a href=#27 id=27 data-nosnippet>27</a>/// UCI Options:
+<a href=#28 id=28 data-nosnippet>28</a>/// - Hash: Hash table size in MB (1-2048, default 128)
+<a href=#29 id=29 data-nosnippet>29</a>/// - Threads: Number of search threads (1-64, default 1)
+<a href=#30 id=30 data-nosnippet>30</a>/// - MultiPV: Number of principal variations (1-10, default 1)
+<a href=#31 id=31 data-nosnippet>31</a>/// - Pattern_Weight: Weight for pattern evaluation vs tactical (0-100, default 60)
+<a href=#32 id=32 data-nosnippet>32</a>/// - Tactical_Depth: Maximum tactical search depth (1-10, default 3)
+<a href=#33 id=33 data-nosnippet>33</a>/// - Pattern_Confidence_Threshold: Minimum confidence for pattern-only evaluation (0-100, default 75)
+<a href=#34 id=34 data-nosnippet>34</a>/// - Enable_LSH: Use LSH acceleration for similarity search (true/false, default true)
+<a href=#35 id=35 data-nosnippet>35</a>/// - Enable_GPU: Use GPU acceleration when available (true/false, default true)
+<a href=#36 id=36 data-nosnippet>36</a>
+<a href=#37 id=37 data-nosnippet>37</a></span><span class="kw">fn </span>main() {
+<a href=#38 id=38 data-nosnippet>38</a>    run_uci_engine();
+<a href=#39 id=39 data-nosnippet>39</a>}</code></pre></div></section></main></body></html>

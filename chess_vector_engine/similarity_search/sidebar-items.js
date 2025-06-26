@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"struct":["PositionEntry","SearchResult","SearchResultRef","SimilaritySearch","SimilaritySearchStats"]};
