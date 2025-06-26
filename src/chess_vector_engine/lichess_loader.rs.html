@@ -416,171 +416,172 @@
 <a href=#416 id=416 data-nosnippet>416</a>    </span><span class="kw">fn </span>calculate_puzzle_evaluation(<span class="kw-2">&amp;</span><span class="self">self</span>, rating: u32, themes: <span class="kw-2">&amp;</span>str, board: <span class="kw-2">&amp;</span>Board) -&gt; f32 {
 <a href=#417 id=417 data-nosnippet>417</a>        <span class="kw">let </span><span class="kw-2">mut </span>eval = <span class="number">0.0</span>;
 <a href=#418 id=418 data-nosnippet>418</a>
-<a href=#419 id=419 data-nosnippet>419</a>        <span class="comment">// Base evaluation from puzzle rating
-<a href=#420 id=420 data-nosnippet>420</a>        </span>eval += (rating <span class="kw">as </span>f32 - <span class="number">1500.0</span>) / <span class="number">400.0</span>; <span class="comment">// Convert rating to rough centipawn equivalent
+<a href=#419 id=419 data-nosnippet>419</a>        <span class="comment">// Base evaluation from puzzle difficulty (normalized to pawn units)
+<a href=#420 id=420 data-nosnippet>420</a>        </span>eval += (rating <span class="kw">as </span>f32 - <span class="number">1500.0</span>) / <span class="number">1000.0</span>; <span class="comment">// Much smaller scaling for reasonable range
 <a href=#421 id=421 data-nosnippet>421</a>
-<a href=#422 id=422 data-nosnippet>422</a>        // Adjust based on tactical themes
+<a href=#422 id=422 data-nosnippet>422</a>        // Moderate tactical theme adjustments (in pawn units)
 <a href=#423 id=423 data-nosnippet>423</a>        </span><span class="kw">if </span>themes.contains(<span class="string">"checkmate"</span>) || themes.contains(<span class="string">"mateIn"</span>) {
-<a href=#424 id=424 data-nosnippet>424</a>            eval = <span class="kw">if </span>board.side_to_move() == Color::White {
-<a href=#425 id=425 data-nosnippet>425</a>                <span class="number">500.0
+<a href=#424 id=424 data-nosnippet>424</a>            eval += <span class="kw">if </span>board.side_to_move() == Color::White {
+<a href=#425 id=425 data-nosnippet>425</a>                <span class="number">5.0 </span><span class="comment">// Strong advantage (5 pawns)
 <a href=#426 id=426 data-nosnippet>426</a>            </span>} <span class="kw">else </span>{
-<a href=#427 id=427 data-nosnippet>427</a>                -<span class="number">500.0
+<a href=#427 id=427 data-nosnippet>427</a>                -<span class="number">5.0 </span><span class="comment">// Strong disadvantage (5 pawns)
 <a href=#428 id=428 data-nosnippet>428</a>            </span>};
 <a href=#429 id=429 data-nosnippet>429</a>        } <span class="kw">else if </span>themes.contains(<span class="string">"fork"</span>) || themes.contains(<span class="string">"pin"</span>) {
 <a href=#430 id=430 data-nosnippet>430</a>            eval += <span class="kw">if </span>board.side_to_move() == Color::White {
-<a href=#431 id=431 data-nosnippet>431</a>                <span class="number">300.0
+<a href=#431 id=431 data-nosnippet>431</a>                <span class="number">2.0 </span><span class="comment">// Moderate advantage (2 pawns)
 <a href=#432 id=432 data-nosnippet>432</a>            </span>} <span class="kw">else </span>{
-<a href=#433 id=433 data-nosnippet>433</a>                -<span class="number">300.0
+<a href=#433 id=433 data-nosnippet>433</a>                -<span class="number">2.0 </span><span class="comment">// Moderate disadvantage (2 pawns)
 <a href=#434 id=434 data-nosnippet>434</a>            </span>};
 <a href=#435 id=435 data-nosnippet>435</a>        } <span class="kw">else if </span>themes.contains(<span class="string">"sacrifice"</span>) {
 <a href=#436 id=436 data-nosnippet>436</a>            eval += <span class="kw">if </span>board.side_to_move() == Color::White {
-<a href=#437 id=437 data-nosnippet>437</a>                <span class="number">200.0
+<a href=#437 id=437 data-nosnippet>437</a>                <span class="number">1.5 </span><span class="comment">// Small advantage (1.5 pawns)
 <a href=#438 id=438 data-nosnippet>438</a>            </span>} <span class="kw">else </span>{
-<a href=#439 id=439 data-nosnippet>439</a>                -<span class="number">200.0
+<a href=#439 id=439 data-nosnippet>439</a>                -<span class="number">1.5 </span><span class="comment">// Small disadvantage (1.5 pawns)
 <a href=#440 id=440 data-nosnippet>440</a>            </span>};
 <a href=#441 id=441 data-nosnippet>441</a>        }
 <a href=#442 id=442 data-nosnippet>442</a>
-<a href=#443 id=443 data-nosnippet>443</a>        eval
-<a href=#444 id=444 data-nosnippet>444</a>    }
-<a href=#445 id=445 data-nosnippet>445</a>
-<a href=#446 id=446 data-nosnippet>446</a>    <span class="doccomment">/// Parse a single CSV line into position, evaluation, and best move
-<a href=#447 id=447 data-nosnippet>447</a>    </span><span class="kw">fn </span>parse_puzzle_line_with_move(
-<a href=#448 id=448 data-nosnippet>448</a>        <span class="kw-2">&amp;</span><span class="self">self</span>,
-<a href=#449 id=449 data-nosnippet>449</a>        line: <span class="kw-2">&amp;</span>str,
-<a href=#450 id=450 data-nosnippet>450</a>    ) -&gt; <span class="prelude-ty">Result</span>&lt;<span class="prelude-ty">Option</span>&lt;(Board, f32, ChessMove)&gt;, Box&lt;<span class="kw">dyn </span>std::error::Error&gt;&gt; {
-<a href=#451 id=451 data-nosnippet>451</a>        <span class="comment">// Wrap entire parsing in panic protection to catch any chess library panics
-<a href=#452 id=452 data-nosnippet>452</a>        </span><span class="kw">match </span>std::panic::catch_unwind(
-<a href=#453 id=453 data-nosnippet>453</a>            || -&gt; <span class="prelude-ty">Result</span>&lt;<span class="prelude-ty">Option</span>&lt;(Board, f32, ChessMove)&gt;, Box&lt;<span class="kw">dyn </span>std::error::Error&gt;&gt; {
-<a href=#454 id=454 data-nosnippet>454</a>                <span class="comment">// Use proper CSV parsing to handle quotes and commas correctly
-<a href=#455 id=455 data-nosnippet>455</a>                </span><span class="kw">let </span><span class="kw-2">mut </span>reader = csv::ReaderBuilder::new()
-<a href=#456 id=456 data-nosnippet>456</a>                    .has_headers(<span class="bool-val">false</span>)
-<a href=#457 id=457 data-nosnippet>457</a>                    .from_reader(line.as_bytes());
-<a href=#458 id=458 data-nosnippet>458</a>
-<a href=#459 id=459 data-nosnippet>459</a>                <span class="kw">let </span>record = <span class="kw">match </span>reader.records().next() {
-<a href=#460 id=460 data-nosnippet>460</a>                    <span class="prelude-val">Some</span>(<span class="prelude-val">Ok</span>(record)) =&gt; record,
-<a href=#461 id=461 data-nosnippet>461</a>                    <span class="kw">_ </span>=&gt; <span class="kw">return </span><span class="prelude-val">Ok</span>(<span class="prelude-val">None</span>), <span class="comment">// Skip malformed lines
-<a href=#462 id=462 data-nosnippet>462</a>                </span>};
-<a href=#463 id=463 data-nosnippet>463</a>
-<a href=#464 id=464 data-nosnippet>464</a>                <span class="kw">if </span>record.len() &lt; <span class="number">8 </span>{
-<a href=#465 id=465 data-nosnippet>465</a>                    <span class="kw">return </span><span class="prelude-val">Ok</span>(<span class="prelude-val">None</span>); <span class="comment">// Skip malformed lines
-<a href=#466 id=466 data-nosnippet>466</a>                </span>}
-<a href=#467 id=467 data-nosnippet>467</a>
-<a href=#468 id=468 data-nosnippet>468</a>                <span class="comment">// Extract key fields by position with proper CSV parsing
-<a href=#469 id=469 data-nosnippet>469</a>                </span><span class="kw">let </span>fen = record.get(<span class="number">1</span>).unwrap_or(<span class="string">""</span>).trim();
-<a href=#470 id=470 data-nosnippet>470</a>                <span class="kw">let </span>moves = record.get(<span class="number">2</span>).unwrap_or(<span class="string">""</span>).trim();
-<a href=#471 id=471 data-nosnippet>471</a>                <span class="kw">let </span>rating: u32 = record.get(<span class="number">3</span>).unwrap_or(<span class="string">"0"</span>).parse().unwrap_or(<span class="number">0</span>);
-<a href=#472 id=472 data-nosnippet>472</a>                <span class="kw">let </span>themes = record.get(<span class="number">7</span>).unwrap_or(<span class="string">""</span>).trim();
-<a href=#473 id=473 data-nosnippet>473</a>
-<a href=#474 id=474 data-nosnippet>474</a>                <span class="comment">// Apply filters for performance
-<a href=#475 id=475 data-nosnippet>475</a>                </span><span class="kw">if </span>rating &lt; <span class="self">self</span>.min_rating || rating &gt; <span class="self">self</span>.max_rating {
-<a href=#476 id=476 data-nosnippet>476</a>                    <span class="kw">return </span><span class="prelude-val">Ok</span>(<span class="prelude-val">None</span>);
-<a href=#477 id=477 data-nosnippet>477</a>                }
-<a href=#478 id=478 data-nosnippet>478</a>
-<a href=#479 id=479 data-nosnippet>479</a>                <span class="kw">if let </span><span class="prelude-val">Some</span>(<span class="kw-2">ref </span>theme_filter) = <span class="self">self</span>.theme_filter {
-<a href=#480 id=480 data-nosnippet>480</a>                    <span class="kw">let </span>has_target_theme = theme_filter.iter().any(|theme| themes.contains(theme));
-<a href=#481 id=481 data-nosnippet>481</a>                    <span class="kw">if </span>!has_target_theme {
-<a href=#482 id=482 data-nosnippet>482</a>                        <span class="kw">return </span><span class="prelude-val">Ok</span>(<span class="prelude-val">None</span>);
-<a href=#483 id=483 data-nosnippet>483</a>                    }
-<a href=#484 id=484 data-nosnippet>484</a>                }
-<a href=#485 id=485 data-nosnippet>485</a>
-<a href=#486 id=486 data-nosnippet>486</a>                <span class="comment">// Parse board position
-<a href=#487 id=487 data-nosnippet>487</a>                </span><span class="kw">let </span>board = <span class="kw">match </span>Board::from_str(fen) {
-<a href=#488 id=488 data-nosnippet>488</a>                    <span class="prelude-val">Ok</span>(b) =&gt; b,
-<a href=#489 id=489 data-nosnippet>489</a>                    <span class="prelude-val">Err</span>(<span class="kw">_</span>) =&gt; <span class="kw">return </span><span class="prelude-val">Ok</span>(<span class="prelude-val">None</span>), <span class="comment">// Skip invalid FEN
-<a href=#490 id=490 data-nosnippet>490</a>                </span>};
-<a href=#491 id=491 data-nosnippet>491</a>
-<a href=#492 id=492 data-nosnippet>492</a>                <span class="comment">// Parse moves and create training data
-<a href=#493 id=493 data-nosnippet>493</a>                </span><span class="kw">let </span>move_sequence: Vec&lt;<span class="kw-2">&amp;</span>str&gt; = moves.split_whitespace().collect();
-<a href=#494 id=494 data-nosnippet>494</a>                <span class="kw">if </span>move_sequence.is_empty() {
-<a href=#495 id=495 data-nosnippet>495</a>                    <span class="kw">return </span><span class="prelude-val">Ok</span>(<span class="prelude-val">None</span>);
-<a href=#496 id=496 data-nosnippet>496</a>                }
-<a href=#497 id=497 data-nosnippet>497</a>
-<a href=#498 id=498 data-nosnippet>498</a>                <span class="comment">// Use the first move as the target move - validate it's legal and board is valid
-<a href=#499 id=499 data-nosnippet>499</a>                </span><span class="kw">let </span>target_move = <span class="kw">match </span>ChessMove::from_str(move_sequence[<span class="number">0</span>]) {
-<a href=#500 id=500 data-nosnippet>500</a>                    <span class="prelude-val">Ok</span>(m) =&gt; {
-<a href=#501 id=501 data-nosnippet>501</a>                        <span class="comment">// Verify the move is legal for this position
-<a href=#502 id=502 data-nosnippet>502</a>                        </span><span class="kw">use </span>chess::MoveGen;
-<a href=#503 id=503 data-nosnippet>503</a>                        <span class="kw">let </span>legal_moves: Vec&lt;ChessMove&gt; = MoveGen::new_legal(<span class="kw-2">&amp;</span>board).collect();
-<a href=#504 id=504 data-nosnippet>504</a>
-<a href=#505 id=505 data-nosnippet>505</a>                        <span class="comment">// Skip positions with no legal moves (checkmate/stalemate)
-<a href=#506 id=506 data-nosnippet>506</a>                        </span><span class="kw">if </span>legal_moves.is_empty() {
-<a href=#507 id=507 data-nosnippet>507</a>                            <span class="kw">return </span><span class="prelude-val">Ok</span>(<span class="prelude-val">None</span>);
-<a href=#508 id=508 data-nosnippet>508</a>                        }
-<a href=#509 id=509 data-nosnippet>509</a>
-<a href=#510 id=510 data-nosnippet>510</a>                        <span class="kw">if </span>legal_moves.contains(<span class="kw-2">&amp;</span>m) {
-<a href=#511 id=511 data-nosnippet>511</a>                            m
-<a href=#512 id=512 data-nosnippet>512</a>                        } <span class="kw">else </span>{
-<a href=#513 id=513 data-nosnippet>513</a>                            <span class="comment">// For debugging: could add logging here to track rejection reasons
-<a href=#514 id=514 data-nosnippet>514</a>                            </span><span class="kw">return </span><span class="prelude-val">Ok</span>(<span class="prelude-val">None</span>); <span class="comment">// Skip illegal moves
-<a href=#515 id=515 data-nosnippet>515</a>                        </span>}
-<a href=#516 id=516 data-nosnippet>516</a>                    }
-<a href=#517 id=517 data-nosnippet>517</a>                    <span class="prelude-val">Err</span>(<span class="kw">_</span>) =&gt; <span class="kw">return </span><span class="prelude-val">Ok</span>(<span class="prelude-val">None</span>), <span class="comment">// Skip invalid moves
-<a href=#518 id=518 data-nosnippet>518</a>                </span>};
-<a href=#519 id=519 data-nosnippet>519</a>
-<a href=#520 id=520 data-nosnippet>520</a>                <span class="comment">// Calculate evaluation based on puzzle rating and themes
-<a href=#521 id=521 data-nosnippet>521</a>                </span><span class="kw">let </span>evaluation = <span class="self">self</span>.calculate_puzzle_evaluation(rating, themes, <span class="kw-2">&amp;</span>board);
-<a href=#522 id=522 data-nosnippet>522</a>
-<a href=#523 id=523 data-nosnippet>523</a>                <span class="prelude-val">Ok</span>(<span class="prelude-val">Some</span>((board, evaluation, target_move)))
-<a href=#524 id=524 data-nosnippet>524</a>            },
-<a href=#525 id=525 data-nosnippet>525</a>        ) {
-<a href=#526 id=526 data-nosnippet>526</a>            <span class="prelude-val">Ok</span>(result) =&gt; result,
-<a href=#527 id=527 data-nosnippet>527</a>            <span class="prelude-val">Err</span>(<span class="kw">_</span>) =&gt; <span class="prelude-val">Ok</span>(<span class="prelude-val">None</span>), <span class="comment">// Skip any position that causes panic
-<a href=#528 id=528 data-nosnippet>528</a>        </span>}
-<a href=#529 id=529 data-nosnippet>529</a>    }
-<a href=#530 id=530 data-nosnippet>530</a>}
-<a href=#531 id=531 data-nosnippet>531</a>
-<a href=#532 id=532 data-nosnippet>532</a><span class="kw">impl </span>Default <span class="kw">for </span>LichessLoader {
-<a href=#533 id=533 data-nosnippet>533</a>    <span class="kw">fn </span>default() -&gt; <span class="self">Self </span>{
-<a href=#534 id=534 data-nosnippet>534</a>        <span class="self">Self</span>::new()
-<a href=#535 id=535 data-nosnippet>535</a>    }
-<a href=#536 id=536 data-nosnippet>536</a>}
-<a href=#537 id=537 data-nosnippet>537</a>
-<a href=#538 id=538 data-nosnippet>538</a><span class="doccomment">/// Premium feature: Load Lichess puzzles with maximum performance
-<a href=#539 id=539 data-nosnippet>539</a></span><span class="kw">pub fn </span>load_lichess_puzzles_premium&lt;P: AsRef&lt;Path&gt;&gt;(
-<a href=#540 id=540 data-nosnippet>540</a>    csv_path: P,
-<a href=#541 id=541 data-nosnippet>541</a>) -&gt; <span class="prelude-ty">Result</span>&lt;Vec&lt;TrainingData&gt;, Box&lt;<span class="kw">dyn </span>std::error::Error&gt;&gt; {
-<a href=#542 id=542 data-nosnippet>542</a>    <span class="kw">let </span>loader = LichessLoader::new_premium()
-<a href=#543 id=543 data-nosnippet>543</a>        .with_rating_range(<span class="number">1200</span>, <span class="number">2400</span>) <span class="comment">// Focus on strong tactical puzzles
-<a href=#544 id=544 data-nosnippet>544</a>        </span>.with_batch_size(<span class="number">100_000</span>); <span class="comment">// Large batches for premium speed
-<a href=#545 id=545 data-nosnippet>545</a>
-<a href=#546 id=546 data-nosnippet>546</a>    </span>loader.load_parallel(csv_path)
-<a href=#547 id=547 data-nosnippet>547</a>}
-<a href=#548 id=548 data-nosnippet>548</a>
-<a href=#549 id=549 data-nosnippet>549</a><span class="doccomment">/// Open source feature: Load limited Lichess puzzles
-<a href=#550 id=550 data-nosnippet>550</a></span><span class="kw">pub fn </span>load_lichess_puzzles_basic&lt;P: AsRef&lt;Path&gt;&gt;(
-<a href=#551 id=551 data-nosnippet>551</a>    csv_path: P,
-<a href=#552 id=552 data-nosnippet>552</a>    max_puzzles: usize,
-<a href=#553 id=553 data-nosnippet>553</a>) -&gt; <span class="prelude-ty">Result</span>&lt;Vec&lt;TrainingData&gt;, Box&lt;<span class="kw">dyn </span>std::error::Error&gt;&gt; {
-<a href=#554 id=554 data-nosnippet>554</a>    <span class="kw">let </span>loader = LichessLoader::new()
-<a href=#555 id=555 data-nosnippet>555</a>        .with_rating_range(<span class="number">1000</span>, <span class="number">2000</span>) <span class="comment">// Basic tactical puzzles
-<a href=#556 id=556 data-nosnippet>556</a>        </span>.with_batch_size(<span class="number">10_000</span>); <span class="comment">// Smaller batches for basic tier
-<a href=#557 id=557 data-nosnippet>557</a>
-<a href=#558 id=558 data-nosnippet>558</a>    </span><span class="kw">let </span><span class="kw-2">mut </span>results = loader.load_parallel(csv_path)<span class="question-mark">?</span>;
-<a href=#559 id=559 data-nosnippet>559</a>    results.truncate(max_puzzles); <span class="comment">// Limit for open source
-<a href=#560 id=560 data-nosnippet>560</a>    </span><span class="prelude-val">Ok</span>(results)
-<a href=#561 id=561 data-nosnippet>561</a>}
-<a href=#562 id=562 data-nosnippet>562</a>
-<a href=#563 id=563 data-nosnippet>563</a><span class="doccomment">/// Premium feature: Load Lichess puzzles with moves for pattern recognition
-<a href=#564 id=564 data-nosnippet>564</a></span><span class="kw">pub fn </span>load_lichess_puzzles_premium_with_moves&lt;P: AsRef&lt;Path&gt;&gt;(
-<a href=#565 id=565 data-nosnippet>565</a>    csv_path: P,
-<a href=#566 id=566 data-nosnippet>566</a>) -&gt; <span class="prelude-ty">Result</span>&lt;Vec&lt;(Board, f32, ChessMove)&gt;, Box&lt;<span class="kw">dyn </span>std::error::Error&gt;&gt; {
-<a href=#567 id=567 data-nosnippet>567</a>    <span class="kw">let </span>loader = LichessLoader::new_premium()
-<a href=#568 id=568 data-nosnippet>568</a>        .with_rating_range(<span class="number">1200</span>, <span class="number">2400</span>) <span class="comment">// Focus on strong tactical puzzles
-<a href=#569 id=569 data-nosnippet>569</a>        </span>.with_batch_size(<span class="number">100_000</span>); <span class="comment">// Large batches for premium speed
-<a href=#570 id=570 data-nosnippet>570</a>
-<a href=#571 id=571 data-nosnippet>571</a>    </span>loader.load_parallel_with_moves(csv_path)
-<a href=#572 id=572 data-nosnippet>572</a>}
-<a href=#573 id=573 data-nosnippet>573</a>
-<a href=#574 id=574 data-nosnippet>574</a><span class="doccomment">/// Open source feature: Load limited Lichess puzzles with moves
-<a href=#575 id=575 data-nosnippet>575</a></span><span class="kw">pub fn </span>load_lichess_puzzles_basic_with_moves&lt;P: AsRef&lt;Path&gt;&gt;(
-<a href=#576 id=576 data-nosnippet>576</a>    csv_path: P,
-<a href=#577 id=577 data-nosnippet>577</a>    max_puzzles: usize,
-<a href=#578 id=578 data-nosnippet>578</a>) -&gt; <span class="prelude-ty">Result</span>&lt;Vec&lt;(Board, f32, ChessMove)&gt;, Box&lt;<span class="kw">dyn </span>std::error::Error&gt;&gt; {
-<a href=#579 id=579 data-nosnippet>579</a>    <span class="kw">let </span>loader = LichessLoader::new()
-<a href=#580 id=580 data-nosnippet>580</a>        .with_rating_range(<span class="number">1000</span>, <span class="number">2000</span>) <span class="comment">// Basic tactical puzzles
-<a href=#581 id=581 data-nosnippet>581</a>        </span>.with_batch_size(<span class="number">10_000</span>); <span class="comment">// Smaller batches for basic tier
-<a href=#582 id=582 data-nosnippet>582</a>
-<a href=#583 id=583 data-nosnippet>583</a>    </span><span class="kw">let </span><span class="kw-2">mut </span>results = loader.load_parallel_with_moves(csv_path)<span class="question-mark">?</span>;
-<a href=#584 id=584 data-nosnippet>584</a>    results.truncate(max_puzzles); <span class="comment">// Limit for open source
-<a href=#585 id=585 data-nosnippet>585</a>    </span><span class="prelude-val">Ok</span>(results)
-<a href=#586 id=586 data-nosnippet>586</a>}</code></pre></div></section></main></body></html>
+<a href=#443 id=443 data-nosnippet>443</a>        <span class="comment">// Clamp to reasonable evaluation range
+<a href=#444 id=444 data-nosnippet>444</a>        </span>eval.clamp(-<span class="number">8.0</span>, <span class="number">8.0</span>)
+<a href=#445 id=445 data-nosnippet>445</a>    }
+<a href=#446 id=446 data-nosnippet>446</a>
+<a href=#447 id=447 data-nosnippet>447</a>    <span class="doccomment">/// Parse a single CSV line into position, evaluation, and best move
+<a href=#448 id=448 data-nosnippet>448</a>    </span><span class="kw">fn </span>parse_puzzle_line_with_move(
+<a href=#449 id=449 data-nosnippet>449</a>        <span class="kw-2">&amp;</span><span class="self">self</span>,
+<a href=#450 id=450 data-nosnippet>450</a>        line: <span class="kw-2">&amp;</span>str,
+<a href=#451 id=451 data-nosnippet>451</a>    ) -&gt; <span class="prelude-ty">Result</span>&lt;<span class="prelude-ty">Option</span>&lt;(Board, f32, ChessMove)&gt;, Box&lt;<span class="kw">dyn </span>std::error::Error&gt;&gt; {
+<a href=#452 id=452 data-nosnippet>452</a>        <span class="comment">// Wrap entire parsing in panic protection to catch any chess library panics
+<a href=#453 id=453 data-nosnippet>453</a>        </span><span class="kw">match </span>std::panic::catch_unwind(
+<a href=#454 id=454 data-nosnippet>454</a>            || -&gt; <span class="prelude-ty">Result</span>&lt;<span class="prelude-ty">Option</span>&lt;(Board, f32, ChessMove)&gt;, Box&lt;<span class="kw">dyn </span>std::error::Error&gt;&gt; {
+<a href=#455 id=455 data-nosnippet>455</a>                <span class="comment">// Use proper CSV parsing to handle quotes and commas correctly
+<a href=#456 id=456 data-nosnippet>456</a>                </span><span class="kw">let </span><span class="kw-2">mut </span>reader = csv::ReaderBuilder::new()
+<a href=#457 id=457 data-nosnippet>457</a>                    .has_headers(<span class="bool-val">false</span>)
+<a href=#458 id=458 data-nosnippet>458</a>                    .from_reader(line.as_bytes());
+<a href=#459 id=459 data-nosnippet>459</a>
+<a href=#460 id=460 data-nosnippet>460</a>                <span class="kw">let </span>record = <span class="kw">match </span>reader.records().next() {
+<a href=#461 id=461 data-nosnippet>461</a>                    <span class="prelude-val">Some</span>(<span class="prelude-val">Ok</span>(record)) =&gt; record,
+<a href=#462 id=462 data-nosnippet>462</a>                    <span class="kw">_ </span>=&gt; <span class="kw">return </span><span class="prelude-val">Ok</span>(<span class="prelude-val">None</span>), <span class="comment">// Skip malformed lines
+<a href=#463 id=463 data-nosnippet>463</a>                </span>};
+<a href=#464 id=464 data-nosnippet>464</a>
+<a href=#465 id=465 data-nosnippet>465</a>                <span class="kw">if </span>record.len() &lt; <span class="number">8 </span>{
+<a href=#466 id=466 data-nosnippet>466</a>                    <span class="kw">return </span><span class="prelude-val">Ok</span>(<span class="prelude-val">None</span>); <span class="comment">// Skip malformed lines
+<a href=#467 id=467 data-nosnippet>467</a>                </span>}
+<a href=#468 id=468 data-nosnippet>468</a>
+<a href=#469 id=469 data-nosnippet>469</a>                <span class="comment">// Extract key fields by position with proper CSV parsing
+<a href=#470 id=470 data-nosnippet>470</a>                </span><span class="kw">let </span>fen = record.get(<span class="number">1</span>).unwrap_or(<span class="string">""</span>).trim();
+<a href=#471 id=471 data-nosnippet>471</a>                <span class="kw">let </span>moves = record.get(<span class="number">2</span>).unwrap_or(<span class="string">""</span>).trim();
+<a href=#472 id=472 data-nosnippet>472</a>                <span class="kw">let </span>rating: u32 = record.get(<span class="number">3</span>).unwrap_or(<span class="string">"0"</span>).parse().unwrap_or(<span class="number">0</span>);
+<a href=#473 id=473 data-nosnippet>473</a>                <span class="kw">let </span>themes = record.get(<span class="number">7</span>).unwrap_or(<span class="string">""</span>).trim();
+<a href=#474 id=474 data-nosnippet>474</a>
+<a href=#475 id=475 data-nosnippet>475</a>                <span class="comment">// Apply filters for performance
+<a href=#476 id=476 data-nosnippet>476</a>                </span><span class="kw">if </span>rating &lt; <span class="self">self</span>.min_rating || rating &gt; <span class="self">self</span>.max_rating {
+<a href=#477 id=477 data-nosnippet>477</a>                    <span class="kw">return </span><span class="prelude-val">Ok</span>(<span class="prelude-val">None</span>);
+<a href=#478 id=478 data-nosnippet>478</a>                }
+<a href=#479 id=479 data-nosnippet>479</a>
+<a href=#480 id=480 data-nosnippet>480</a>                <span class="kw">if let </span><span class="prelude-val">Some</span>(<span class="kw-2">ref </span>theme_filter) = <span class="self">self</span>.theme_filter {
+<a href=#481 id=481 data-nosnippet>481</a>                    <span class="kw">let </span>has_target_theme = theme_filter.iter().any(|theme| themes.contains(theme));
+<a href=#482 id=482 data-nosnippet>482</a>                    <span class="kw">if </span>!has_target_theme {
+<a href=#483 id=483 data-nosnippet>483</a>                        <span class="kw">return </span><span class="prelude-val">Ok</span>(<span class="prelude-val">None</span>);
+<a href=#484 id=484 data-nosnippet>484</a>                    }
+<a href=#485 id=485 data-nosnippet>485</a>                }
+<a href=#486 id=486 data-nosnippet>486</a>
+<a href=#487 id=487 data-nosnippet>487</a>                <span class="comment">// Parse board position
+<a href=#488 id=488 data-nosnippet>488</a>                </span><span class="kw">let </span>board = <span class="kw">match </span>Board::from_str(fen) {
+<a href=#489 id=489 data-nosnippet>489</a>                    <span class="prelude-val">Ok</span>(b) =&gt; b,
+<a href=#490 id=490 data-nosnippet>490</a>                    <span class="prelude-val">Err</span>(<span class="kw">_</span>) =&gt; <span class="kw">return </span><span class="prelude-val">Ok</span>(<span class="prelude-val">None</span>), <span class="comment">// Skip invalid FEN
+<a href=#491 id=491 data-nosnippet>491</a>                </span>};
+<a href=#492 id=492 data-nosnippet>492</a>
+<a href=#493 id=493 data-nosnippet>493</a>                <span class="comment">// Parse moves and create training data
+<a href=#494 id=494 data-nosnippet>494</a>                </span><span class="kw">let </span>move_sequence: Vec&lt;<span class="kw-2">&amp;</span>str&gt; = moves.split_whitespace().collect();
+<a href=#495 id=495 data-nosnippet>495</a>                <span class="kw">if </span>move_sequence.is_empty() {
+<a href=#496 id=496 data-nosnippet>496</a>                    <span class="kw">return </span><span class="prelude-val">Ok</span>(<span class="prelude-val">None</span>);
+<a href=#497 id=497 data-nosnippet>497</a>                }
+<a href=#498 id=498 data-nosnippet>498</a>
+<a href=#499 id=499 data-nosnippet>499</a>                <span class="comment">// Use the first move as the target move - validate it's legal and board is valid
+<a href=#500 id=500 data-nosnippet>500</a>                </span><span class="kw">let </span>target_move = <span class="kw">match </span>ChessMove::from_str(move_sequence[<span class="number">0</span>]) {
+<a href=#501 id=501 data-nosnippet>501</a>                    <span class="prelude-val">Ok</span>(m) =&gt; {
+<a href=#502 id=502 data-nosnippet>502</a>                        <span class="comment">// Verify the move is legal for this position
+<a href=#503 id=503 data-nosnippet>503</a>                        </span><span class="kw">use </span>chess::MoveGen;
+<a href=#504 id=504 data-nosnippet>504</a>                        <span class="kw">let </span>legal_moves: Vec&lt;ChessMove&gt; = MoveGen::new_legal(<span class="kw-2">&amp;</span>board).collect();
+<a href=#505 id=505 data-nosnippet>505</a>
+<a href=#506 id=506 data-nosnippet>506</a>                        <span class="comment">// Skip positions with no legal moves (checkmate/stalemate)
+<a href=#507 id=507 data-nosnippet>507</a>                        </span><span class="kw">if </span>legal_moves.is_empty() {
+<a href=#508 id=508 data-nosnippet>508</a>                            <span class="kw">return </span><span class="prelude-val">Ok</span>(<span class="prelude-val">None</span>);
+<a href=#509 id=509 data-nosnippet>509</a>                        }
+<a href=#510 id=510 data-nosnippet>510</a>
+<a href=#511 id=511 data-nosnippet>511</a>                        <span class="kw">if </span>legal_moves.contains(<span class="kw-2">&amp;</span>m) {
+<a href=#512 id=512 data-nosnippet>512</a>                            m
+<a href=#513 id=513 data-nosnippet>513</a>                        } <span class="kw">else </span>{
+<a href=#514 id=514 data-nosnippet>514</a>                            <span class="comment">// For debugging: could add logging here to track rejection reasons
+<a href=#515 id=515 data-nosnippet>515</a>                            </span><span class="kw">return </span><span class="prelude-val">Ok</span>(<span class="prelude-val">None</span>); <span class="comment">// Skip illegal moves
+<a href=#516 id=516 data-nosnippet>516</a>                        </span>}
+<a href=#517 id=517 data-nosnippet>517</a>                    }
+<a href=#518 id=518 data-nosnippet>518</a>                    <span class="prelude-val">Err</span>(<span class="kw">_</span>) =&gt; <span class="kw">return </span><span class="prelude-val">Ok</span>(<span class="prelude-val">None</span>), <span class="comment">// Skip invalid moves
+<a href=#519 id=519 data-nosnippet>519</a>                </span>};
+<a href=#520 id=520 data-nosnippet>520</a>
+<a href=#521 id=521 data-nosnippet>521</a>                <span class="comment">// Calculate evaluation based on puzzle rating and themes
+<a href=#522 id=522 data-nosnippet>522</a>                </span><span class="kw">let </span>evaluation = <span class="self">self</span>.calculate_puzzle_evaluation(rating, themes, <span class="kw-2">&amp;</span>board);
+<a href=#523 id=523 data-nosnippet>523</a>
+<a href=#524 id=524 data-nosnippet>524</a>                <span class="prelude-val">Ok</span>(<span class="prelude-val">Some</span>((board, evaluation, target_move)))
+<a href=#525 id=525 data-nosnippet>525</a>            },
+<a href=#526 id=526 data-nosnippet>526</a>        ) {
+<a href=#527 id=527 data-nosnippet>527</a>            <span class="prelude-val">Ok</span>(result) =&gt; result,
+<a href=#528 id=528 data-nosnippet>528</a>            <span class="prelude-val">Err</span>(<span class="kw">_</span>) =&gt; <span class="prelude-val">Ok</span>(<span class="prelude-val">None</span>), <span class="comment">// Skip any position that causes panic
+<a href=#529 id=529 data-nosnippet>529</a>        </span>}
+<a href=#530 id=530 data-nosnippet>530</a>    }
+<a href=#531 id=531 data-nosnippet>531</a>}
+<a href=#532 id=532 data-nosnippet>532</a>
+<a href=#533 id=533 data-nosnippet>533</a><span class="kw">impl </span>Default <span class="kw">for </span>LichessLoader {
+<a href=#534 id=534 data-nosnippet>534</a>    <span class="kw">fn </span>default() -&gt; <span class="self">Self </span>{
+<a href=#535 id=535 data-nosnippet>535</a>        <span class="self">Self</span>::new()
+<a href=#536 id=536 data-nosnippet>536</a>    }
+<a href=#537 id=537 data-nosnippet>537</a>}
+<a href=#538 id=538 data-nosnippet>538</a>
+<a href=#539 id=539 data-nosnippet>539</a><span class="doccomment">/// Premium feature: Load Lichess puzzles with maximum performance
+<a href=#540 id=540 data-nosnippet>540</a></span><span class="kw">pub fn </span>load_lichess_puzzles_premium&lt;P: AsRef&lt;Path&gt;&gt;(
+<a href=#541 id=541 data-nosnippet>541</a>    csv_path: P,
+<a href=#542 id=542 data-nosnippet>542</a>) -&gt; <span class="prelude-ty">Result</span>&lt;Vec&lt;TrainingData&gt;, Box&lt;<span class="kw">dyn </span>std::error::Error&gt;&gt; {
+<a href=#543 id=543 data-nosnippet>543</a>    <span class="kw">let </span>loader = LichessLoader::new_premium()
+<a href=#544 id=544 data-nosnippet>544</a>        .with_rating_range(<span class="number">1200</span>, <span class="number">2400</span>) <span class="comment">// Focus on strong tactical puzzles
+<a href=#545 id=545 data-nosnippet>545</a>        </span>.with_batch_size(<span class="number">100_000</span>); <span class="comment">// Large batches for premium speed
+<a href=#546 id=546 data-nosnippet>546</a>
+<a href=#547 id=547 data-nosnippet>547</a>    </span>loader.load_parallel(csv_path)
+<a href=#548 id=548 data-nosnippet>548</a>}
+<a href=#549 id=549 data-nosnippet>549</a>
+<a href=#550 id=550 data-nosnippet>550</a><span class="doccomment">/// Open source feature: Load limited Lichess puzzles
+<a href=#551 id=551 data-nosnippet>551</a></span><span class="kw">pub fn </span>load_lichess_puzzles_basic&lt;P: AsRef&lt;Path&gt;&gt;(
+<a href=#552 id=552 data-nosnippet>552</a>    csv_path: P,
+<a href=#553 id=553 data-nosnippet>553</a>    max_puzzles: usize,
+<a href=#554 id=554 data-nosnippet>554</a>) -&gt; <span class="prelude-ty">Result</span>&lt;Vec&lt;TrainingData&gt;, Box&lt;<span class="kw">dyn </span>std::error::Error&gt;&gt; {
+<a href=#555 id=555 data-nosnippet>555</a>    <span class="kw">let </span>loader = LichessLoader::new()
+<a href=#556 id=556 data-nosnippet>556</a>        .with_rating_range(<span class="number">1000</span>, <span class="number">2000</span>) <span class="comment">// Basic tactical puzzles
+<a href=#557 id=557 data-nosnippet>557</a>        </span>.with_batch_size(<span class="number">10_000</span>); <span class="comment">// Smaller batches for basic tier
+<a href=#558 id=558 data-nosnippet>558</a>
+<a href=#559 id=559 data-nosnippet>559</a>    </span><span class="kw">let </span><span class="kw-2">mut </span>results = loader.load_parallel(csv_path)<span class="question-mark">?</span>;
+<a href=#560 id=560 data-nosnippet>560</a>    results.truncate(max_puzzles); <span class="comment">// Limit for open source
+<a href=#561 id=561 data-nosnippet>561</a>    </span><span class="prelude-val">Ok</span>(results)
+<a href=#562 id=562 data-nosnippet>562</a>}
+<a href=#563 id=563 data-nosnippet>563</a>
+<a href=#564 id=564 data-nosnippet>564</a><span class="doccomment">/// Premium feature: Load Lichess puzzles with moves for pattern recognition
+<a href=#565 id=565 data-nosnippet>565</a></span><span class="kw">pub fn </span>load_lichess_puzzles_premium_with_moves&lt;P: AsRef&lt;Path&gt;&gt;(
+<a href=#566 id=566 data-nosnippet>566</a>    csv_path: P,
+<a href=#567 id=567 data-nosnippet>567</a>) -&gt; <span class="prelude-ty">Result</span>&lt;Vec&lt;(Board, f32, ChessMove)&gt;, Box&lt;<span class="kw">dyn </span>std::error::Error&gt;&gt; {
+<a href=#568 id=568 data-nosnippet>568</a>    <span class="kw">let </span>loader = LichessLoader::new_premium()
+<a href=#569 id=569 data-nosnippet>569</a>        .with_rating_range(<span class="number">1200</span>, <span class="number">2400</span>) <span class="comment">// Focus on strong tactical puzzles
+<a href=#570 id=570 data-nosnippet>570</a>        </span>.with_batch_size(<span class="number">100_000</span>); <span class="comment">// Large batches for premium speed
+<a href=#571 id=571 data-nosnippet>571</a>
+<a href=#572 id=572 data-nosnippet>572</a>    </span>loader.load_parallel_with_moves(csv_path)
+<a href=#573 id=573 data-nosnippet>573</a>}
+<a href=#574 id=574 data-nosnippet>574</a>
+<a href=#575 id=575 data-nosnippet>575</a><span class="doccomment">/// Open source feature: Load limited Lichess puzzles with moves
+<a href=#576 id=576 data-nosnippet>576</a></span><span class="kw">pub fn </span>load_lichess_puzzles_basic_with_moves&lt;P: AsRef&lt;Path&gt;&gt;(
+<a href=#577 id=577 data-nosnippet>577</a>    csv_path: P,
+<a href=#578 id=578 data-nosnippet>578</a>    max_puzzles: usize,
+<a href=#579 id=579 data-nosnippet>579</a>) -&gt; <span class="prelude-ty">Result</span>&lt;Vec&lt;(Board, f32, ChessMove)&gt;, Box&lt;<span class="kw">dyn </span>std::error::Error&gt;&gt; {
+<a href=#580 id=580 data-nosnippet>580</a>    <span class="kw">let </span>loader = LichessLoader::new()
+<a href=#581 id=581 data-nosnippet>581</a>        .with_rating_range(<span class="number">1000</span>, <span class="number">2000</span>) <span class="comment">// Basic tactical puzzles
+<a href=#582 id=582 data-nosnippet>582</a>        </span>.with_batch_size(<span class="number">10_000</span>); <span class="comment">// Smaller batches for basic tier
+<a href=#583 id=583 data-nosnippet>583</a>
+<a href=#584 id=584 data-nosnippet>584</a>    </span><span class="kw">let </span><span class="kw-2">mut </span>results = loader.load_parallel_with_moves(csv_path)<span class="question-mark">?</span>;
+<a href=#585 id=585 data-nosnippet>585</a>    results.truncate(max_puzzles); <span class="comment">// Limit for open source
+<a href=#586 id=586 data-nosnippet>586</a>    </span><span class="prelude-val">Ok</span>(results)
+<a href=#587 id=587 data-nosnippet>587</a>}</code></pre></div></section></main></body></html>

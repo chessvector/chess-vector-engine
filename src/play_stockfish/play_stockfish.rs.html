@@ -230,7 +230,7 @@
 <a href=#230 id=230 data-nosnippet>230</a>        </span><span class="self">self</span>.send_command(<span class="kw-2">&amp;</span><span class="macro">format!</span>(<span class="string">"position fen {fen}"</span>))<span class="question-mark">?</span>;
 <a href=#231 id=231 data-nosnippet>231</a>
 <a href=#232 id=232 data-nosnippet>232</a>        <span class="comment">// Start search with time control
-<a href=#233 id=233 data-nosnippet>233</a>        </span><span class="self">self</span>.send_command(<span class="kw-2">&amp;</span><span class="macro">format!</span>(<span class="string">"go movetime {}"</span>, <span class="self">self</span>.time_per_move))<span class="question-mark">?</span>;
+<a href=#233 id=233 data-nosnippet>233</a>        </span><span class="self">self</span>.send_command(<span class="kw-2">&amp;</span><span class="macro">format!</span>(<span class="string">"go movetime {time}"</span>, time = <span class="self">self</span>.time_per_move))<span class="question-mark">?</span>;
 <a href=#234 id=234 data-nosnippet>234</a>
 <a href=#235 id=235 data-nosnippet>235</a>        <span class="kw">let </span><span class="kw-2">mut </span>line = String::new();
 <a href=#236 id=236 data-nosnippet>236</a>        <span class="kw">let </span><span class="kw-2">mut </span>best_move = <span class="prelude-val">None</span>;
@@ -374,7 +374,7 @@
 <a href=#374 id=374 data-nosnippet>374</a>            <span class="prelude-val">Some</span>(chess::GameResult::DrawDeclared) =&gt; <span class="string">"1/2-1/2"</span>,
 <a href=#375 id=375 data-nosnippet>375</a>            <span class="prelude-val">None </span>=&gt; <span class="string">"*"</span>,
 <a href=#376 id=376 data-nosnippet>376</a>        };
-<a href=#377 id=377 data-nosnippet>377</a>        pgn.push_str(<span class="kw-2">&amp;</span><span class="macro">format!</span>(<span class="string">"[Result \"{}\"]\n\n"</span>, result));
+<a href=#377 id=377 data-nosnippet>377</a>        pgn.push_str(<span class="kw-2">&amp;</span><span class="macro">format!</span>(<span class="string">"[Result \"{result}\"]\n\n"</span>));
 <a href=#378 id=378 data-nosnippet>378</a>
 <a href=#379 id=379 data-nosnippet>379</a>        <span class="comment">// Moves with analysis annotations - using proper SAN notation
 <a href=#380 id=380 data-nosnippet>380</a>        </span><span class="kw">let </span><span class="kw-2">mut </span>move_number = <span class="number">1</span>;
@@ -382,7 +382,7 @@
 <a href=#382 id=382 data-nosnippet>382</a>
 <a href=#383 id=383 data-nosnippet>383</a>        </span><span class="kw">for </span>(i, analysis) <span class="kw">in </span><span class="self">self</span>.move_history.iter().enumerate() {
 <a href=#384 id=384 data-nosnippet>384</a>            <span class="kw">if </span>i % <span class="number">2 </span>== <span class="number">0 </span>{
-<a href=#385 id=385 data-nosnippet>385</a>                pgn.push_str(<span class="kw-2">&amp;</span><span class="macro">format!</span>(<span class="string">"{}. "</span>, move_number));
+<a href=#385 id=385 data-nosnippet>385</a>                pgn.push_str(<span class="kw-2">&amp;</span><span class="macro">format!</span>(<span class="string">"{move_number}. "</span>));
 <a href=#386 id=386 data-nosnippet>386</a>            }
 <a href=#387 id=387 data-nosnippet>387</a>
 <a href=#388 id=388 data-nosnippet>388</a>            <span class="comment">// Convert move to proper SAN notation
@@ -411,7 +411,7 @@
 <a href=#411 id=411 data-nosnippet>411</a>            }
 <a href=#412 id=412 data-nosnippet>412</a>        }
 <a href=#413 id=413 data-nosnippet>413</a>
-<a href=#414 id=414 data-nosnippet>414</a>        pgn.push_str(<span class="kw-2">&amp;</span><span class="macro">format!</span>(<span class="string">" {}\n"</span>, result));
+<a href=#414 id=414 data-nosnippet>414</a>        pgn.push_str(<span class="kw-2">&amp;</span><span class="macro">format!</span>(<span class="string">" {result}\n"</span>));
 <a href=#415 id=415 data-nosnippet>415</a>        pgn
 <a href=#416 id=416 data-nosnippet>416</a>    }
 <a href=#417 id=417 data-nosnippet>417</a>
@@ -542,16 +542,16 @@
 <a href=#542 id=542 data-nosnippet>542</a>        tactical_depth, time_per_move
 <a href=#543 id=543 data-nosnippet>543</a>    );
 <a href=#544 id=544 data-nosnippet>544</a>
-<a href=#545 id=545 data-nosnippet>545</a>    <span class="comment">// Configure hybrid evaluation with much lower confidence threshold to force tactical search
+<a href=#545 id=545 data-nosnippet>545</a>    <span class="comment">// Configure hybrid evaluation with balanced pattern recognition and tactical search
 <a href=#546 id=546 data-nosnippet>546</a>    </span><span class="kw">let </span>hybrid_config = HybridConfig {
-<a href=#547 id=547 data-nosnippet>547</a>        pattern_confidence_threshold: <span class="number">0.3</span>, <span class="comment">// Much lower threshold to force more tactical search
+<a href=#547 id=547 data-nosnippet>547</a>        pattern_confidence_threshold: <span class="number">0.65</span>, <span class="comment">// Balanced trust in patterns - use tactical search when uncertain
 <a href=#548 id=548 data-nosnippet>548</a>        </span>enable_tactical_refinement: <span class="bool-val">true</span>,
 <a href=#549 id=549 data-nosnippet>549</a>        tactical_config: strong_tactical_config,
-<a href=#550 id=550 data-nosnippet>550</a>        pattern_weight: <span class="number">0.3</span>, <span class="comment">// Heavily favor tactical evaluation over patterns
+<a href=#550 id=550 data-nosnippet>550</a>        pattern_weight: <span class="number">0.6</span>, <span class="comment">// Give patterns significant influence while still using tactical search
 <a href=#551 id=551 data-nosnippet>551</a>        </span>min_similar_positions: <span class="number">3</span>,
 <a href=#552 id=552 data-nosnippet>552</a>    };
 <a href=#553 id=553 data-nosnippet>553</a>    chess_vector_engine.configure_hybrid_evaluation(hybrid_config);
-<a href=#554 id=554 data-nosnippet>554</a>    <span class="macro">println!</span>(<span class="string">"🎯 Hybrid evaluation configured (confidence threshold: 0.3, pattern weight: 0.3)"</span>);
+<a href=#554 id=554 data-nosnippet>554</a>    <span class="macro">println!</span>(<span class="string">"🎯 Hybrid evaluation configured (confidence threshold: 0.65, pattern weight: 0.6)"</span>);
 <a href=#555 id=555 data-nosnippet>555</a>
 <a href=#556 id=556 data-nosnippet>556</a>    <span class="comment">// Try to load training data for pattern recognition
 <a href=#557 id=557 data-nosnippet>557</a>    </span><span class="macro">println!</span>(<span class="string">"🧠 Loading training data for pattern recognition..."</span>);
