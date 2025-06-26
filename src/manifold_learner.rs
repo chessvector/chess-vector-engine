@@ -115,8 +115,8 @@ impl ManifoldLearner {
             lr: 0.001,
             ..Default::default()
         };
-        let optimizer = AdamW::new(self.var_map.all_vars(), adamw_params)
-            .map_err(|e| format!("Error: {e}"))?;
+        let optimizer =
+            AdamW::new(self.var_map.all_vars(), adamw_params).map_err(|e| format!("Error: {e}"))?;
 
         self.encoder = Some(encoder);
         self.decoder = Some(decoder);
@@ -364,19 +364,13 @@ impl ManifoldLearner {
                         .map_err(|e| format!("Error: {e}"))?;
 
                     // Accumulate loss for reporting
-                    total_loss += loss
-                        .to_scalar::<f32>()
-                        .map_err(|e| format!("Error: {e}"))?;
+                    total_loss += loss.to_scalar::<f32>().map_err(|e| format!("Error: {e}"))?;
 
                     // Compute gradients through backpropagation
-                    let grads = loss
-                        .backward()
-                        .map_err(|e| format!("Error: {e}"))?;
+                    let grads = loss.backward().map_err(|e| format!("Error: {e}"))?;
 
                     // Update weights using the optimizer
-                    optimizer
-                        .step(&grads)
-                        .map_err(|e| format!("Error: {e}"))?;
+                    optimizer.step(&grads).map_err(|e| format!("Error: {e}"))?;
                 }
             }
 

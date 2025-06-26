@@ -178,8 +178,8 @@ impl<'de> serde::Deserialize<'de> for TacticalTrainingData {
                 let tactical_value =
                     tactical_value.ok_or_else(|| de::Error::missing_field("tactical_value"))?;
 
-                let position = Board::from_str(&fen)
-                    .map_err(|e| de::Error::custom(format!("Error: {e}")))?;
+                let position =
+                    Board::from_str(&fen).map_err(|e| de::Error::custom(format!("Error: {e}")))?;
 
                 let solution_move = ChessMove::from_str(&solution_move_str)
                     .map_err(|e| de::Error::custom(format!("Error: {e}")))?;
@@ -1560,8 +1560,8 @@ impl<'de> serde::Deserialize<'de> for TrainingData {
                 let depth = depth.ok_or_else(|| de::Error::missing_field("depth"))?;
                 let game_id = game_id.unwrap_or(0); // Default to 0 for backward compatibility
 
-                let board = Board::from_str(&fen)
-                    .map_err(|e| de::Error::custom(format!("Error: {e}")))?;
+                let board =
+                    Board::from_str(&fen).map_err(|e| de::Error::custom(format!("Error: {e}")))?;
 
                 Ok(TrainingData {
                     board,

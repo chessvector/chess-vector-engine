@@ -253,9 +253,7 @@ impl VariationalAutoencoder {
             .map_err(|e| format!("Processing..."))?;
 
         // Backward pass
-        let grads = loss
-            .backward()
-            .map_err(|e| format!("Processing..."))?;
+        let grads = loss.backward().map_err(|e| format!("Processing..."))?;
 
         // Now get optimizer and step
         let optimizer = self.optimizer.as_mut().ok_or("Optimizer not initialized")?;

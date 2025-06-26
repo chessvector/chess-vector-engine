@@ -1920,9 +1920,7 @@ impl ChessVectorEngine {
                                     })
                                     .collect()
                             } else {
-                                return Err(
-                                    "Failed to process training data".into()
-                                );
+                                return Err("Failed to process training data".into());
                             }
                         } else {
                             Vec::new()

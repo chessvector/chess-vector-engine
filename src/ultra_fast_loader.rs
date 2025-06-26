@@ -35,7 +35,7 @@ impl UltraFastLoader {
         engine: &mut crate::ChessVectorEngine,
     ) -> Result<(), Box<dyn std::error::Error>> {
         let path_ref = path.as_ref();
-        println!("Operation complete");;
+        println!("Operation complete");
 
         let file_size = std::fs::metadata(path_ref)?.len();
         println!("📊 File size: {:.1} MB", file_size as f64 / 1_000_000.0);
