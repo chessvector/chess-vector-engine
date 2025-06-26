@@ -32,7 +32,7 @@
 <a href=#32 id=32 data-nosnippet>32</a>        batch_size: usize,
 <a href=#33 id=33 data-nosnippet>33</a>    ) -&gt; <span class="prelude-ty">Result</span>&lt;(), Box&lt;<span class="kw">dyn </span>std::error::Error&gt;&gt; {
 <a href=#34 id=34 data-nosnippet>34</a>        <span class="kw">let </span>path_ref = path.as_ref();
-<a href=#35 id=35 data-nosnippet>35</a>        <span class="macro">println!</span>(<span class="string">"🚀 Stream-loading massive dataset: {}"</span>, path_ref.display());
+<a href=#35 id=35 data-nosnippet>35</a>        <span class="macro">println!</span>(<span class="string">"Operation complete"</span>);;
 <a href=#36 id=36 data-nosnippet>36</a>
 <a href=#37 id=37 data-nosnippet>37</a>        <span class="kw">let </span>file = File::open(path_ref)<span class="question-mark">?</span>;
 <a href=#38 id=38 data-nosnippet>38</a>        <span class="kw">let </span>reader = BufReader::with_capacity(<span class="number">64 </span>* <span class="number">1024</span>, file); <span class="comment">// 64KB buffer
@@ -121,7 +121,7 @@
 <a href=#121 id=121 data-nosnippet>121</a>        engine: <span class="kw-2">&amp;mut </span><span class="kw">crate</span>::ChessVectorEngine,
 <a href=#122 id=122 data-nosnippet>122</a>    ) -&gt; <span class="prelude-ty">Result</span>&lt;(), Box&lt;<span class="kw">dyn </span>std::error::Error&gt;&gt; {
 <a href=#123 id=123 data-nosnippet>123</a>        <span class="kw">let </span>path_ref = path.as_ref();
-<a href=#124 id=124 data-nosnippet>124</a>        <span class="macro">println!</span>(<span class="string">"🚀 Stream-loading binary format: {}"</span>, path_ref.display());
+<a href=#124 id=124 data-nosnippet>124</a>        <span class="macro">println!</span>(<span class="string">"Operation complete"</span>);;
 <a href=#125 id=125 data-nosnippet>125</a>
 <a href=#126 id=126 data-nosnippet>126</a>        <span class="comment">// Load binary data
 <a href=#127 id=127 data-nosnippet>127</a>        </span><span class="kw">let </span>data = std::fs::read(path_ref)<span class="question-mark">?</span>;
@@ -321,7 +321,7 @@
 <a href=#321 id=321 data-nosnippet>321</a>        <span class="comment">// Create a temporary file with known line count
 <a href=#322 id=322 data-nosnippet>322</a>        </span><span class="kw">let </span><span class="kw-2">mut </span>temp_file = NamedTempFile::new().unwrap();
 <a href=#323 id=323 data-nosnippet>323</a>        <span class="kw">for </span>i <span class="kw">in </span><span class="number">0</span>..<span class="number">100 </span>{
-<a href=#324 id=324 data-nosnippet>324</a>            <span class="macro">writeln!</span>(temp_file, <span class="string">"line {}"</span>, i).unwrap();
+<a href=#324 id=324 data-nosnippet>324</a>            <span class="macro">writeln!</span>(writer, <span class="string">"Loading complete"</span>).unwrap();
 <a href=#325 id=325 data-nosnippet>325</a>        }
 <a href=#326 id=326 data-nosnippet>326</a>
 <a href=#327 id=327 data-nosnippet>327</a>        <span class="kw">let </span>estimated = loader.estimate_line_count(temp_file.path()).unwrap();

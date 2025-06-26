@@ -23,7 +23,7 @@
 <a href=#23 id=23 data-nosnippet>23</a>            <span class="macro">println!</span>(<span class="string">"   Current engine tier: {:?}"</span>, engine.get_feature_tier());
 <a href=#24 id=24 data-nosnippet>24</a>        }
 <a href=#25 id=25 data-nosnippet>25</a>        <span class="prelude-val">Err</span>(e) =&gt; {
-<a href=#26 id=26 data-nosnippet>26</a>            <span class="macro">println!</span>(<span class="string">"❌ License activation failed: {}"</span>, e);
+<a href=#26 id=26 data-nosnippet>26</a>            <span class="macro">println!</span>(<span class="string">"❌ Error: {e}"</span>);
 <a href=#27 id=27 data-nosnippet>27</a>        }
 <a href=#28 id=28 data-nosnippet>28</a>    }
 <a href=#29 id=29 data-nosnippet>29</a>
@@ -34,12 +34,12 @@
 <a href=#34 id=34 data-nosnippet>34</a>        .<span class="kw">await
 <a href=#35 id=35 data-nosnippet>35</a>    </span>{
 <a href=#36 id=36 data-nosnippet>36</a>        <span class="prelude-val">Ok</span>(()) =&gt; <span class="macro">println!</span>(<span class="string">"   ✅ basic_position_encoding: Available"</span>),
-<a href=#37 id=37 data-nosnippet>37</a>        <span class="prelude-val">Err</span>(e) =&gt; <span class="macro">println!</span>(<span class="string">"   ❌ basic_position_encoding: {}"</span>, e),
+<a href=#37 id=37 data-nosnippet>37</a>        <span class="prelude-val">Err</span>(e) =&gt; <span class="macro">println!</span>(<span class="string">"❌ Error: {e}"</span>),
 <a href=#38 id=38 data-nosnippet>38</a>    }
 <a href=#39 id=39 data-nosnippet>39</a>
 <a href=#40 id=40 data-nosnippet>40</a>    <span class="kw">match </span>engine.check_licensed_feature(<span class="string">"gpu_acceleration"</span>).<span class="kw">await </span>{
 <a href=#41 id=41 data-nosnippet>41</a>        <span class="prelude-val">Ok</span>(()) =&gt; <span class="macro">println!</span>(<span class="string">"   ✅ gpu_acceleration: Available"</span>),
-<a href=#42 id=42 data-nosnippet>42</a>        <span class="prelude-val">Err</span>(e) =&gt; <span class="macro">println!</span>(<span class="string">"   ❌ gpu_acceleration: {}"</span>, e),
+<a href=#42 id=42 data-nosnippet>42</a>        <span class="prelude-val">Err</span>(e) =&gt; <span class="macro">println!</span>(<span class="string">"❌ Error: {e}"</span>),
 <a href=#43 id=43 data-nosnippet>43</a>    }
 <a href=#44 id=44 data-nosnippet>44</a>
 <a href=#45 id=45 data-nosnippet>45</a>    <span class="comment">// Test 2: Premium License
@@ -53,7 +53,7 @@
 <a href=#53 id=53 data-nosnippet>53</a>            <span class="macro">println!</span>(<span class="string">"   New tier: {:?}"</span>, tier);
 <a href=#54 id=54 data-nosnippet>54</a>        }
 <a href=#55 id=55 data-nosnippet>55</a>        <span class="prelude-val">Err</span>(e) =&gt; {
-<a href=#56 id=56 data-nosnippet>56</a>            <span class="macro">println!</span>(<span class="string">"❌ Premium activation failed: {}"</span>, e);
+<a href=#56 id=56 data-nosnippet>56</a>            <span class="macro">println!</span>(<span class="string">"❌ Error: {e}"</span>);
 <a href=#57 id=57 data-nosnippet>57</a>        }
 <a href=#58 id=58 data-nosnippet>58</a>    }
 <a href=#59 id=59 data-nosnippet>59</a>
@@ -71,7 +71,7 @@
 <a href=#71 id=71 data-nosnippet>71</a>    <span class="kw">for </span>feature <span class="kw">in </span><span class="kw-2">&amp;</span>premium_features {
 <a href=#72 id=72 data-nosnippet>72</a>        <span class="kw">match </span>engine.check_licensed_feature(feature).<span class="kw">await </span>{
 <a href=#73 id=73 data-nosnippet>73</a>            <span class="prelude-val">Ok</span>(()) =&gt; <span class="macro">println!</span>(<span class="string">"   ✅ {}: Available"</span>, feature),
-<a href=#74 id=74 data-nosnippet>74</a>            <span class="prelude-val">Err</span>(e) =&gt; <span class="macro">println!</span>(<span class="string">"   ❌ {}: {}"</span>, feature, e),
+<a href=#74 id=74 data-nosnippet>74</a>            <span class="prelude-val">Err</span>(e) =&gt; <span class="macro">println!</span>(<span class="string">"❌ Error: {e}"</span>),
 <a href=#75 id=75 data-nosnippet>75</a>        }
 <a href=#76 id=76 data-nosnippet>76</a>    }
 <a href=#77 id=77 data-nosnippet>77</a>
@@ -86,7 +86,7 @@
 <a href=#86 id=86 data-nosnippet>86</a>    <span class="kw">for </span>feature <span class="kw">in </span><span class="kw-2">&amp;</span>enterprise_features {
 <a href=#87 id=87 data-nosnippet>87</a>        <span class="kw">match </span>engine.check_licensed_feature(feature).<span class="kw">await </span>{
 <a href=#88 id=88 data-nosnippet>88</a>            <span class="prelude-val">Ok</span>(()) =&gt; <span class="macro">println!</span>(<span class="string">"   ✅ {}: Available"</span>, feature),
-<a href=#89 id=89 data-nosnippet>89</a>            <span class="prelude-val">Err</span>(e) =&gt; <span class="macro">println!</span>(<span class="string">"   ❌ {}: {}"</span>, feature, e),
+<a href=#89 id=89 data-nosnippet>89</a>            <span class="prelude-val">Err</span>(e) =&gt; <span class="macro">println!</span>(<span class="string">"❌ Error: {e}"</span>),
 <a href=#90 id=90 data-nosnippet>90</a>        }
 <a href=#91 id=91 data-nosnippet>91</a>    }
 <a href=#92 id=92 data-nosnippet>92</a>
@@ -101,7 +101,7 @@
 <a href=#101 id=101 data-nosnippet>101</a>            <span class="macro">println!</span>(<span class="string">"   New tier: {:?}"</span>, tier);
 <a href=#102 id=102 data-nosnippet>102</a>        }
 <a href=#103 id=103 data-nosnippet>103</a>        <span class="prelude-val">Err</span>(e) =&gt; {
-<a href=#104 id=104 data-nosnippet>104</a>            <span class="macro">println!</span>(<span class="string">"❌ Enterprise activation failed: {}"</span>, e);
+<a href=#104 id=104 data-nosnippet>104</a>            <span class="macro">println!</span>(<span class="string">"❌ Error: {e}"</span>);
 <a href=#105 id=105 data-nosnippet>105</a>        }
 <a href=#106 id=106 data-nosnippet>106</a>    }
 <a href=#107 id=107 data-nosnippet>107</a>
@@ -125,7 +125,7 @@
 <a href=#125 id=125 data-nosnippet>125</a>    <span class="kw">for </span>feature <span class="kw">in </span><span class="kw-2">&amp;</span>all_features {
 <a href=#126 id=126 data-nosnippet>126</a>        <span class="kw">match </span>engine.check_licensed_feature(feature).<span class="kw">await </span>{
 <a href=#127 id=127 data-nosnippet>127</a>            <span class="prelude-val">Ok</span>(()) =&gt; <span class="macro">println!</span>(<span class="string">"   ✅ {}: Available"</span>, feature),
-<a href=#128 id=128 data-nosnippet>128</a>            <span class="prelude-val">Err</span>(e) =&gt; <span class="macro">println!</span>(<span class="string">"   ❌ {}: {}"</span>, feature, e),
+<a href=#128 id=128 data-nosnippet>128</a>            <span class="prelude-val">Err</span>(e) =&gt; <span class="macro">println!</span>(<span class="string">"❌ Error: {e}"</span>),
 <a href=#129 id=129 data-nosnippet>129</a>        }
 <a href=#130 id=130 data-nosnippet>130</a>    }
 <a href=#131 id=131 data-nosnippet>131</a>
@@ -151,7 +151,7 @@
 <a href=#151 id=151 data-nosnippet>151</a>            <span class="macro">println!</span>(<span class="string">"✅ Cached license works! Tier: {:?}"</span>, tier);
 <a href=#152 id=152 data-nosnippet>152</a>        }
 <a href=#153 id=153 data-nosnippet>153</a>        <span class="prelude-val">Err</span>(e) =&gt; {
-<a href=#154 id=154 data-nosnippet>154</a>            <span class="macro">println!</span>(<span class="string">"❌ Cached license failed: {}"</span>, e);
+<a href=#154 id=154 data-nosnippet>154</a>            <span class="macro">println!</span>(<span class="string">"❌ Error: {e}"</span>);
 <a href=#155 id=155 data-nosnippet>155</a>        }
 <a href=#156 id=156 data-nosnippet>156</a>    }
 <a href=#157 id=157 data-nosnippet>157</a>
@@ -168,7 +168,7 @@
 <a href=#168 id=168 data-nosnippet>168</a>            );
 <a href=#169 id=169 data-nosnippet>169</a>        }
 <a href=#170 id=170 data-nosnippet>170</a>        <span class="prelude-val">Err</span>(e) =&gt; {
-<a href=#171 id=171 data-nosnippet>171</a>            <span class="macro">println!</span>(<span class="string">"✅ Expected failure: {}"</span>, e);
+<a href=#171 id=171 data-nosnippet>171</a>            <span class="macro">println!</span>(<span class="string">"❌ Error: {e}"</span>);
 <a href=#172 id=172 data-nosnippet>172</a>        }
 <a href=#173 id=173 data-nosnippet>173</a>    }
 <a href=#174 id=174 data-nosnippet>174</a>
@@ -200,7 +200,7 @@
 <a href=#200 id=200 data-nosnippet>200</a>            <span class="macro">println!</span>(<span class="string">"✅ Manual license verification: {:?}"</span>, status);
 <a href=#201 id=201 data-nosnippet>201</a>        }
 <a href=#202 id=202 data-nosnippet>202</a>        <span class="prelude-val">Err</span>(e) =&gt; {
-<a href=#203 id=203 data-nosnippet>203</a>            <span class="macro">println!</span>(<span class="string">"❌ Manual license verification failed: {}"</span>, e);
+<a href=#203 id=203 data-nosnippet>203</a>            <span class="macro">println!</span>(<span class="string">"❌ Error: {e}"</span>);
 <a href=#204 id=204 data-nosnippet>204</a>        }
 <a href=#205 id=205 data-nosnippet>205</a>    }
 <a href=#206 id=206 data-nosnippet>206</a>
@@ -213,7 +213,7 @@
 <a href=#213 id=213 data-nosnippet>213</a>            <span class="macro">println!</span>(<span class="string">"✅ Feature 'gpu_acceleration' is licensed"</span>);
 <a href=#214 id=214 data-nosnippet>214</a>        }
 <a href=#215 id=215 data-nosnippet>215</a>        <span class="prelude-val">Err</span>(e) =&gt; {
-<a href=#216 id=216 data-nosnippet>216</a>            <span class="macro">println!</span>(<span class="string">"❌ Feature check failed: {}"</span>, e);
+<a href=#216 id=216 data-nosnippet>216</a>            <span class="macro">println!</span>(<span class="string">"❌ Error: {e}"</span>);
 <a href=#217 id=217 data-nosnippet>217</a>        }
 <a href=#218 id=218 data-nosnippet>218</a>    }
 <a href=#219 id=219 data-nosnippet>219</a>

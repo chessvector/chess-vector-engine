@@ -50,7 +50,7 @@
 <a href=#50 id=50 data-nosnippet>50</a>                    <span class="kw">return </span><span class="prelude-val">Ok</span>(accelerator);
 <a href=#51 id=51 data-nosnippet>51</a>                }
 <a href=#52 id=52 data-nosnippet>52</a>                <span class="prelude-val">Err</span>(e) =&gt; {
-<a href=#53 id=53 data-nosnippet>53</a>                    <span class="macro">println!</span>(<span class="string">"CUDA initialization failed: {}, trying Metal..."</span>, e);
+<a href=#53 id=53 data-nosnippet>53</a>                    <span class="macro">println!</span>(<span class="string">"CUDA initialization failed: {e}, trying Metal..."</span>);
 <a href=#54 id=54 data-nosnippet>54</a>                }
 <a href=#55 id=55 data-nosnippet>55</a>            }
 <a href=#56 id=56 data-nosnippet>56</a>        }
@@ -227,7 +227,7 @@
 <a href=#227 id=227 data-nosnippet>227</a>        <span class="kw">let </span>data = tensor.to_vec2::&lt;f32&gt;()<span class="question-mark">?</span>;
 <a href=#228 id=228 data-nosnippet>228</a>        <span class="kw">let </span>flat_data: Vec&lt;f32&gt; = data.into_iter().flatten().collect();
 <a href=#229 id=229 data-nosnippet>229</a>        Array2::from_shape_vec((dims[<span class="number">0</span>], dims[<span class="number">1</span>]), flat_data)
-<a href=#230 id=230 data-nosnippet>230</a>            .map_err(|e| candle_core::Error::Msg(<span class="macro">format!</span>(<span class="string">"Array reshape error: {}"</span>, e)))
+<a href=#230 id=230 data-nosnippet>230</a>            .map_err(|e| candle_core::Error::Msg(<span class="macro">format!</span>(<span class="string">"Processing..."</span>)))
 <a href=#231 id=231 data-nosnippet>231</a>    }
 <a href=#232 id=232 data-nosnippet>232</a>
 <a href=#233 id=233 data-nosnippet>233</a>    <span class="doccomment">/// Accelerated cosine similarity computation

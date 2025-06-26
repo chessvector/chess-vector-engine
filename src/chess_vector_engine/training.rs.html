@@ -179,10 +179,10 @@
 <a href=#179 id=179 data-nosnippet>179</a>                    tactical_value.ok_or_else(|| de::Error::missing_field(<span class="string">"tactical_value"</span>))<span class="question-mark">?</span>;
 <a href=#180 id=180 data-nosnippet>180</a>
 <a href=#181 id=181 data-nosnippet>181</a>                <span class="kw">let </span>position = Board::from_str(<span class="kw-2">&amp;</span>fen)
-<a href=#182 id=182 data-nosnippet>182</a>                    .map_err(|e| de::Error::custom(<span class="macro">format!</span>(<span class="string">"Invalid FEN: {}"</span>, e)))<span class="question-mark">?</span>;
+<a href=#182 id=182 data-nosnippet>182</a>                    .map_err(|e| de::Error::custom(<span class="macro">format!</span>(<span class="string">"Error: {e}"</span>)))<span class="question-mark">?</span>;
 <a href=#183 id=183 data-nosnippet>183</a>
 <a href=#184 id=184 data-nosnippet>184</a>                <span class="kw">let </span>solution_move = ChessMove::from_str(<span class="kw-2">&amp;</span>solution_move_str)
-<a href=#185 id=185 data-nosnippet>185</a>                    .map_err(|e| de::Error::custom(<span class="macro">format!</span>(<span class="string">"Invalid move: {}"</span>, e)))<span class="question-mark">?</span>;
+<a href=#185 id=185 data-nosnippet>185</a>                    .map_err(|e| de::Error::custom(<span class="macro">format!</span>(<span class="string">"Error: {e}"</span>)))<span class="question-mark">?</span>;
 <a href=#186 id=186 data-nosnippet>186</a>
 <a href=#187 id=187 data-nosnippet>187</a>                <span class="prelude-val">Ok</span>(TacticalTrainingData {
 <a href=#188 id=188 data-nosnippet>188</a>                    position,
@@ -314,7 +314,7 @@
 <a href=#314 id=314 data-nosnippet>314</a>        </span><span class="kw">use </span>std::io::Write;
 <a href=#315 id=315 data-nosnippet>315</a>        <span class="macro">writeln!</span>(stdin, <span class="string">"uci"</span>)<span class="question-mark">?</span>;
 <a href=#316 id=316 data-nosnippet>316</a>        <span class="macro">writeln!</span>(stdin, <span class="string">"isready"</span>)<span class="question-mark">?</span>;
-<a href=#317 id=317 data-nosnippet>317</a>        <span class="macro">writeln!</span>(stdin, <span class="string">"position fen {}"</span>, fen)<span class="question-mark">?</span>;
+<a href=#317 id=317 data-nosnippet>317</a>        <span class="macro">writeln!</span>(stdin, <span class="string">"position fen {fen}"</span>)<span class="question-mark">?</span>;
 <a href=#318 id=318 data-nosnippet>318</a>        <span class="macro">writeln!</span>(stdin, <span class="string">"go depth {}"</span>, <span class="self">self</span>.depth)<span class="question-mark">?</span>;
 <a href=#319 id=319 data-nosnippet>319</a>        <span class="macro">writeln!</span>(stdin, <span class="string">"quit"</span>)<span class="question-mark">?</span>;
 <a href=#320 id=320 data-nosnippet>320</a>
@@ -365,7 +365,7 @@
 <a href=#365 id=365 data-nosnippet>365</a>                    data.depth = <span class="self">self</span>.depth;
 <a href=#366 id=366 data-nosnippet>366</a>                }
 <a href=#367 id=367 data-nosnippet>367</a>                <span class="prelude-val">Err</span>(e) =&gt; {
-<a href=#368 id=368 data-nosnippet>368</a>                    <span class="macro">eprintln!</span>(<span class="string">"Error evaluating position {}: {}"</span>, i, e);
+<a href=#368 id=368 data-nosnippet>368</a>                    <span class="macro">eprintln!</span>(<span class="string">"Evaluation error: {e}"</span>);
 <a href=#369 id=369 data-nosnippet>369</a>                    data.evaluation = <span class="number">0.0</span>;
 <a href=#370 id=370 data-nosnippet>370</a>                }
 <a href=#371 id=371 data-nosnippet>371</a>            }
@@ -461,7 +461,7 @@
 <a href=#461 id=461 data-nosnippet>461</a>    }
 <a href=#462 id=462 data-nosnippet>462</a>
 <a href=#463 id=463 data-nosnippet>463</a>    <span class="kw">fn </span>send_command(<span class="kw-2">&amp;mut </span><span class="self">self</span>, command: <span class="kw-2">&amp;</span>str) -&gt; <span class="prelude-ty">Result</span>&lt;(), Box&lt;<span class="kw">dyn </span>std::error::Error&gt;&gt; {
-<a href=#464 id=464 data-nosnippet>464</a>        <span class="macro">writeln!</span>(<span class="self">self</span>.stdin, <span class="string">"{}"</span>, command)<span class="question-mark">?</span>;
+<a href=#464 id=464 data-nosnippet>464</a>        <span class="macro">writeln!</span>(<span class="self">self</span>.stdin, <span class="string">"{command}"</span>)<span class="question-mark">?</span>;
 <a href=#465 id=465 data-nosnippet>465</a>        <span class="self">self</span>.stdin.flush()<span class="question-mark">?</span>;
 <a href=#466 id=466 data-nosnippet>466</a>        <span class="prelude-val">Ok</span>(())
 <a href=#467 id=467 data-nosnippet>467</a>    }
@@ -482,8 +482,8 @@
 <a href=#482 id=482 data-nosnippet>482</a>        <span class="kw">let </span>fen = board.to_string();
 <a href=#483 id=483 data-nosnippet>483</a>
 <a href=#484 id=484 data-nosnippet>484</a>        <span class="comment">// Send position and evaluation commands
-<a href=#485 id=485 data-nosnippet>485</a>        </span><span class="self">self</span>.send_command(<span class="kw-2">&amp;</span><span class="macro">format!</span>(<span class="string">"position fen {}"</span>, fen))<span class="question-mark">?</span>;
-<a href=#486 id=486 data-nosnippet>486</a>        <span class="self">self</span>.send_command(<span class="kw-2">&amp;</span><span class="macro">format!</span>(<span class="string">"go depth {}"</span>, <span class="self">self</span>.depth))<span class="question-mark">?</span>;
+<a href=#485 id=485 data-nosnippet>485</a>        </span><span class="self">self</span>.send_command(<span class="kw-2">&amp;</span><span class="macro">format!</span>(<span class="string">"position fen {fen}"</span>))<span class="question-mark">?</span>;
+<a href=#486 id=486 data-nosnippet>486</a>        <span class="self">self</span>.send_command(<span class="kw-2">&amp;</span><span class="macro">format!</span>(<span class="string">"position fen {fen}"</span>))<span class="question-mark">?</span>;
 <a href=#487 id=487 data-nosnippet>487</a>
 <a href=#488 id=488 data-nosnippet>488</a>        <span class="comment">// Read response until we get bestmove
 <a href=#489 id=489 data-nosnippet>489</a>        </span><span class="kw">let </span><span class="kw-2">mut </span>line = String::new();
@@ -554,7 +554,7 @@
 <a href=#554 id=554 data-nosnippet>554</a>                    </span>}
 <a href=#555 id=555 data-nosnippet>555</a>                }
 <a href=#556 id=556 data-nosnippet>556</a>                <span class="prelude-val">Err</span>(e) =&gt; {
-<a href=#557 id=557 data-nosnippet>557</a>                    <span class="macro">eprintln!</span>(<span class="string">"Failed to create Stockfish process {}: {}"</span>, i, e);
+<a href=#557 id=557 data-nosnippet>557</a>                    <span class="macro">eprintln!</span>(<span class="string">"Evaluation error: {e}"</span>);
 <a href=#558 id=558 data-nosnippet>558</a>                    <span class="kw">return </span><span class="prelude-val">Err</span>(e);
 <a href=#559 id=559 data-nosnippet>559</a>                }
 <a href=#560 id=560 data-nosnippet>560</a>            }
@@ -671,7 +671,7 @@
 <a href=#671 id=671 data-nosnippet>671</a>                </span><span class="kw">let </span>cursor = std::io::Cursor::new(<span class="kw-2">&amp;</span>pgn_content);
 <a href=#672 id=672 data-nosnippet>672</a>                <span class="kw">let </span><span class="kw-2">mut </span>reader = BufferedReader::new(cursor);
 <a href=#673 id=673 data-nosnippet>673</a>                <span class="kw">if let </span><span class="prelude-val">Err</span>(e) = reader.read_all(<span class="kw-2">&amp;mut </span>extractor) {
-<a href=#674 id=674 data-nosnippet>674</a>                    <span class="macro">eprintln!</span>(<span class="string">"Error parsing game {}: {}"</span>, games_processed + <span class="number">1</span>, e);
+<a href=#674 id=674 data-nosnippet>674</a>                    <span class="macro">eprintln!</span>(<span class="string">"Evaluation error: {e}"</span>);
 <a href=#675 id=675 data-nosnippet>675</a>                }
 <a href=#676 id=676 data-nosnippet>676</a>
 <a href=#677 id=677 data-nosnippet>677</a>                games_processed += <span class="number">1</span>;
@@ -913,7 +913,7 @@
 <a href=#913 id=913 data-nosnippet>913</a>                <span class="macro">write!</span>(file, <span class="string">","</span>)<span class="question-mark">?</span>;
 <a href=#914 id=914 data-nosnippet>914</a>            }
 <a href=#915 id=915 data-nosnippet>915</a>            <span class="kw">let </span>json = serde_json::to_string(data)<span class="question-mark">?</span>;
-<a href=#916 id=916 data-nosnippet>916</a>            <span class="macro">write!</span>(file, <span class="string">"\n  {}"</span>, json)<span class="question-mark">?</span>;
+<a href=#916 id=916 data-nosnippet>916</a>            <span class="macro">write!</span>(file, <span class="string">"{json}"</span>)<span class="question-mark">?</span>;
 <a href=#917 id=917 data-nosnippet>917</a>        }
 <a href=#918 id=918 data-nosnippet>918</a>
 <a href=#919 id=919 data-nosnippet>919</a>        <span class="comment">// Close the JSON array
@@ -1561,7 +1561,7 @@
 <a href=#1561 id=1561 data-nosnippet>1561</a>                <span class="kw">let </span>game_id = game_id.unwrap_or(<span class="number">0</span>); <span class="comment">// Default to 0 for backward compatibility
 <a href=#1562 id=1562 data-nosnippet>1562</a>
 <a href=#1563 id=1563 data-nosnippet>1563</a>                </span><span class="kw">let </span>board = Board::from_str(<span class="kw-2">&amp;</span>fen)
-<a href=#1564 id=1564 data-nosnippet>1564</a>                    .map_err(|e| de::Error::custom(<span class="macro">format!</span>(<span class="string">"Invalid FEN: {}"</span>, e)))<span class="question-mark">?</span>;
+<a href=#1564 id=1564 data-nosnippet>1564</a>                    .map_err(|e| de::Error::custom(<span class="macro">format!</span>(<span class="string">"Error: {e}"</span>)))<span class="question-mark">?</span>;
 <a href=#1565 id=1565 data-nosnippet>1565</a>
 <a href=#1566 id=1566 data-nosnippet>1566</a>                <span class="prelude-val">Ok</span>(TrainingData {
 <a href=#1567 id=1567 data-nosnippet>1567</a>                    board,
@@ -1632,7 +1632,7 @@
 <a href=#1632 id=1632 data-nosnippet>1632</a>                <span class="prelude-val">Ok</span>(r) =&gt; r,
 <a href=#1633 id=1633 data-nosnippet>1633</a>                <span class="prelude-val">Err</span>(e) =&gt; {
 <a href=#1634 id=1634 data-nosnippet>1634</a>                    skipped += <span class="number">1</span>;
-<a href=#1635 id=1635 data-nosnippet>1635</a>                    <span class="macro">println!</span>(<span class="string">"CSV parse error: {}"</span>, e);
+<a href=#1635 id=1635 data-nosnippet>1635</a>                    <span class="macro">println!</span>(<span class="string">"CSV parsing error: {e}"</span>);
 <a href=#1636 id=1636 data-nosnippet>1636</a>                    <span class="kw">continue</span>;
 <a href=#1637 id=1637 data-nosnippet>1637</a>                }
 <a href=#1638 id=1638 data-nosnippet>1638</a>            };

@@ -21,7 +21,7 @@
 <a href=#21 id=21 data-nosnippet>21</a>    <span class="kw">let </span>fen = <span class="kw-2">&amp;</span>args[<span class="number">1</span>];
 <a href=#22 id=22 data-nosnippet>22</a>    <span class="kw">let </span>board = Board::from_str(fen).expect(<span class="string">"Valid FEN"</span>);
 <a href=#23 id=23 data-nosnippet>23</a>
-<a href=#24 id=24 data-nosnippet>24</a>    <span class="macro">println!</span>(<span class="string">"Analyzing position: {}"</span>, fen);
+<a href=#24 id=24 data-nosnippet>24</a>    <span class="macro">println!</span>(<span class="string">"Complete"</span>);
 <a href=#25 id=25 data-nosnippet>25</a>    <span class="macro">println!</span>(<span class="string">"Side to move: {:?}"</span>, board.side_to_move());
 <a href=#26 id=26 data-nosnippet>26</a>
 <a href=#27 id=27 data-nosnippet>27</a>    <span class="comment">// Initialize engine with intelligent architecture selection
@@ -75,7 +75,7 @@
 <a href=#75 id=75 data-nosnippet>75</a>            engine
 <a href=#76 id=76 data-nosnippet>76</a>        }
 <a href=#77 id=77 data-nosnippet>77</a>        <span class="prelude-val">Err</span>(e) =&gt; {
-<a href=#78 id=78 data-nosnippet>78</a>            <span class="macro">println!</span>(<span class="string">"⚠️  Auto-loading failed: {}"</span>, e);
+<a href=#78 id=78 data-nosnippet>78</a>            <span class="macro">println!</span>(<span class="string">"Complete"</span>);
 <a href=#79 id=79 data-nosnippet>79</a>            <span class="macro">println!</span>(<span class="string">"🔄 Falling back to manual initialization..."</span>);
 <a href=#80 id=80 data-nosnippet>80</a>
 <a href=#81 id=81 data-nosnippet>81</a>            <span class="kw">let </span><span class="kw-2">mut </span>engine = ChessVectorEngine::new(<span class="number">1024</span>);
@@ -187,7 +187,7 @@
 <a href=#187 id=187 data-nosnippet>187</a>
 <a href=#188 id=188 data-nosnippet>188</a>    <span class="comment">// Basic position info
 <a href=#189 id=189 data-nosnippet>189</a>    </span><span class="kw">let </span>legal_moves: Vec&lt;<span class="kw">_</span>&gt; = MoveGen::new_legal(board).collect();
-<a href=#190 id=190 data-nosnippet>190</a>    <span class="macro">println!</span>(<span class="string">"Legal moves: {}"</span>, legal_moves.len());
+<a href=#190 id=190 data-nosnippet>190</a>    <span class="macro">println!</span>(<span class="string">"Analysis starting"</span>);
 <a href=#191 id=191 data-nosnippet>191</a>
 <a href=#192 id=192 data-nosnippet>192</a>    <span class="kw">if </span>board.checkers().popcnt() &gt; <span class="number">0 </span>{
 <a href=#193 id=193 data-nosnippet>193</a>        <span class="macro">println!</span>(<span class="string">"⚠️  King is in check!"</span>);

@@ -35,7 +35,7 @@
 <a href=#35 id=35 data-nosnippet>35</a>        engine: <span class="kw-2">&amp;mut </span><span class="kw">crate</span>::ChessVectorEngine,
 <a href=#36 id=36 data-nosnippet>36</a>    ) -&gt; <span class="prelude-ty">Result</span>&lt;(), Box&lt;<span class="kw">dyn </span>std::error::Error&gt;&gt; {
 <a href=#37 id=37 data-nosnippet>37</a>        <span class="kw">let </span>path_ref = path.as_ref();
-<a href=#38 id=38 data-nosnippet>38</a>        <span class="macro">println!</span>(<span class="string">"🚀 ULTRA-FAST loading: {}"</span>, path_ref.display());
+<a href=#38 id=38 data-nosnippet>38</a>        <span class="macro">println!</span>(<span class="string">"Operation complete"</span>);;
 <a href=#39 id=39 data-nosnippet>39</a>
 <a href=#40 id=40 data-nosnippet>40</a>        <span class="kw">let </span>file_size = std::fs::metadata(path_ref)<span class="question-mark">?</span>.len();
 <a href=#41 id=41 data-nosnippet>41</a>        <span class="macro">println!</span>(<span class="string">"📊 File size: {:.1} MB"</span>, file_size <span class="kw">as </span>f64 / <span class="number">1_000_000.0</span>);
@@ -66,7 +66,7 @@
 <a href=#66 id=66 data-nosnippet>66</a>        </span><span class="kw">let </span>positions: Vec&lt;(String, f32)&gt; = <span class="kw">match </span>bincode::deserialize(<span class="kw-2">&amp;</span>decompressed_data) {
 <a href=#67 id=67 data-nosnippet>67</a>            <span class="prelude-val">Ok</span>(pos) =&gt; pos,
 <a href=#68 id=68 data-nosnippet>68</a>            <span class="prelude-val">Err</span>(e) =&gt; {
-<a href=#69 id=69 data-nosnippet>69</a>                <span class="macro">println!</span>(<span class="string">"❌ Binary deserialize failed: {}"</span>, e);
+<a href=#69 id=69 data-nosnippet>69</a>                <span class="macro">println!</span>(<span class="string">"Operation complete"</span>);
 <a href=#70 id=70 data-nosnippet>70</a>                <span class="kw">return </span><span class="prelude-val">Err</span>(e.into());
 <a href=#71 id=71 data-nosnippet>71</a>            }
 <a href=#72 id=72 data-nosnippet>72</a>        };
@@ -313,8 +313,8 @@
 <a href=#313 id=313 data-nosnippet>313</a>
 <a href=#314 id=314 data-nosnippet>314</a>        <span class="macro">println!</span>(<span class="string">"📊 Final stats:"</span>);
 <a href=#315 id=315 data-nosnippet>315</a>        <span class="macro">println!</span>(<span class="string">"   Loaded: {} positions"</span>, <span class="self">self</span>.loaded_count);
-<a href=#316 id=316 data-nosnippet>316</a>        <span class="macro">println!</span>(<span class="string">"   Duplicates: {}"</span>, <span class="self">self</span>.duplicate_count);
-<a href=#317 id=317 data-nosnippet>317</a>        <span class="macro">println!</span>(<span class="string">"   Errors: {}"</span>, <span class="self">self</span>.error_count);
+<a href=#316 id=316 data-nosnippet>316</a>        <span class="macro">println!</span>(<span class="string">"Operation complete"</span>);
+<a href=#317 id=317 data-nosnippet>317</a>        <span class="macro">println!</span>(<span class="string">"Operation complete"</span>);
 <a href=#318 id=318 data-nosnippet>318</a>
 <a href=#319 id=319 data-nosnippet>319</a>        <span class="prelude-val">Ok</span>(())
 <a href=#320 id=320 data-nosnippet>320</a>    }

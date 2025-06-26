@@ -191,7 +191,7 @@
 <a href=#191 id=191 data-nosnippet>191</a>    }
 <a href=#192 id=192 data-nosnippet>192</a>
 <a href=#193 id=193 data-nosnippet>193</a>    <span class="kw">fn </span>send_command(<span class="kw-2">&amp;mut </span><span class="self">self</span>, command: <span class="kw-2">&amp;</span>str) -&gt; <span class="prelude-ty">Result</span>&lt;(), Box&lt;<span class="kw">dyn </span>std::error::Error&gt;&gt; {
-<a href=#194 id=194 data-nosnippet>194</a>        <span class="macro">writeln!</span>(<span class="self">self</span>.stdin, <span class="string">"{}"</span>, command)<span class="question-mark">?</span>;
+<a href=#194 id=194 data-nosnippet>194</a>        <span class="macro">writeln!</span>(<span class="self">self</span>.stdin, <span class="string">"{command}"</span>)<span class="question-mark">?</span>;
 <a href=#195 id=195 data-nosnippet>195</a>        <span class="self">self</span>.stdin.flush()<span class="question-mark">?</span>;
 <a href=#196 id=196 data-nosnippet>196</a>        <span class="prelude-val">Ok</span>(())
 <a href=#197 id=197 data-nosnippet>197</a>    }
@@ -227,7 +227,7 @@
 <a href=#227 id=227 data-nosnippet>227</a>        <span class="kw">let </span>fen = board.to_string();
 <a href=#228 id=228 data-nosnippet>228</a>
 <a href=#229 id=229 data-nosnippet>229</a>        <span class="comment">// Send position
-<a href=#230 id=230 data-nosnippet>230</a>        </span><span class="self">self</span>.send_command(<span class="kw-2">&amp;</span><span class="macro">format!</span>(<span class="string">"position fen {}"</span>, fen))<span class="question-mark">?</span>;
+<a href=#230 id=230 data-nosnippet>230</a>        </span><span class="self">self</span>.send_command(<span class="kw-2">&amp;</span><span class="macro">format!</span>(<span class="string">"position fen {fen}"</span>))<span class="question-mark">?</span>;
 <a href=#231 id=231 data-nosnippet>231</a>
 <a href=#232 id=232 data-nosnippet>232</a>        <span class="comment">// Start search with time control
 <a href=#233 id=233 data-nosnippet>233</a>        </span><span class="self">self</span>.send_command(<span class="kw-2">&amp;</span><span class="macro">format!</span>(<span class="string">"go movetime {}"</span>, <span class="self">self</span>.time_per_move))<span class="question-mark">?</span>;
@@ -714,7 +714,7 @@
 <a href=#714 id=714 data-nosnippet>714</a>        game_state.start_time.format(<span class="string">"%Y%m%d_%H%M%S"</span>)
 <a href=#715 id=715 data-nosnippet>715</a>    );
 <a href=#716 id=716 data-nosnippet>716</a>    std::fs::write(<span class="kw-2">&amp;</span>filename, game_state.generate_pgn())<span class="question-mark">?</span>;
-<a href=#717 id=717 data-nosnippet>717</a>    <span class="macro">println!</span>(<span class="string">"💾 Game saved to: {}"</span>, filename);
+<a href=#717 id=717 data-nosnippet>717</a>    <span class="macro">println!</span>(<span class="string">"📁 Game saved to {filename}"</span>);
 <a href=#718 id=718 data-nosnippet>718</a>
 <a href=#719 id=719 data-nosnippet>719</a>    <span class="prelude-val">Ok</span>(())
 <a href=#720 id=720 data-nosnippet>720</a>}

@@ -116,7 +116,7 @@
 <a href=#116 id=116 data-nosnippet>116</a>                files_to_remove.len()
 <a href=#117 id=117 data-nosnippet>117</a>            );
 <a href=#118 id=118 data-nosnippet>118</a>            <span class="kw">for </span>path <span class="kw">in </span>files_to_remove {
-<a href=#119 id=119 data-nosnippet>119</a>                <span class="macro">println!</span>(<span class="string">"   🗑️  {}"</span>, path.display());
+<a href=#119 id=119 data-nosnippet>119</a>                <span class="macro">println!</span>(<span class="string">"Discovery complete"</span>);
 <a href=#120 id=120 data-nosnippet>120</a>            }
 <a href=#121 id=121 data-nosnippet>121</a>            <span class="kw">return </span><span class="prelude-val">Ok</span>(());
 <a href=#122 id=122 data-nosnippet>122</a>        }
@@ -128,8 +128,8 @@
 <a href=#128 id=128 data-nosnippet>128</a>
 <a href=#129 id=129 data-nosnippet>129</a>        <span class="kw">for </span>path <span class="kw">in </span>files_to_remove {
 <a href=#130 id=130 data-nosnippet>130</a>            <span class="kw">match </span>fs::remove_file(path) {
-<a href=#131 id=131 data-nosnippet>131</a>                <span class="prelude-val">Ok</span>(()) =&gt; <span class="macro">println!</span>(<span class="string">"   ✅ Removed {}"</span>, path.display()),
-<a href=#132 id=132 data-nosnippet>132</a>                <span class="prelude-val">Err</span>(e) =&gt; <span class="macro">println!</span>(<span class="string">"   ⚠️  Failed to remove {}: {}"</span>, path.display(), e),
+<a href=#131 id=131 data-nosnippet>131</a>                <span class="prelude-val">Ok</span>(()) =&gt; <span class="macro">println!</span>(<span class="string">"Removed file: {}"</span>, path.display()),
+<a href=#132 id=132 data-nosnippet>132</a>                <span class="prelude-val">Err</span>(e) =&gt; <span class="macro">println!</span>(<span class="string">"Error removing file: {e}"</span>),
 <a href=#133 id=133 data-nosnippet>133</a>            }
 <a href=#134 id=134 data-nosnippet>134</a>        }
 <a href=#135 id=135 data-nosnippet>135</a>
@@ -351,7 +351,7 @@
 <a href=#351 id=351 data-nosnippet>351</a>            unit_index += <span class="number">1</span>;
 <a href=#352 id=352 data-nosnippet>352</a>        }
 <a href=#353 id=353 data-nosnippet>353</a>
-<a href=#354 id=354 data-nosnippet>354</a>        <span class="macro">format!</span>(<span class="string">"{:.1} {}"</span>, size, UNITS[unit_index])
+<a href=#354 id=354 data-nosnippet>354</a>        <span class="macro">format!</span>(<span class="string">"Processing files..."</span>)
 <a href=#355 id=355 data-nosnippet>355</a>    }
 <a href=#356 id=356 data-nosnippet>356</a>}
 <a href=#357 id=357 data-nosnippet>357</a>

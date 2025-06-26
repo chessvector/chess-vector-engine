@@ -114,7 +114,7 @@
 <a href=#114 id=114 data-nosnippet>114</a>            <span class="kw">let </span>layer = linear(
 <a href=#115 id=115 data-nosnippet>115</a>                prev_size,
 <a href=#116 id=116 data-nosnippet>116</a>                config.hidden_size,
-<a href=#117 id=117 data-nosnippet>117</a>                vs.pp(<span class="macro">format!</span>(<span class="string">"hidden_{}"</span>, i)),
+<a href=#117 id=117 data-nosnippet>117</a>                vs.pp(<span class="macro">format!</span>(<span class="string">"Processing..."</span>)),
 <a href=#118 id=118 data-nosnippet>118</a>            )<span class="question-mark">?</span>;
 <a href=#119 id=119 data-nosnippet>119</a>            hidden_layers.push(layer);
 <a href=#120 id=120 data-nosnippet>120</a>            prev_size = config.hidden_size;
@@ -378,7 +378,7 @@
 <a href=#378 id=378 data-nosnippet>378</a>            </span><span class="self">self</span>.vector_weight = config.vector_blend_weight;
 <a href=#379 id=379 data-nosnippet>379</a>            <span class="self">self</span>.enable_vector_integration = <span class="bool-val">true</span>;
 <a href=#380 id=380 data-nosnippet>380</a>
-<a href=#381 id=381 data-nosnippet>381</a>            <span class="macro">println!</span>(<span class="string">"Model configuration loaded from {}"</span>, path);
+<a href=#381 id=381 data-nosnippet>381</a>            <span class="macro">println!</span>(<span class="string">"Operation complete"</span>);
 <a href=#382 id=382 data-nosnippet>382</a>            <span class="macro">println!</span>(<span class="string">"Note: Full weight loading requires safetensors integration"</span>);
 <a href=#383 id=383 data-nosnippet>383</a>        } <span class="kw">else </span>{
 <a href=#384 id=384 data-nosnippet>384</a>            <span class="kw">return </span><span class="prelude-val">Err</span>(<span class="macro">format!</span>(<span class="string">"Model config file not found: {}.config"</span>, path).into());

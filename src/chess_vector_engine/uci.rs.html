@@ -194,7 +194,7 @@
 <a href=#194 id=194 data-nosnippet>194</a>                <span class="prelude-val">Ok</span>(command) =&gt; {
 <a href=#195 id=195 data-nosnippet>195</a>                    <span class="kw">let </span>response = <span class="self">self</span>.process_command(command.trim());
 <a href=#196 id=196 data-nosnippet>196</a>                    <span class="kw">if </span>!response.is_empty() {
-<a href=#197 id=197 data-nosnippet>197</a>                        <span class="kw">let _ </span>= <span class="macro">writeln!</span>(stdout, <span class="string">"{}"</span>, response);
+<a href=#197 id=197 data-nosnippet>197</a>                        <span class="kw">let _ </span>= <span class="macro">writeln!</span>(stdout, <span class="string">"{response}"</span>);
 <a href=#198 id=198 data-nosnippet>198</a>                        <span class="kw">let _ </span>= stdout.flush();
 <a href=#199 id=199 data-nosnippet>199</a>                    }
 <a href=#200 id=200 data-nosnippet>200</a>
@@ -204,7 +204,7 @@
 <a href=#204 id=204 data-nosnippet>204</a>                }
 <a href=#205 id=205 data-nosnippet>205</a>                <span class="prelude-val">Err</span>(e) =&gt; {
 <a href=#206 id=206 data-nosnippet>206</a>                    <span class="kw">if </span><span class="self">self</span>.debug {
-<a href=#207 id=207 data-nosnippet>207</a>                        <span class="kw">let _ </span>= <span class="macro">writeln!</span>(stdout, <span class="string">"info string Error reading input: {}"</span>, e);
+<a href=#207 id=207 data-nosnippet>207</a>                        <span class="kw">let _ </span>= <span class="macro">writeln!</span>(stdout, <span class="string">"Error reading input: {e}"</span>);
 <a href=#208 id=208 data-nosnippet>208</a>                    }
 <a href=#209 id=209 data-nosnippet>209</a>                    <span class="kw">break</span>;
 <a href=#210 id=210 data-nosnippet>210</a>                }
@@ -233,7 +233,7 @@
 <a href=#233 id=233 data-nosnippet>233</a>            <span class="string">"quit" </span>=&gt; String::new(),
 <a href=#234 id=234 data-nosnippet>234</a>            <span class="kw">_ </span>=&gt; {
 <a href=#235 id=235 data-nosnippet>235</a>                <span class="kw">if </span><span class="self">self</span>.debug {
-<a href=#236 id=236 data-nosnippet>236</a>                    <span class="macro">format!</span>(<span class="string">"info string Unknown command: {}"</span>, command)
+<a href=#236 id=236 data-nosnippet>236</a>                    <span class="macro">format!</span>(<span class="string">"Unknown command: {command}"</span>)
 <a href=#237 id=237 data-nosnippet>237</a>                } <span class="kw">else </span>{
 <a href=#238 id=238 data-nosnippet>238</a>                    String::new()
 <a href=#239 id=239 data-nosnippet>239</a>                }
@@ -451,7 +451,7 @@
 <a href=#451 id=451 data-nosnippet>451</a>                    <span class="kw">if </span>board.legal(chess_move) {
 <a href=#452 id=452 data-nosnippet>452</a>                        board = board.make_move_new(chess_move);
 <a href=#453 id=453 data-nosnippet>453</a>                    } <span class="kw">else if </span><span class="self">self</span>.debug {
-<a href=#454 id=454 data-nosnippet>454</a>                        <span class="kw">return </span><span class="macro">format!</span>(<span class="string">"info string Illegal move: {}"</span>, move_str);
+<a href=#454 id=454 data-nosnippet>454</a>                        <span class="kw">return </span><span class="macro">format!</span>(<span class="string">"info string Illegal move: {move_str}"</span>);
 <a href=#455 id=455 data-nosnippet>455</a>                    }
 <a href=#456 id=456 data-nosnippet>456</a>                }
 <a href=#457 id=457 data-nosnippet>457</a>            }
@@ -666,7 +666,7 @@
 <a href=#666 id=666 data-nosnippet>666</a>            }
 <a href=#667 id=667 data-nosnippet>667</a>
 <a href=#668 id=668 data-nosnippet>668</a>            <span class="comment">// Send best move
-<a href=#669 id=669 data-nosnippet>669</a>            </span><span class="macro">println!</span>(<span class="string">"bestmove {}"</span>, best_move);
+<a href=#669 id=669 data-nosnippet>669</a>            </span><span class="macro">println!</span>(<span class="string">"bestmove {best_move}"</span>);
 <a href=#670 id=670 data-nosnippet>670</a>        });
 <a href=#671 id=671 data-nosnippet>671</a>    }
 <a href=#672 id=672 data-nosnippet>672</a>
@@ -691,7 +691,7 @@
 <a href=#691 id=691 data-nosnippet>691</a>            <span class="self">self</span>.ponder_board = <span class="prelude-val">Some</span>(<span class="self">self</span>.board.make_move_new(ponder_move));
 <a href=#692 id=692 data-nosnippet>692</a>
 <a href=#693 id=693 data-nosnippet>693</a>            <span class="kw">if </span><span class="self">self</span>.debug {
-<a href=#694 id=694 data-nosnippet>694</a>                <span class="macro">println!</span>(<span class="string">"info string Starting to ponder on move {}"</span>, ponder_move);
+<a href=#694 id=694 data-nosnippet>694</a>                <span class="macro">println!</span>(<span class="string">"info string Pondering on {ponder_move}"</span>);
 <a href=#695 id=695 data-nosnippet>695</a>            }
 <a href=#696 id=696 data-nosnippet>696</a>
 <a href=#697 id=697 data-nosnippet>697</a>            <span class="comment">// Start pondering in background thread
@@ -773,7 +773,7 @@
 <a href=#773 id=773 data-nosnippet>773</a>                <span class="kw">if </span>!legal_moves.is_empty() {
 <a href=#774 id=774 data-nosnippet>774</a>                    <span class="kw">let </span>best_move = legal_moves[<span class="number">0</span>]; <span class="comment">// Simple fallback
 <a href=#775 id=775 data-nosnippet>775</a>                    </span>thread::spawn(<span class="kw">move </span>|| {
-<a href=#776 id=776 data-nosnippet>776</a>                        <span class="macro">println!</span>(<span class="string">"bestmove {}"</span>, best_move);
+<a href=#776 id=776 data-nosnippet>776</a>                        <span class="macro">println!</span>(<span class="string">"bestmove {best_move}"</span>);
 <a href=#777 id=777 data-nosnippet>777</a>                    });
 <a href=#778 id=778 data-nosnippet>778</a>                }
 <a href=#779 id=779 data-nosnippet>779</a>            }

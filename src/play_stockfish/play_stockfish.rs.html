@@ -189,7 +189,7 @@
 <a href=#189 id=189 data-nosnippet>189</a>    }
 <a href=#190 id=190 data-nosnippet>190</a>
 <a href=#191 id=191 data-nosnippet>191</a>    <span class="kw">fn </span>send_command(<span class="kw-2">&amp;mut </span><span class="self">self</span>, command: <span class="kw-2">&amp;</span>str) -&gt; <span class="prelude-ty">Result</span>&lt;(), Box&lt;<span class="kw">dyn </span>std::error::Error&gt;&gt; {
-<a href=#192 id=192 data-nosnippet>192</a>        <span class="macro">writeln!</span>(<span class="self">self</span>.stdin, <span class="string">"{}"</span>, command)<span class="question-mark">?</span>;
+<a href=#192 id=192 data-nosnippet>192</a>        <span class="macro">writeln!</span>(<span class="self">self</span>.stdin, <span class="string">"{command}"</span>)<span class="question-mark">?</span>;
 <a href=#193 id=193 data-nosnippet>193</a>        <span class="self">self</span>.stdin.flush()<span class="question-mark">?</span>;
 <a href=#194 id=194 data-nosnippet>194</a>        <span class="prelude-val">Ok</span>(())
 <a href=#195 id=195 data-nosnippet>195</a>    }
@@ -225,7 +225,7 @@
 <a href=#225 id=225 data-nosnippet>225</a>        <span class="kw">let </span>fen = board.to_string();
 <a href=#226 id=226 data-nosnippet>226</a>
 <a href=#227 id=227 data-nosnippet>227</a>        <span class="comment">// Send position
-<a href=#228 id=228 data-nosnippet>228</a>        </span><span class="self">self</span>.send_command(<span class="kw-2">&amp;</span><span class="macro">format!</span>(<span class="string">"position fen {}"</span>, fen))<span class="question-mark">?</span>;
+<a href=#228 id=228 data-nosnippet>228</a>        </span><span class="self">self</span>.send_command(<span class="kw-2">&amp;</span><span class="macro">format!</span>(<span class="string">"position fen {fen}"</span>))<span class="question-mark">?</span>;
 <a href=#229 id=229 data-nosnippet>229</a>
 <a href=#230 id=230 data-nosnippet>230</a>        <span class="comment">// Start search with time control
 <a href=#231 id=231 data-nosnippet>231</a>        </span><span class="self">self</span>.send_command(<span class="kw-2">&amp;</span><span class="macro">format!</span>(<span class="string">"go movetime {}"</span>, <span class="self">self</span>.time_per_move))<span class="question-mark">?</span>;
@@ -571,7 +571,7 @@
 <a href=#571 id=571 data-nosnippet>571</a>        };
 <a href=#572 id=572 data-nosnippet>572</a>
 <a href=#573 id=573 data-nosnippet>573</a>        <span class="kw">if </span>std::path::Path::new(<span class="kw-2">&amp;</span>expanded_path).exists() {
-<a href=#574 id=574 data-nosnippet>574</a>            <span class="macro">println!</span>(<span class="string">"🔥 Found Lichess puzzle database: {}"</span>, expanded_path);
+<a href=#574 id=574 data-nosnippet>574</a>            <span class="macro">println!</span>(<span class="string">"🧠 Loading Lichess puzzles from {expanded_path}..."</span>);
 <a href=#575 id=575 data-nosnippet>575</a>
 <a href=#576 id=576 data-nosnippet>576</a>            <span class="comment">// Try premium loading first, fall back to basic
 <a href=#577 id=577 data-nosnippet>577</a>            </span><span class="kw">if </span>chess_vector_engine.is_feature_available(<span class="string">"ultra_fast_loading"</span>) {
@@ -581,7 +581,7 @@
 <a href=#581 id=581 data-nosnippet>581</a>                        <span class="macro">println!</span>(<span class="string">"✅ Premium Lichess loading successful!"</span>);
 <a href=#582 id=582 data-nosnippet>582</a>                        <span class="kw">break</span>;
 <a href=#583 id=583 data-nosnippet>583</a>                    }
-<a href=#584 id=584 data-nosnippet>584</a>                    <span class="prelude-val">Err</span>(e) =&gt; <span class="macro">println!</span>(<span class="string">"⚠️  Premium loading failed: {}"</span>, e),
+<a href=#584 id=584 data-nosnippet>584</a>                    <span class="prelude-val">Err</span>(e) =&gt; <span class="macro">println!</span>(<span class="string">"⚠️ Premium loading failed: {e}"</span>),
 <a href=#585 id=585 data-nosnippet>585</a>                }
 <a href=#586 id=586 data-nosnippet>586</a>            } <span class="kw">else </span>{
 <a href=#587 id=587 data-nosnippet>587</a>                <span class="macro">println!</span>(<span class="string">"📚 Using basic puzzle loading (limited to 50,000 puzzles)..."</span>);
@@ -590,7 +590,7 @@
 <a href=#590 id=590 data-nosnippet>590</a>                        <span class="macro">println!</span>(<span class="string">"✅ Basic Lichess loading successful!"</span>);
 <a href=#591 id=591 data-nosnippet>591</a>                        <span class="kw">break</span>;
 <a href=#592 id=592 data-nosnippet>592</a>                    }
-<a href=#593 id=593 data-nosnippet>593</a>                    <span class="prelude-val">Err</span>(e) =&gt; <span class="macro">println!</span>(<span class="string">"⚠️  Basic loading failed: {}"</span>, e),
+<a href=#593 id=593 data-nosnippet>593</a>                    <span class="prelude-val">Err</span>(e) =&gt; <span class="macro">println!</span>(<span class="string">"⚠️ Basic loading failed: {e}"</span>),
 <a href=#594 id=594 data-nosnippet>594</a>                }
 <a href=#595 id=595 data-nosnippet>595</a>            }
 <a href=#596 id=596 data-nosnippet>596</a>        }
@@ -774,7 +774,7 @@
 <a href=#774 id=774 data-nosnippet>774</a>        game_state.start_time.format(<span class="string">"%Y%m%d_%H%M%S"</span>)
 <a href=#775 id=775 data-nosnippet>775</a>    );
 <a href=#776 id=776 data-nosnippet>776</a>    std::fs::write(<span class="kw-2">&amp;</span>filename, game_state.generate_pgn())<span class="question-mark">?</span>;
-<a href=#777 id=777 data-nosnippet>777</a>    <span class="macro">println!</span>(<span class="string">"💾 Game saved to: {}"</span>, filename);
+<a href=#777 id=777 data-nosnippet>777</a>    <span class="macro">println!</span>(<span class="string">"📁 Game saved to {filename}"</span>);
 <a href=#778 id=778 data-nosnippet>778</a>
 <a href=#779 id=779 data-nosnippet>779</a>    <span class="prelude-val">Ok</span>(())
 <a href=#780 id=780 data-nosnippet>780</a>}
