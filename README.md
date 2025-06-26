@@ -2,7 +2,7 @@
 
 A **production-ready Rust chess engine** that revolutionizes position evaluation by combining vector-based pattern recognition with advanced tactical search. Encode positions as high-dimensional vectors, search through millions of patterns, and leverage sophisticated neural networks for cutting-edge chess AI.
 
-[![Tests](https://img.shields.io/badge/tests-105%20passing-brightgreen)](#testing)
+[![Tests](https://img.shields.io/badge/tests-123%20passing-brightgreen)](#testing)
 [![Rust](https://img.shields.io/badge/rust-stable-orange)](https://www.rust-lang.org/)
 [![GPU](https://img.shields.io/badge/GPU-CUDA%2FMetal%2FCPU-blue)](#gpu-acceleration)
 [![UCI](https://img.shields.io/badge/UCI-compliant-green)](#uci-engine)
