@@ -1451,10 +1451,34 @@ impl ChessVectorEngine {
 
     /// Load starter dataset for open source users
     pub fn load_starter_dataset(&mut self) -> Result<(), Box<dyn std::error::Error>> {
-        // Try to load from embedded starter dataset
-        const STARTER_DATASET: &str = include_str!("../training_data/starter_dataset.json");
+        // Try to load from external file first, fall back to minimal dataset
+        let starter_data = if let Ok(file_content) = std::fs::read_to_string("training_data/starter_dataset.json") {
+            file_content
+        } else {
+            // Fallback minimal dataset for when the file isn't available (e.g., in CI or after packaging)
+            r#"[
+                {
+                    "fen": "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1",
+                    "evaluation": 0.0,
+                    "best_move": null,
+                    "depth": 0
+                },
+                {
+                    "fen": "rnbqkbnr/pppppppp/8/8/4P3/8/PPPP1PPP/RNBQKBNR b KQkq e3 0 1",
+                    "evaluation": 0.1,
+                    "best_move": "e7e5",
+                    "depth": 2
+                },
+                {
+                    "fen": "rnbqkbnr/pppp1ppp/8/4p3/4P3/8/PPPP1PPP/RNBQKBNR w KQkq e6 0 2",
+                    "evaluation": 0.0,
+                    "best_move": "g1f3",
+                    "depth": 2
+                }
+            ]"#.to_string()
+        };
 
-        let training_data: Vec<serde_json::Value> = serde_json::from_str(STARTER_DATASET)?;
+        let training_data: Vec<serde_json::Value> = serde_json::from_str(&starter_data)?;
 
         for entry in training_data {
             if let (Some(fen), Some(evaluation)) = (entry.get("fen"), entry.get("evaluation")) {

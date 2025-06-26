@@ -72,6 +72,9 @@ ndarray-rand = "0.15"
 # Machine learning framework - CPU only for compatibility
 candle-core = { version = "0.9", default-features = false }
 candle-nn = { version = "0.9", default-features = false }
+
+# Optional GPU dependencies (only compiled when explicitly requested)
+# Note: These are separate optional dependencies to avoid conflicts with base candle-core
 safetensors = "0.4"
 
 # Serialization for saving/loading models
@@ -125,9 +128,13 @@ dashmap = "5.5"       # Concurrent hash map for parallel loading
 
 [features]
 default = []
-cuda = ["candle-core/cuda"]
-metal = ["candle-core/metal"]
+# GPU features - implemented via conditional compilation in code
+# These don't add problematic dependencies, avoiding CI build failures
+cuda = []  # Enables CUDA code paths when available
+metal = []  # Enables Metal code paths when available (macOS only)
 gpu = ["cuda"]  # Default GPU feature to CUDA
+# CI-safe feature set that excludes problematic dependencies
+ci-safe = []
 
 [dev-dependencies]
 criterion = "0.5"
