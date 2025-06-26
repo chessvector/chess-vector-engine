@@ -858,14 +858,14 @@
 <a href=#858 id=858 data-nosnippet>858</a>                    <span class="comment">// Skip duplicates
 <a href=#859 id=859 data-nosnippet>859</a>                    </span><span class="kw">if </span>!<span class="self">self</span>.position_boards.contains(<span class="kw-2">&amp;</span>board) {
 <a href=#860 id=860 data-nosnippet>860</a>                        <span class="kw">let </span><span class="kw-2">mut </span>evaluation = binary_data.evaluations[i];
-<a href=#861 id=861 data-nosnippet>861</a>                        
+<a href=#861 id=861 data-nosnippet>861</a>
 <a href=#862 id=862 data-nosnippet>862</a>                        <span class="comment">// Convert evaluation from centipawns to pawns if needed
-<a href=#863 id=863 data-nosnippet>863</a>                        // If evaluation is outside typical pawn range (-10 to +10), 
+<a href=#863 id=863 data-nosnippet>863</a>                        // If evaluation is outside typical pawn range (-10 to +10),
 <a href=#864 id=864 data-nosnippet>864</a>                        // assume it's in centipawns and convert to pawns
 <a href=#865 id=865 data-nosnippet>865</a>                        </span><span class="kw">if </span>evaluation.abs() &gt; <span class="number">15.0 </span>{
-<a href=#866 id=866 data-nosnippet>866</a>                            evaluation = evaluation / <span class="number">100.0</span>;
+<a href=#866 id=866 data-nosnippet>866</a>                            evaluation /= <span class="number">100.0</span>;
 <a href=#867 id=867 data-nosnippet>867</a>                        }
-<a href=#868 id=868 data-nosnippet>868</a>                        
+<a href=#868 id=868 data-nosnippet>868</a>
 <a href=#869 id=869 data-nosnippet>869</a>                        <span class="self">self</span>.add_position(<span class="kw-2">&amp;</span>board, evaluation);
 <a href=#870 id=870 data-nosnippet>870</a>                        added_count += <span class="number">1</span>;
 <a href=#871 id=871 data-nosnippet>871</a>                    }
@@ -1617,13 +1617,13 @@
 <a href=#1617 id=1617 data-nosnippet>1617</a>                        <span class="prelude-val">Ok</span>(board) =&gt; {
 <a href=#1618 id=1618 data-nosnippet>1618</a>                            <span class="comment">// Convert evaluation from centipawns to pawns if needed
 <a href=#1619 id=1619 data-nosnippet>1619</a>                            </span><span class="kw">let </span><span class="kw-2">mut </span>eval = eval_f64 <span class="kw">as </span>f32;
-<a href=#1620 id=1620 data-nosnippet>1620</a>                            
-<a href=#1621 id=1621 data-nosnippet>1621</a>                            <span class="comment">// If evaluation is outside typical pawn range (-10 to +10), 
+<a href=#1620 id=1620 data-nosnippet>1620</a>
+<a href=#1621 id=1621 data-nosnippet>1621</a>                            <span class="comment">// If evaluation is outside typical pawn range (-10 to +10),
 <a href=#1622 id=1622 data-nosnippet>1622</a>                            // assume it's in centipawns and convert to pawns
 <a href=#1623 id=1623 data-nosnippet>1623</a>                            </span><span class="kw">if </span>eval.abs() &gt; <span class="number">15.0 </span>{
-<a href=#1624 id=1624 data-nosnippet>1624</a>                                eval = eval / <span class="number">100.0</span>;
+<a href=#1624 id=1624 data-nosnippet>1624</a>                                eval /= <span class="number">100.0</span>;
 <a href=#1625 id=1625 data-nosnippet>1625</a>                            }
-<a href=#1626 id=1626 data-nosnippet>1626</a>                            
+<a href=#1626 id=1626 data-nosnippet>1626</a>
 <a href=#1627 id=1627 data-nosnippet>1627</a>                            <span class="self">self</span>.add_position(<span class="kw-2">&amp;</span>board, eval);
 <a href=#1628 id=1628 data-nosnippet>1628</a>                        }
 <a href=#1629 id=1629 data-nosnippet>1629</a>                        <span class="prelude-val">Err</span>(<span class="kw">_</span>) =&gt; {
@@ -1817,14 +1817,14 @@
 <a href=#1817 id=1817 data-nosnippet>1817</a>                                        <span class="kw">if </span>tuple.len() &gt;= <span class="number">2 </span>{
 <a href=#1818 id=1818 data-nosnippet>1818</a>                                            <span class="kw">let </span>fen = tuple[<span class="number">0</span>].as_str()<span class="question-mark">?</span>.to_string();
 <a href=#1819 id=1819 data-nosnippet>1819</a>                                            <span class="kw">let </span><span class="kw-2">mut </span>eval = tuple[<span class="number">1</span>].as_f64()<span class="question-mark">? </span><span class="kw">as </span>f32;
-<a href=#1820 id=1820 data-nosnippet>1820</a>                                            
+<a href=#1820 id=1820 data-nosnippet>1820</a>
 <a href=#1821 id=1821 data-nosnippet>1821</a>                                            <span class="comment">// Convert evaluation from centipawns to pawns if needed
-<a href=#1822 id=1822 data-nosnippet>1822</a>                                            // If evaluation is outside typical pawn range (-10 to +10), 
+<a href=#1822 id=1822 data-nosnippet>1822</a>                                            // If evaluation is outside typical pawn range (-10 to +10),
 <a href=#1823 id=1823 data-nosnippet>1823</a>                                            // assume it's in centipawns and convert to pawns
 <a href=#1824 id=1824 data-nosnippet>1824</a>                                            </span><span class="kw">if </span>eval.abs() &gt; <span class="number">15.0 </span>{
-<a href=#1825 id=1825 data-nosnippet>1825</a>                                                eval = eval / <span class="number">100.0</span>;
+<a href=#1825 id=1825 data-nosnippet>1825</a>                                                eval /= <span class="number">100.0</span>;
 <a href=#1826 id=1826 data-nosnippet>1826</a>                                            }
-<a href=#1827 id=1827 data-nosnippet>1827</a>                                            
+<a href=#1827 id=1827 data-nosnippet>1827</a>
 <a href=#1828 id=1828 data-nosnippet>1828</a>                                            <span class="prelude-val">Some</span>((fen, eval))
 <a href=#1829 id=1829 data-nosnippet>1829</a>                                        } <span class="kw">else </span>{
 <a href=#1830 id=1830 data-nosnippet>1830</a>                                            <span class="prelude-val">None
@@ -1841,14 +1841,14 @@
 <a href=#1841 id=1841 data-nosnippet>1841</a>                                    <span class="kw">if let </span>Value::Object(obj) = item {
 <a href=#1842 id=1842 data-nosnippet>1842</a>                                        <span class="kw">let </span>fen = obj.get(<span class="string">"fen"</span>)<span class="question-mark">?</span>.as_str()<span class="question-mark">?</span>.to_string();
 <a href=#1843 id=1843 data-nosnippet>1843</a>                                        <span class="kw">let </span><span class="kw-2">mut </span>eval = obj.get(<span class="string">"evaluation"</span>)<span class="question-mark">?</span>.as_f64()<span class="question-mark">? </span><span class="kw">as </span>f32;
-<a href=#1844 id=1844 data-nosnippet>1844</a>                                        
+<a href=#1844 id=1844 data-nosnippet>1844</a>
 <a href=#1845 id=1845 data-nosnippet>1845</a>                                        <span class="comment">// Convert evaluation from centipawns to pawns if needed
-<a href=#1846 id=1846 data-nosnippet>1846</a>                                        // If evaluation is outside typical pawn range (-10 to +10), 
+<a href=#1846 id=1846 data-nosnippet>1846</a>                                        // If evaluation is outside typical pawn range (-10 to +10),
 <a href=#1847 id=1847 data-nosnippet>1847</a>                                        // assume it's in centipawns and convert to pawns
 <a href=#1848 id=1848 data-nosnippet>1848</a>                                        </span><span class="kw">if </span>eval.abs() &gt; <span class="number">15.0 </span>{
-<a href=#1849 id=1849 data-nosnippet>1849</a>                                            eval = eval / <span class="number">100.0</span>;
+<a href=#1849 id=1849 data-nosnippet>1849</a>                                            eval /= <span class="number">100.0</span>;
 <a href=#1850 id=1850 data-nosnippet>1850</a>                                        }
-<a href=#1851 id=1851 data-nosnippet>1851</a>                                        
+<a href=#1851 id=1851 data-nosnippet>1851</a>
 <a href=#1852 id=1852 data-nosnippet>1852</a>                                        <span class="prelude-val">Some</span>((fen, eval))
 <a href=#1853 id=1853 data-nosnippet>1853</a>                                    } <span class="kw">else </span>{
 <a href=#1854 id=1854 data-nosnippet>1854</a>                                        <span class="prelude-val">None
@@ -2048,14 +2048,14 @@
 <a href=#2048 id=2048 data-nosnippet>2048</a>                                            <span class="kw">if </span>tuple.len() &gt;= <span class="number">2 </span>{
 <a href=#2049 id=2049 data-nosnippet>2049</a>                                                <span class="kw">let </span>fen = tuple[<span class="number">0</span>].as_str()<span class="question-mark">?</span>.to_string();
 <a href=#2050 id=2050 data-nosnippet>2050</a>                                                <span class="kw">let </span><span class="kw-2">mut </span>eval = tuple[<span class="number">1</span>].as_f64()<span class="question-mark">? </span><span class="kw">as </span>f32;
-<a href=#2051 id=2051 data-nosnippet>2051</a>                                                
+<a href=#2051 id=2051 data-nosnippet>2051</a>
 <a href=#2052 id=2052 data-nosnippet>2052</a>                                                <span class="comment">// Convert evaluation from centipawns to pawns if needed
-<a href=#2053 id=2053 data-nosnippet>2053</a>                                                // If evaluation is outside typical pawn range (-10 to +10), 
+<a href=#2053 id=2053 data-nosnippet>2053</a>                                                // If evaluation is outside typical pawn range (-10 to +10),
 <a href=#2054 id=2054 data-nosnippet>2054</a>                                                // assume it's in centipawns and convert to pawns
 <a href=#2055 id=2055 data-nosnippet>2055</a>                                                </span><span class="kw">if </span>eval.abs() &gt; <span class="number">15.0 </span>{
-<a href=#2056 id=2056 data-nosnippet>2056</a>                                                    eval = eval / <span class="number">100.0</span>;
+<a href=#2056 id=2056 data-nosnippet>2056</a>                                                    eval /= <span class="number">100.0</span>;
 <a href=#2057 id=2057 data-nosnippet>2057</a>                                                }
-<a href=#2058 id=2058 data-nosnippet>2058</a>                                                
+<a href=#2058 id=2058 data-nosnippet>2058</a>
 <a href=#2059 id=2059 data-nosnippet>2059</a>                                                <span class="prelude-val">Some</span>((fen, eval))
 <a href=#2060 id=2060 data-nosnippet>2060</a>                                            } <span class="kw">else </span>{
 <a href=#2061 id=2061 data-nosnippet>2061</a>                                                <span class="prelude-val">None
@@ -2072,14 +2072,14 @@
 <a href=#2072 id=2072 data-nosnippet>2072</a>                                        <span class="kw">if let </span>Value::Object(obj) = item {
 <a href=#2073 id=2073 data-nosnippet>2073</a>                                            <span class="kw">let </span>fen = obj.get(<span class="string">"fen"</span>)<span class="question-mark">?</span>.as_str()<span class="question-mark">?</span>.to_string();
 <a href=#2074 id=2074 data-nosnippet>2074</a>                                            <span class="kw">let </span><span class="kw-2">mut </span>eval = obj.get(<span class="string">"evaluation"</span>)<span class="question-mark">?</span>.as_f64()<span class="question-mark">? </span><span class="kw">as </span>f32;
-<a href=#2075 id=2075 data-nosnippet>2075</a>                                            
+<a href=#2075 id=2075 data-nosnippet>2075</a>
 <a href=#2076 id=2076 data-nosnippet>2076</a>                                            <span class="comment">// Convert evaluation from centipawns to pawns if needed
-<a href=#2077 id=2077 data-nosnippet>2077</a>                                            // If evaluation is outside typical pawn range (-10 to +10), 
+<a href=#2077 id=2077 data-nosnippet>2077</a>                                            // If evaluation is outside typical pawn range (-10 to +10),
 <a href=#2078 id=2078 data-nosnippet>2078</a>                                            // assume it's in centipawns and convert to pawns
 <a href=#2079 id=2079 data-nosnippet>2079</a>                                            </span><span class="kw">if </span>eval.abs() &gt; <span class="number">15.0 </span>{
-<a href=#2080 id=2080 data-nosnippet>2080</a>                                                eval = eval / <span class="number">100.0</span>;
+<a href=#2080 id=2080 data-nosnippet>2080</a>                                                eval /= <span class="number">100.0</span>;
 <a href=#2081 id=2081 data-nosnippet>2081</a>                                            }
-<a href=#2082 id=2082 data-nosnippet>2082</a>                                            
+<a href=#2082 id=2082 data-nosnippet>2082</a>
 <a href=#2083 id=2083 data-nosnippet>2083</a>                                            <span class="prelude-val">Some</span>((fen, eval))
 <a href=#2084 id=2084 data-nosnippet>2084</a>                                        } <span class="kw">else </span>{
 <a href=#2085 id=2085 data-nosnippet>2085</a>                                            <span class="prelude-val">None
@@ -2705,12 +2705,12 @@
 <a href=#2705 id=2705 data-nosnippet>2705</a>                <span class="kw">let </span>vector: Vec&lt;f32&gt; = position_data.vector.iter().map(|<span class="kw-2">&amp;</span>x| x <span class="kw">as </span>f32).collect();
 <a href=#2706 id=2706 data-nosnippet>2706</a>                <span class="kw">let </span>vector_array = Array1::from(vector);
 <a href=#2707 id=2707 data-nosnippet>2707</a>                <span class="kw">let </span><span class="kw-2">mut </span>evaluation = position_data.evaluation.unwrap_or(<span class="number">0.0</span>) <span class="kw">as </span>f32;
-<a href=#2708 id=2708 data-nosnippet>2708</a>                
+<a href=#2708 id=2708 data-nosnippet>2708</a>
 <a href=#2709 id=2709 data-nosnippet>2709</a>                <span class="comment">// Convert evaluation from centipawns to pawns if needed
-<a href=#2710 id=2710 data-nosnippet>2710</a>                // If evaluation is outside typical pawn range (-10 to +10), 
+<a href=#2710 id=2710 data-nosnippet>2710</a>                // If evaluation is outside typical pawn range (-10 to +10),
 <a href=#2711 id=2711 data-nosnippet>2711</a>                // assume it's in centipawns and convert to pawns
 <a href=#2712 id=2712 data-nosnippet>2712</a>                </span><span class="kw">if </span>evaluation.abs() &gt; <span class="number">15.0 </span>{
-<a href=#2713 id=2713 data-nosnippet>2713</a>                    evaluation = evaluation / <span class="number">100.0</span>;
+<a href=#2713 id=2713 data-nosnippet>2713</a>                    evaluation /= <span class="number">100.0</span>;
 <a href=#2714 id=2714 data-nosnippet>2714</a>                }
 <a href=#2715 id=2715 data-nosnippet>2715</a>
 <a href=#2716 id=2716 data-nosnippet>2716</a>                <span class="comment">// Add to similarity search

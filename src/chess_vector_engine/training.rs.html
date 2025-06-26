@@ -1562,10 +1562,10 @@
 <a href=#1562 id=1562 data-nosnippet>1562</a>                <span class="kw">let </span>game_id = game_id.unwrap_or(<span class="number">0</span>); <span class="comment">// Default to 0 for backward compatibility
 <a href=#1563 id=1563 data-nosnippet>1563</a>
 <a href=#1564 id=1564 data-nosnippet>1564</a>                // Convert evaluation from centipawns to pawns if needed
-<a href=#1565 id=1565 data-nosnippet>1565</a>                // If evaluation is outside typical pawn range (-10 to +10), 
+<a href=#1565 id=1565 data-nosnippet>1565</a>                // If evaluation is outside typical pawn range (-10 to +10),
 <a href=#1566 id=1566 data-nosnippet>1566</a>                // assume it's in centipawns and convert to pawns
 <a href=#1567 id=1567 data-nosnippet>1567</a>                </span><span class="kw">if </span>evaluation.abs() &gt; <span class="number">15.0 </span>{
-<a href=#1568 id=1568 data-nosnippet>1568</a>                    evaluation = evaluation / <span class="number">100.0</span>;
+<a href=#1568 id=1568 data-nosnippet>1568</a>                    evaluation /= <span class="number">100.0</span>;
 <a href=#1569 id=1569 data-nosnippet>1569</a>                }
 <a href=#1570 id=1570 data-nosnippet>1570</a>
 <a href=#1571 id=1571 data-nosnippet>1571</a>                <span class="kw">let </span>board =
