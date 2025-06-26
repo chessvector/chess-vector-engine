@@ -416,31 +416,32 @@ impl LichessLoader {
     fn calculate_puzzle_evaluation(&self, rating: u32, themes: &str, board: &Board) -> f32 {
         let mut eval = 0.0;
 
-        // Base evaluation from puzzle rating
-        eval += (rating as f32 - 1500.0) / 400.0; // Convert rating to rough centipawn equivalent
+        // Base evaluation from puzzle difficulty (normalized to pawn units)
+        eval += (rating as f32 - 1500.0) / 1000.0; // Much smaller scaling for reasonable range
 
-        // Adjust based on tactical themes
+        // Moderate tactical theme adjustments (in pawn units)
         if themes.contains("checkmate") || themes.contains("mateIn") {
-            eval = if board.side_to_move() == Color::White {
-                500.0
+            eval += if board.side_to_move() == Color::White {
+                5.0 // Strong advantage (5 pawns)
             } else {
-                -500.0
+                -5.0 // Strong disadvantage (5 pawns)
             };
         } else if themes.contains("fork") || themes.contains("pin") {
             eval += if board.side_to_move() == Color::White {
-                300.0
+                2.0 // Moderate advantage (2 pawns)
             } else {
-                -300.0
+                -2.0 // Moderate disadvantage (2 pawns)
             };
         } else if themes.contains("sacrifice") {
             eval += if board.side_to_move() == Color::White {
-                200.0
+                1.5 // Small advantage (1.5 pawns)
             } else {
-                -200.0
+                -1.5 // Small disadvantage (1.5 pawns)
             };
         }
 
-        eval
+        // Clamp to reasonable evaluation range
+        eval.clamp(-8.0, 8.0)
     }
 
     /// Parse a single CSV line into position, evaluation, and best move

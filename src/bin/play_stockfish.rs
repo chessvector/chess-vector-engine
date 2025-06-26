@@ -230,7 +230,7 @@ impl StockfishPlayer {
         self.send_command(&format!("position fen {fen}"))?;
 
         // Start search with time control
-        self.send_command(&format!("go movetime {}", self.time_per_move))?;
+        self.send_command(&format!("go movetime {time}", time = self.time_per_move))?;
 
         let mut line = String::new();
         let mut best_move = None;
@@ -374,7 +374,7 @@ impl GameState {
             Some(chess::GameResult::DrawDeclared) => "1/2-1/2",
             None => "*",
         };
-        pgn.push_str(&format!("[Result \"{}\"]\n\n", result));
+        pgn.push_str(&format!("[Result \"{result}\"]\n\n"));
 
         // Moves with analysis annotations - using proper SAN notation
         let mut move_number = 1;
@@ -382,7 +382,7 @@ impl GameState {
 
         for (i, analysis) in self.move_history.iter().enumerate() {
             if i % 2 == 0 {
-                pgn.push_str(&format!("{}. ", move_number));
+                pgn.push_str(&format!("{move_number}. "));
             }
 
             // Convert move to proper SAN notation
@@ -411,7 +411,7 @@ impl GameState {
             }
         }
 
-        pgn.push_str(&format!(" {}\n", result));
+        pgn.push_str(&format!(" {result}\n"));
         pgn
     }
 
@@ -542,16 +542,16 @@ fn play_game(
         tactical_depth, time_per_move
     );
 
-    // Configure hybrid evaluation with much lower confidence threshold to force tactical search
+    // Configure hybrid evaluation with balanced pattern recognition and tactical search
     let hybrid_config = HybridConfig {
-        pattern_confidence_threshold: 0.3, // Much lower threshold to force more tactical search
+        pattern_confidence_threshold: 0.65, // Balanced trust in patterns - use tactical search when uncertain
         enable_tactical_refinement: true,
         tactical_config: strong_tactical_config,
-        pattern_weight: 0.3, // Heavily favor tactical evaluation over patterns
+        pattern_weight: 0.6, // Give patterns significant influence while still using tactical search
         min_similar_positions: 3,
     };
     chess_vector_engine.configure_hybrid_evaluation(hybrid_config);
-    println!("🎯 Hybrid evaluation configured (confidence threshold: 0.3, pattern weight: 0.3)");
+    println!("🎯 Hybrid evaluation configured (confidence threshold: 0.65, pattern weight: 0.6)");
 
     // Try to load training data for pattern recognition
     println!("🧠 Loading training data for pattern recognition...");
