@@ -528,7 +528,7 @@ mod tests {
         assert_eq!(checker.get_current_tier(), &FeatureTier::OpenSource);
 
         // Activate premium license
-        let tier = checker.activate_license("PREMIUM-TEST").await.unwrap();
+        let tier = checker.activate_license("PREMIUM-789012").await.unwrap();
         assert_eq!(tier, FeatureTier::Premium);
 
         // Should now allow premium features

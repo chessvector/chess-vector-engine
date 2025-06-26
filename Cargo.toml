@@ -2,6 +2,7 @@
 name = "chess-vector-engine"
 version = "0.1.0"
 edition = "2021"
+rust-version = "1.70"
 authors = ["Justin <justin@speroleague.com>"]
 description = "Open-core chess engine with hybrid vector-based position analysis, advanced tactical search, and NNUE evaluation"
 documentation = "https://docs.rs/chess-vector-engine"

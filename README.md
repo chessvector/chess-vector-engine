@@ -211,11 +211,6 @@ Chess Position → PositionEncoder → Vector (1024d)
 - **Binary formats**: 5-15x faster than JSON
 - **Streaming JSON**: Parallel processing for large JSON files
 
-### Memory Usage Optimization
-- **Before optimization**: ~1GB (multiple dataset copies)
-- **After optimization**: ~150-200MB (75-80% reduction)
-- **Streaming processing**: Handles 900k+ positions efficiently without memory explosion
-
 ### Search Performance
 - **Tactical search**: 1000-2800+ nodes/ms depending on configuration
 - **GPU acceleration**: 10-100x speedup for large similarity searches
@@ -301,7 +296,7 @@ Current test coverage: **105 tests passing** across all modules.
 
 ## 🤝 Contributing
 
-We welcome contributions to the open source core! Please see [CONTRIBUTING.md](CONTRIBUTING.md) for guidelines.
+We welcome contributions to the open source core! Please see [CONTRIBUTING.md](.github/CONTRIBUTING.md) for guidelines.
 
 ### Open Source Contributions
 - Bug fixes and improvements to core features

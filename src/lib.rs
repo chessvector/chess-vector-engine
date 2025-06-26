@@ -1452,7 +1452,9 @@ impl ChessVectorEngine {
     /// Load starter dataset for open source users
     pub fn load_starter_dataset(&mut self) -> Result<(), Box<dyn std::error::Error>> {
         // Try to load from external file first, fall back to minimal dataset
-        let starter_data = if let Ok(file_content) = std::fs::read_to_string("training_data/starter_dataset.json") {
+        let starter_data = if let Ok(file_content) =
+            std::fs::read_to_string("training_data/starter_dataset.json")
+        {
             file_content
         } else {
             // Fallback minimal dataset for when the file isn't available (e.g., in CI or after packaging)
@@ -1475,7 +1477,8 @@ impl ChessVectorEngine {
                     "best_move": "g1f3",
                     "depth": 2
                 }
-            ]"#.to_string()
+            ]"#
+            .to_string()
         };
 
         let training_data: Vec<serde_json::Value> = serde_json::from_str(&starter_data)?;
