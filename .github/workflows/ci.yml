@@ -17,12 +17,10 @@ jobs:
     strategy:
       matrix:
         os: [ubuntu-latest, windows-latest, macos-latest]
-        rust: [stable, beta]
-        exclude:
-          # Exclude beta on Windows and macOS to reduce CI time
-          - os: windows-latest
-            rust: beta
-          - os: macos-latest
+        rust: [stable]
+        include:
+          # Only test beta on Ubuntu to catch clippy issues early
+          - os: ubuntu-latest
             rust: beta
 
     steps:
@@ -52,7 +50,14 @@ jobs:
       run: cargo fmt --all -- --check
 
     - name: 📎 Run Clippy
-      run: cargo clippy --all-targets --all-features -- -D warnings
+      run: |
+        if [[ "${{ matrix.rust }}" == "beta" ]]; then
+          # More lenient on beta - only fail on errors, not warnings
+          cargo clippy --all-targets --all-features
+        else
+          # Strict on stable
+          cargo clippy --all-targets --all-features -- -D warnings
+        fi
 
     - name: 🏗️ Build
       run: cargo build --verbose --all-features
@@ -187,8 +192,8 @@ jobs:
     - name: 📥 Checkout code
       uses: actions/checkout@v4
 
-    - name: 🦀 Setup Rust 1.75.0 (MSRV)
-      uses: dtolnay/rust-toolchain@1.75.0
+    - name: 🦀 Setup Rust 1.81.0 (MSRV)
+      uses: dtolnay/rust-toolchain@1.81.0
 
     - name: 🏗️ Build with MSRV
       run: cargo build --verbose

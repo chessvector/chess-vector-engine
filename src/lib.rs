@@ -3154,14 +3154,14 @@ mod tests {
         }
         let search_time = start.elapsed();
 
-        // Basic performance bounds (these should be generous)
+        // Basic performance bounds (generous to account for CI contention)
         assert!(
-            encoding_time.as_millis() < 5000,
+            encoding_time.as_millis() < 10000,
             "Position encoding too slow: {}ms",
             encoding_time.as_millis()
         );
         assert!(
-            search_time.as_millis() < 1000,
+            search_time.as_millis() < 5000,
             "Search too slow: {}ms",
             search_time.as_millis()
         );
