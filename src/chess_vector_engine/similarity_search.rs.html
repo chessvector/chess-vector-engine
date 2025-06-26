@@ -112,7 +112,7 @@
 <a href=#112 id=112 data-nosnippet>112</a>            <span class="kw">match </span><span class="self">self</span>.gpu_accelerated_search(query, k) {
 <a href=#113 id=113 data-nosnippet>113</a>                <span class="prelude-val">Ok</span>(results) =&gt; <span class="kw">return </span>results,
 <a href=#114 id=114 data-nosnippet>114</a>                <span class="prelude-val">Err</span>(e) =&gt; {
-<a href=#115 id=115 data-nosnippet>115</a>                    <span class="macro">println!</span>(<span class="string">"GPU search failed ({}), falling back to CPU"</span>, e);
+<a href=#115 id=115 data-nosnippet>115</a>                    <span class="macro">println!</span>(<span class="string">"GPU search failed ({e}), falling back to CPU"</span>);
 <a href=#116 id=116 data-nosnippet>116</a>                }
 <a href=#117 id=117 data-nosnippet>117</a>            }
 <a href=#118 id=118 data-nosnippet>118</a>        }

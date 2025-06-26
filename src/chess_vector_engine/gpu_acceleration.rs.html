@@ -63,7 +63,7 @@
 <a href=#63 id=63 data-nosnippet>63</a>                    <span class="kw">return </span><span class="prelude-val">Ok</span>(accelerator);
 <a href=#64 id=64 data-nosnippet>64</a>                }
 <a href=#65 id=65 data-nosnippet>65</a>                <span class="prelude-val">Err</span>(e) =&gt; {
-<a href=#66 id=66 data-nosnippet>66</a>                    <span class="macro">println!</span>(<span class="string">"Metal initialization failed: {}, falling back to CPU"</span>, e);
+<a href=#66 id=66 data-nosnippet>66</a>                    <span class="macro">println!</span>(<span class="string">"Metal initialization failed: {e}, falling back to CPU"</span>);
 <a href=#67 id=67 data-nosnippet>67</a>                }
 <a href=#68 id=68 data-nosnippet>68</a>            }
 <a href=#69 id=69 data-nosnippet>69</a>        }
@@ -97,7 +97,7 @@
 <a href=#97 id=97 data-nosnippet>97</a>            <span class="kw">return </span><span class="prelude-val">Err</span>(candle_core::Error::Msg(<span class="string">"No CUDA devices available"</span>.into()));
 <a href=#98 id=98 data-nosnippet>98</a>        }
 <a href=#99 id=99 data-nosnippet>99</a>
-<a href=#100 id=100 data-nosnippet>100</a>        <span class="macro">println!</span>(<span class="string">"🚀 Detected {} CUDA device(s)"</span>, device_count);
+<a href=#100 id=100 data-nosnippet>100</a>        <span class="macro">println!</span>(<span class="string">"🚀 Detected {device_count} CUDA device(s)"</span>);
 <a href=#101 id=101 data-nosnippet>101</a>
 <a href=#102 id=102 data-nosnippet>102</a>        <span class="prelude-val">Ok</span>(GPUAccelerator {
 <a href=#103 id=103 data-nosnippet>103</a>            device: available_devices[<span class="number">0</span>].clone(),
@@ -133,7 +133,7 @@
 <a href=#133 id=133 data-nosnippet>133</a>            <span class="kw">return </span><span class="prelude-val">Err</span>(candle_core::Error::Msg(<span class="string">"No Metal devices available"</span>.into()));
 <a href=#134 id=134 data-nosnippet>134</a>        }
 <a href=#135 id=135 data-nosnippet>135</a>
-<a href=#136 id=136 data-nosnippet>136</a>        <span class="macro">println!</span>(<span class="string">"🍎 Detected {} Metal device(s)"</span>, device_count);
+<a href=#136 id=136 data-nosnippet>136</a>        <span class="macro">println!</span>(<span class="string">"🍎 Detected {device_count} Metal device(s)"</span>);
 <a href=#137 id=137 data-nosnippet>137</a>
 <a href=#138 id=138 data-nosnippet>138</a>        <span class="prelude-val">Ok</span>(GPUAccelerator {
 <a href=#139 id=139 data-nosnippet>139</a>            device: available_devices[<span class="number">0</span>].clone(),

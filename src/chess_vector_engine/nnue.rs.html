@@ -350,11 +350,11 @@
 <a href=#350 id=350 data-nosnippet>350</a>        </span><span class="kw">let </span>config = <span class="self">self</span>.get_config();
 <a href=#351 id=351 data-nosnippet>351</a>        <span class="kw">let </span>config_json = serde_json::to_string_pretty(<span class="kw-2">&amp;</span>config)<span class="question-mark">?</span>;
 <a href=#352 id=352 data-nosnippet>352</a>
-<a href=#353 id=353 data-nosnippet>353</a>        <span class="kw">let </span><span class="kw-2">mut </span>file = File::create(<span class="macro">format!</span>(<span class="string">"{}.config"</span>, path))<span class="question-mark">?</span>;
+<a href=#353 id=353 data-nosnippet>353</a>        <span class="kw">let </span><span class="kw-2">mut </span>file = File::create(<span class="macro">format!</span>(<span class="string">"{path}.config"</span>))<span class="question-mark">?</span>;
 <a href=#354 id=354 data-nosnippet>354</a>        file.write_all(config_json.as_bytes())<span class="question-mark">?</span>;
 <a href=#355 id=355 data-nosnippet>355</a>
 <a href=#356 id=356 data-nosnippet>356</a>        <span class="comment">// In production, would save actual tensor weights using safetensors
-<a href=#357 id=357 data-nosnippet>357</a>        </span><span class="macro">println!</span>(<span class="string">"Model configuration saved to {}.config"</span>, path);
+<a href=#357 id=357 data-nosnippet>357</a>        </span><span class="macro">println!</span>(<span class="string">"Model configuration saved to {path}.config"</span>);
 <a href=#358 id=358 data-nosnippet>358</a>        <span class="macro">println!</span>(<span class="string">"Note: Full weight serialization requires safetensors integration"</span>);
 <a href=#359 id=359 data-nosnippet>359</a>
 <a href=#360 id=360 data-nosnippet>360</a>        <span class="prelude-val">Ok</span>(())
@@ -365,7 +365,7 @@
 <a href=#365 id=365 data-nosnippet>365</a>        <span class="kw">use </span>std::fs;
 <a href=#366 id=366 data-nosnippet>366</a>
 <a href=#367 id=367 data-nosnippet>367</a>        <span class="comment">// Load model configuration
-<a href=#368 id=368 data-nosnippet>368</a>        </span><span class="kw">let </span>config_path = <span class="macro">format!</span>(<span class="string">"{}.config"</span>, path);
+<a href=#368 id=368 data-nosnippet>368</a>        </span><span class="kw">let </span>config_path = <span class="macro">format!</span>(<span class="string">"{path}.config"</span>);
 <a href=#369 id=369 data-nosnippet>369</a>        <span class="kw">if </span>std::path::Path::new(<span class="kw-2">&amp;</span>config_path).exists() {
 <a href=#370 id=370 data-nosnippet>370</a>            <span class="kw">let </span>config_json = fs::read_to_string(config_path)<span class="question-mark">?</span>;
 <a href=#371 id=371 data-nosnippet>371</a>            <span class="kw">let </span>config: NNUEConfig = serde_json::from_str(<span class="kw-2">&amp;</span>config_json)<span class="question-mark">?</span>;
@@ -377,7 +377,7 @@
 <a href=#377 id=377 data-nosnippet>377</a>            <span class="macro">println!</span>(<span class="string">"Operation complete"</span>);
 <a href=#378 id=378 data-nosnippet>378</a>            <span class="macro">println!</span>(<span class="string">"Note: Full weight loading requires safetensors integration"</span>);
 <a href=#379 id=379 data-nosnippet>379</a>        } <span class="kw">else </span>{
-<a href=#380 id=380 data-nosnippet>380</a>            <span class="kw">return </span><span class="prelude-val">Err</span>(<span class="macro">format!</span>(<span class="string">"Model config file not found: {}.config"</span>, path).into());
+<a href=#380 id=380 data-nosnippet>380</a>            <span class="kw">return </span><span class="prelude-val">Err</span>(<span class="macro">format!</span>(<span class="string">"Model config file not found: {path}.config"</span>).into());
 <a href=#381 id=381 data-nosnippet>381</a>        }
 <a href=#382 id=382 data-nosnippet>382</a>
 <a href=#383 id=383 data-nosnippet>383</a>        <span class="prelude-val">Ok</span>(())

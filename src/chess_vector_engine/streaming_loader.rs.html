@@ -39,7 +39,7 @@
 <a href=#39 id=39 data-nosnippet>39</a>
 <a href=#40 id=40 data-nosnippet>40</a>        // Estimate total lines for progress tracking
 <a href=#41 id=41 data-nosnippet>41</a>        </span><span class="kw">let </span>total_lines = <span class="self">self</span>.estimate_line_count(path_ref)<span class="question-mark">?</span>;
-<a href=#42 id=42 data-nosnippet>42</a>        <span class="macro">println!</span>(<span class="string">"📊 Estimated {} lines to process"</span>, total_lines);
+<a href=#42 id=42 data-nosnippet>42</a>        <span class="macro">println!</span>(<span class="string">"📊 Estimated {total_lines} lines to process"</span>);
 <a href=#43 id=43 data-nosnippet>43</a>
 <a href=#44 id=44 data-nosnippet>44</a>        <span class="kw">let </span>pb = ProgressBar::new(total_lines <span class="kw">as </span>u64);
 <a href=#45 id=45 data-nosnippet>45</a>        pb.set_style(
@@ -79,8 +79,8 @@
 <a href=#79 id=79 data-nosnippet>79</a>                            <span class="self">self</span>.process_batch(engine, <span class="kw-2">&amp;mut </span>batch_boards, <span class="kw-2">&amp;mut </span>batch_evaluations)<span class="question-mark">?</span>;
 <a href=#80 id=80 data-nosnippet>80</a>
 <a href=#81 id=81 data-nosnippet>81</a>                            pb.set_message(<span class="macro">format!</span>(
-<a href=#82 id=82 data-nosnippet>82</a>                                <span class="string">"{} loaded, {} dupes"</span>,
-<a href=#83 id=83 data-nosnippet>83</a>                                <span class="self">self</span>.loaded_count, <span class="self">self</span>.duplicate_count
+<a href=#82 id=82 data-nosnippet>82</a>                                <span class="string">"{loaded} loaded, {dupes} dupes"</span>,
+<a href=#83 id=83 data-nosnippet>83</a>                                loaded = <span class="self">self</span>.loaded_count, dupes = <span class="self">self</span>.duplicate_count
 <a href=#84 id=84 data-nosnippet>84</a>                            ));
 <a href=#85 id=85 data-nosnippet>85</a>                        }
 <a href=#86 id=86 data-nosnippet>86</a>                    } <span class="kw">else </span>{
@@ -108,7 +108,7 @@
 <a href=#108 id=108 data-nosnippet>108</a>        ));
 <a href=#109 id=109 data-nosnippet>109</a>
 <a href=#110 id=110 data-nosnippet>110</a>        <span class="kw">let </span>new_positions = engine.position_boards.len() - initial_size;
-<a href=#111 id=111 data-nosnippet>111</a>        <span class="macro">println!</span>(<span class="string">"🎯 Added {} new positions to engine"</span>, new_positions);
+<a href=#111 id=111 data-nosnippet>111</a>        <span class="macro">println!</span>(<span class="string">"🎯 Added {new_positions} new positions to engine"</span>);
 <a href=#112 id=112 data-nosnippet>112</a>
 <a href=#113 id=113 data-nosnippet>113</a>        <span class="prelude-val">Ok</span>(())
 <a href=#114 id=114 data-nosnippet>114</a>    }
@@ -143,7 +143,7 @@
 <a href=#143 id=143 data-nosnippet>143</a>        <span class="comment">// Deserialize positions
 <a href=#144 id=144 data-nosnippet>144</a>        </span><span class="kw">let </span>positions: Vec&lt;(String, f32)&gt; = bincode::deserialize(<span class="kw-2">&amp;</span>decompressed_data)<span class="question-mark">?</span>;
 <a href=#145 id=145 data-nosnippet>145</a>        <span class="kw">let </span>total_positions = positions.len();
-<a href=#146 id=146 data-nosnippet>146</a>        <span class="macro">println!</span>(<span class="string">"📊 Loaded {} positions from binary"</span>, total_positions);
+<a href=#146 id=146 data-nosnippet>146</a>        <span class="macro">println!</span>(<span class="string">"📊 Loaded {total_positions} positions from binary"</span>);
 <a href=#147 id=147 data-nosnippet>147</a>
 <a href=#148 id=148 data-nosnippet>148</a>        <span class="kw">if </span>total_positions == <span class="number">0 </span>{
 <a href=#149 id=149 data-nosnippet>149</a>            <span class="kw">return </span><span class="prelude-val">Ok</span>(());
@@ -185,10 +185,10 @@
 <a href=#185 id=185 data-nosnippet>185</a>            }
 <a href=#186 id=186 data-nosnippet>186</a>
 <a href=#187 id=187 data-nosnippet>187</a>            pb.set_position(processed <span class="kw">as </span>u64);
-<a href=#188 id=188 data-nosnippet>188</a>            pb.set_message(<span class="macro">format!</span>(<span class="string">"{} loaded"</span>, <span class="self">self</span>.loaded_count));
+<a href=#188 id=188 data-nosnippet>188</a>            pb.set_message(<span class="macro">format!</span>(<span class="string">"{count} loaded"</span>, count = <span class="self">self</span>.loaded_count));
 <a href=#189 id=189 data-nosnippet>189</a>        }
 <a href=#190 id=190 data-nosnippet>190</a>
-<a href=#191 id=191 data-nosnippet>191</a>        pb.finish_with_message(<span class="macro">format!</span>(<span class="string">"✅ Loaded {} positions"</span>, <span class="self">self</span>.loaded_count));
+<a href=#191 id=191 data-nosnippet>191</a>        pb.finish_with_message(<span class="macro">format!</span>(<span class="string">"✅ Loaded {count} positions"</span>, count = <span class="self">self</span>.loaded_count));
 <a href=#192 id=192 data-nosnippet>192</a>
 <a href=#193 id=193 data-nosnippet>193</a>        <span class="prelude-val">Ok</span>(())
 <a href=#194 id=194 data-nosnippet>194</a>    }
