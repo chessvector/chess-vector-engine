@@ -300,9 +300,7 @@ impl UltraFastLoader {
 
             // Update progress
             pb.set_position(((chunk_idx + 1) * chunk_size).min(total_positions) as u64);
-            pb.set_message(format!(
-                "{total_loaded} loaded, {total_duplicates} dupes"
-            ));
+            pb.set_message(format!("{total_loaded} loaded, {total_duplicates} dupes"));
         }
 
         pb.finish_with_message(format!("✅ Loaded {total_loaded} positions"));

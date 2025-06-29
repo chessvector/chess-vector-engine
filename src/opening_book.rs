@@ -240,8 +240,14 @@ impl OpeningBook {
             );
         }
 
-        // Add more deep opening lines
+        // Add comprehensive opening variations
         self.add_deeper_openings();
+        self.add_modern_openings();
+        self.add_indian_defenses();
+        self.add_sicilian_variations();
+        self.add_french_caro_kann();
+        self.add_english_reti_systems();
+        self.add_gambit_systems();
     }
 
     /// Add deeper opening lines with more positions
@@ -353,6 +359,418 @@ impl OpeningBook {
 
         // Add comprehensive opening database
         self.add_comprehensive_openings();
+    }
+
+    /// Add modern openings for 2000+ ELO strength
+    fn add_modern_openings(&mut self) {
+        // LONDON SYSTEM
+        if let Ok(board) =
+            Board::from_str("rnbqkb1r/ppp1pppp/5n2/3p4/3P1B2/5N2/PPP1PPPP/RN1QKB1R b KQkq - 3 3")
+        {
+            let moves = vec![
+                (ChessMove::from_str("c7c5").unwrap(), 1.0), // Challenge center
+                (ChessMove::from_str("e7e6").unwrap(), 0.8), // Solid setup
+                (ChessMove::from_str("c8f5").unwrap(), 0.9), // Active bishop
+            ];
+            let _ = self.add_opening(
+                &board.to_string(),
+                0.1,
+                moves,
+                "London System vs ...d5".to_string(),
+                Some("D02".to_string()),
+            );
+        }
+
+        // CATALAN OPENING
+        if let Ok(board) =
+            Board::from_str("rnbqkb1r/pppp1ppp/4pn2/8/2PP4/6P1/PP2PP1P/RNBQKBNR b KQkq - 0 3")
+        {
+            let moves = vec![
+                (ChessMove::from_str("d7d5").unwrap(), 1.0), // Accept challenge
+                (ChessMove::from_str("f8e7").unwrap(), 0.8), // Solid development
+                (ChessMove::from_str("c7c6").unwrap(), 0.7), // Slav-style setup
+            ];
+            let _ = self.add_opening(
+                &board.to_string(),
+                0.2,
+                moves,
+                "Catalan Opening".to_string(),
+                Some("E00".to_string()),
+            );
+        }
+
+        // TROMPOWSKY ATTACK
+        if let Ok(board) =
+            Board::from_str("rnbqkb1r/pppppppp/5n2/8/3P4/8/PPP1PPPP/RNBQKBNR w KQkq - 1 2")
+        {
+            let moves = vec![
+                (ChessMove::from_str("c1g5").unwrap(), 1.0), // Trompowsky
+                (ChessMove::from_str("c2c4").unwrap(), 0.9), // Transpose to systems
+                (ChessMove::from_str("g1f3").unwrap(), 0.8), // Normal development
+            ];
+            let _ = self.add_opening(
+                &board.to_string(),
+                0.2,
+                moves,
+                "Trompowsky Attack".to_string(),
+                Some("A45".to_string()),
+            );
+        }
+
+        // KING'S INDIAN ATTACK
+        if let Ok(board) =
+            Board::from_str("rnbqkb1r/ppp1pppp/5n2/3p4/8/5NP1/PPPPPP1P/RNBQKB1R b KQkq - 0 3")
+        {
+            let moves = vec![
+                (ChessMove::from_str("c8g4").unwrap(), 0.8), // Pin the knight
+                (ChessMove::from_str("e7e6").unwrap(), 1.0), // Solid center
+                (ChessMove::from_str("c7c6").unwrap(), 0.7), // Caro-Kann style
+            ];
+            let _ = self.add_opening(
+                &board.to_string(),
+                0.0,
+                moves,
+                "King's Indian Attack".to_string(),
+                Some("A07".to_string()),
+            );
+        }
+    }
+
+    /// Add Indian Defense systems
+    fn add_indian_defenses(&mut self) {
+        // QUEEN'S INDIAN DEFENSE
+        if let Ok(board) =
+            Board::from_str("rnbqkb1r/p1pppppp/1p3n2/8/2PP4/5N2/PP2PPPP/RNBQKB1R w KQkq - 0 3")
+        {
+            let moves = vec![
+                (ChessMove::from_str("g2g3").unwrap(), 1.0), // Fianchetto setup
+                (ChessMove::from_str("a2a3").unwrap(), 0.8), // Petrosian system
+                (ChessMove::from_str("b1c3").unwrap(), 0.9), // Classical development
+            ];
+            let _ = self.add_opening(
+                &board.to_string(),
+                0.1,
+                moves,
+                "Queen's Indian Defense".to_string(),
+                Some("E12".to_string()),
+            );
+        }
+
+        // BOGO-INDIAN DEFENSE
+        if let Ok(board) =
+            Board::from_str("rnbqk2r/ppppppbp/5n2/8/2PP4/5N2/PP2PPPP/RNBQKB1R w KQkq - 2 4")
+        {
+            let moves = vec![
+                (ChessMove::from_str("c1d2").unwrap(), 1.0), // Exchange bishop
+                (ChessMove::from_str("b1d2").unwrap(), 0.8), // Knight development
+                (ChessMove::from_str("d1c2").unwrap(), 0.7), // Queen development
+            ];
+            let _ = self.add_opening(
+                &board.to_string(),
+                0.0,
+                moves,
+                "Bogo-Indian Defense".to_string(),
+                Some("E11".to_string()),
+            );
+        }
+
+        // GRUNFELD DEFENSE
+        if let Ok(board) =
+            Board::from_str("rnbqkb1r/ppp1pp1p/5np1/3p4/2PP4/2N5/PP2PPPP/R1BQKBNR w KQkq - 0 4")
+        {
+            let moves = vec![
+                (ChessMove::from_str("c4d5").unwrap(), 0.7), // Exchange variation
+                (ChessMove::from_str("g1f3").unwrap(), 1.0), // Fianchetto system
+                (ChessMove::from_str("c1f4").unwrap(), 0.8), // Russian system
+            ];
+            let _ = self.add_opening(
+                &board.to_string(),
+                0.1,
+                moves,
+                "Grunfeld Defense".to_string(),
+                Some("D80".to_string()),
+            );
+        }
+
+        // BENONI DEFENSE
+        if let Ok(board) =
+            Board::from_str("rnbqkb1r/pp2pppp/3p1n2/2pP4/2P5/8/PP2PPPP/RNBQKBNR w KQkq - 0 4")
+        {
+            let moves = vec![
+                (ChessMove::from_str("b1c3").unwrap(), 1.0), // Classical setup
+                (ChessMove::from_str("g1f3").unwrap(), 0.9), // Fianchetto variation
+                (ChessMove::from_str("f2f4").unwrap(), 0.7), // Four Pawns Attack
+            ];
+            let _ = self.add_opening(
+                &board.to_string(),
+                0.3,
+                moves,
+                "Modern Benoni".to_string(),
+                Some("A60".to_string()),
+            );
+        }
+    }
+
+    /// Add comprehensive Sicilian variations
+    fn add_sicilian_variations(&mut self) {
+        // SICILIAN ACCELERATED DRAGON
+        if let Ok(board) =
+            Board::from_str("rnbqkbnr/pp1ppp1p/6p1/2p5/4P3/8/PPPP1PPP/RNBQKBNR w KQkq - 0 3")
+        {
+            let moves = vec![
+                (ChessMove::from_str("g1f3").unwrap(), 1.0), // Standard development
+                (ChessMove::from_str("d2d4").unwrap(), 0.9), // Open Sicilian
+                (ChessMove::from_str("f2f4").unwrap(), 0.6), // Grand Prix
+            ];
+            let _ = self.add_opening(
+                &board.to_string(),
+                0.2,
+                moves,
+                "Sicilian Accelerated Dragon".to_string(),
+                Some("B35".to_string()),
+            );
+        }
+
+        // SICILIAN SVESHNIKOV
+        if let Ok(board) = Board::from_str(
+            "r1bqkb1r/1pp1pppp/p1np1n2/4p3/3P4/2N2N2/PPP1PPPP/R1BQKB1R w KQkq - 0 6",
+        ) {
+            let moves = vec![
+                (ChessMove::from_str("f3d5").unwrap(), 0.8), // Knight sacrifice
+                (ChessMove::from_str("c1g5").unwrap(), 1.0), // Pin the knight
+                (ChessMove::from_str("f1e2").unwrap(), 0.9), // Solid development
+            ];
+            let _ = self.add_opening(
+                &board.to_string(),
+                0.2,
+                moves,
+                "Sicilian Sveshnikov".to_string(),
+                Some("B33".to_string()),
+            );
+        }
+
+        // SICILIAN SCHEVENINGEN
+        if let Ok(board) =
+            Board::from_str("rnbqkb1r/pp3ppp/3ppn2/8/3P4/2N2N2/PPP1PPPP/R1BQKB1R w KQkq - 0 6")
+        {
+            let moves = vec![
+                (ChessMove::from_str("f2f3").unwrap(), 1.0), // English Attack
+                (ChessMove::from_str("f1e2").unwrap(), 0.9), // Classical system
+                (ChessMove::from_str("c1e3").unwrap(), 0.8), // Standard development
+            ];
+            let _ = self.add_opening(
+                &board.to_string(),
+                0.1,
+                moves,
+                "Sicilian Scheveningen".to_string(),
+                Some("B80".to_string()),
+            );
+        }
+
+        // SICILIAN PAULSEN
+        if let Ok(board) =
+            Board::from_str("rnbqkb1r/1pp2ppp/p3pn2/8/3P4/2N2N2/PPP1PPPP/R1BQKB1R w KQkq - 0 6")
+        {
+            let moves = vec![
+                (ChessMove::from_str("f1e2").unwrap(), 1.0), // Classical setup
+                (ChessMove::from_str("g2g3").unwrap(), 0.8), // Fianchetto
+                (ChessMove::from_str("f2f4").unwrap(), 0.7), // Aggressive approach
+            ];
+            let _ = self.add_opening(
+                &board.to_string(),
+                0.1,
+                moves,
+                "Sicilian Paulsen".to_string(),
+                Some("B40".to_string()),
+            );
+        }
+    }
+
+    /// Add French and Caro-Kann systems
+    fn add_french_caro_kann(&mut self) {
+        // FRENCH WINAWER
+        if let Ok(board) =
+            Board::from_str("rnbqk1nr/ppp2ppp/4p3/3p4/1b1PP3/2N5/PPP2PPP/R1BQKBNR w KQkq - 2 4")
+        {
+            let moves = vec![
+                (ChessMove::from_str("e4e5").unwrap(), 1.0), // Advance variation
+                (ChessMove::from_str("f1d3").unwrap(), 0.8), // Positional approach
+                (ChessMove::from_str("a2a3").unwrap(), 0.7), // Force bishop decision
+            ];
+            let _ = self.add_opening(
+                &board.to_string(),
+                0.2,
+                moves,
+                "French Winawer".to_string(),
+                Some("C15".to_string()),
+            );
+        }
+
+        // FRENCH TARRASCH
+        if let Ok(board) =
+            Board::from_str("rnbqkbnr/ppp2ppp/4p3/3p4/3PP3/8/PPPR1PPP/RNBQKBNR b KQkq - 1 3")
+        {
+            let moves = vec![
+                (ChessMove::from_str("c7c5").unwrap(), 1.0), // Challenge center
+                (ChessMove::from_str("g8f6").unwrap(), 0.9), // Develop knight
+                (ChessMove::from_str("b8c6").unwrap(), 0.8), // Classical development
+            ];
+            let _ = self.add_opening(
+                &board.to_string(),
+                -0.1,
+                moves,
+                "French Tarrasch".to_string(),
+                Some("C03".to_string()),
+            );
+        }
+
+        // CARO-KANN ADVANCE
+        if let Ok(board) =
+            Board::from_str("rnbqkbnr/pp2pppp/2p5/3pP3/3P4/8/PPP2PPP/RNBQKBNR b KQkq - 0 3")
+        {
+            let moves = vec![
+                (ChessMove::from_str("c8f5").unwrap(), 1.0), // Active bishop
+                (ChessMove::from_str("e7e6").unwrap(), 0.8), // French-style
+                (ChessMove::from_str("h7h6").unwrap(), 0.6), // Prevent Bg5
+            ];
+            let _ = self.add_opening(
+                &board.to_string(),
+                0.0,
+                moves,
+                "Caro-Kann Advance".to_string(),
+                Some("B12".to_string()),
+            );
+        }
+
+        // CARO-KANN EXCHANGE
+        if let Ok(board) =
+            Board::from_str("rnbqkbnr/pp2pppp/2p5/3P4/8/8/PPP1PPPP/RNBQKBNR b KQkq - 0 3")
+        {
+            let moves = vec![
+                (ChessMove::from_str("d5c4").unwrap(), 1.0), // Recapture
+            ];
+            let _ = self.add_opening(
+                &board.to_string(),
+                0.0,
+                moves,
+                "Caro-Kann Exchange".to_string(),
+                Some("B13".to_string()),
+            );
+        }
+    }
+
+    /// Add English and Reti systems
+    fn add_english_reti_systems(&mut self) {
+        // ENGLISH SYMMETRICAL
+        if let Ok(board) =
+            Board::from_str("rnbqkbnr/pp1ppppp/8/2p5/2P5/8/PP1PPPPP/RNBQKBNR w KQkq - 0 2")
+        {
+            let moves = vec![
+                (ChessMove::from_str("b1c3").unwrap(), 1.0), // Symmetrical variation
+                (ChessMove::from_str("g1f3").unwrap(), 0.9), // King's Knight
+                (ChessMove::from_str("g2g3").unwrap(), 0.8), // Fianchetto
+            ];
+            let _ = self.add_opening(
+                &board.to_string(),
+                0.0,
+                moves,
+                "English Symmetrical".to_string(),
+                Some("A30".to_string()),
+            );
+        }
+
+        // RETI OPENING
+        if let Ok(board) =
+            Board::from_str("rnbqkb1r/pppppppp/5n2/8/8/5N2/PPPPPPPP/RNBQKB1R w KQkq - 1 2")
+        {
+            let moves = vec![
+                (ChessMove::from_str("c2c4").unwrap(), 1.0), // English setup
+                (ChessMove::from_str("g2g3").unwrap(), 0.9), // Fianchetto
+                (ChessMove::from_str("d2d4").unwrap(), 0.8), // Transpose to d4
+            ];
+            let _ = self.add_opening(
+                &board.to_string(),
+                0.1,
+                moves,
+                "Reti Opening".to_string(),
+                Some("A04".to_string()),
+            );
+        }
+
+        // BIRD'S OPENING
+        if let Ok(board) =
+            Board::from_str("rnbqkbnr/pppppppp/8/8/5P2/8/PPPPP1PP/RNBQKBNR b KQkq - 0 1")
+        {
+            let moves = vec![
+                (ChessMove::from_str("d7d5").unwrap(), 1.0), // Challenge center
+                (ChessMove::from_str("g8f6").unwrap(), 0.8), // Develop knight
+                (ChessMove::from_str("e7e5").unwrap(), 0.9), // Counter-attack
+            ];
+            let _ = self.add_opening(
+                &board.to_string(),
+                -0.1,
+                moves,
+                "Bird's Opening".to_string(),
+                Some("A02".to_string()),
+            );
+        }
+    }
+
+    /// Add gambit systems
+    fn add_gambit_systems(&mut self) {
+        // KING'S GAMBIT ACCEPTED
+        if let Ok(board) =
+            Board::from_str("rnbqkbnr/pppp1ppp/8/4p3/4PP2/8/PPPP2PP/RNBQKBNR b KQkq - 0 2")
+        {
+            let moves = vec![
+                (ChessMove::from_str("e5f4").unwrap(), 1.0), // Accept gambit
+                (ChessMove::from_str("d7d6").unwrap(), 0.7), // Decline solidly
+                (ChessMove::from_str("f8c5").unwrap(), 0.8), // Classical defense
+            ];
+            let _ = self.add_opening(
+                &board.to_string(),
+                -0.2,
+                moves,
+                "King's Gambit".to_string(),
+                Some("C30".to_string()),
+            );
+        }
+
+        // QUEEN'S GAMBIT ACCEPTED
+        if let Ok(board) =
+            Board::from_str("rnbqkbnr/ppp1pppp/8/8/2pP4/8/PP2PPPP/RNBQKBNR w KQkq - 0 3")
+        {
+            let moves = vec![
+                (ChessMove::from_str("g1f3").unwrap(), 1.0), // Regain pawn
+                (ChessMove::from_str("e2e3").unwrap(), 0.9), // Support center
+                (ChessMove::from_str("a2a4").unwrap(), 0.7), // Prevent b5
+            ];
+            let _ = self.add_opening(
+                &board.to_string(),
+                0.3,
+                moves,
+                "Queen's Gambit Accepted".to_string(),
+                Some("D20".to_string()),
+            );
+        }
+
+        // EVANS GAMBIT
+        if let Ok(board) =
+            Board::from_str("r1bqk1nr/pppp1ppp/2n5/2b1p3/1PB1P3/5N2/P1PP1PPP/RNBQK2R b KQkq - 2 4")
+        {
+            let moves = vec![
+                (ChessMove::from_str("c5b4").unwrap(), 1.0), // Accept gambit
+                (ChessMove::from_str("c5a5").unwrap(), 0.8), // Retreat bishop
+                (ChessMove::from_str("c5e7").unwrap(), 0.7), // Safe retreat
+            ];
+            let _ = self.add_opening(
+                &board.to_string(),
+                0.4,
+                moves,
+                "Evans Gambit".to_string(),
+                Some("C51".to_string()),
+            );
+        }
     }
 
     /// Add comprehensive opening database with hundreds of positions
@@ -476,6 +894,42 @@ impl OpeningBook {
                 moves,
                 "Ruy Lopez - Closed System".to_string(),
                 Some("C84".to_string()),
+            );
+        }
+
+        // TWO KNIGHTS DEFENSE
+        if let Ok(board) =
+            Board::from_str("r1bqkb1r/pppp1ppp/2n2n2/4p3/2B1P3/5N2/PPPP1PPP/RNBQK2R w KQkq - 4 4")
+        {
+            let moves = vec![
+                (ChessMove::from_str("f3g5").unwrap(), 0.8), // Aggressive Knight Attack
+                (ChessMove::from_str("d2d3").unwrap(), 1.0), // Italian Game continuation
+                (ChessMove::from_str("b1c3").unwrap(), 0.9), // Four Knights
+            ];
+            let _ = self.add_opening(
+                &board.to_string(),
+                0.2,
+                moves,
+                "Two Knights Defense".to_string(),
+                Some("C55".to_string()),
+            );
+        }
+
+        // DUTCH DEFENSE
+        if let Ok(board) =
+            Board::from_str("rnbqkbnr/ppppp1pp/8/5p2/3P4/8/PPP1PPPP/RNBQKBNR w KQkq - 0 2")
+        {
+            let moves = vec![
+                (ChessMove::from_str("g1f3").unwrap(), 1.0), // Standard development
+                (ChessMove::from_str("c2c4").unwrap(), 0.9), // English setup
+                (ChessMove::from_str("g2g3").unwrap(), 0.8), // Fianchetto setup
+            ];
+            let _ = self.add_opening(
+                &board.to_string(),
+                0.3,
+                moves,
+                "Dutch Defense".to_string(),
+                Some("A80".to_string()),
             );
         }
 
@@ -708,12 +1162,12 @@ impl OpeningBook {
             );
         }
 
-        // MODERN OPENINGS AND AGGRESSIVE LINES
-        self.add_modern_openings();
+        // Add extra modern variations
+        self.add_extra_modern_openings();
     }
 
-    /// Add modern and aggressive opening variations
-    fn add_modern_openings(&mut self) {
+    /// Add modern and aggressive opening variations (part of comprehensive)
+    fn add_extra_modern_openings(&mut self) {
         // ACCELERATED DRAGON
         if let Ok(board) =
             Board::from_str("rnbqkb1r/pp1ppp1p/5np1/2p5/3P4/5N2/PPP1PPPP/RNBQKB1R w KQkq - 0 4")

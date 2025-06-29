@@ -836,9 +836,7 @@ impl ChessVectorEngine {
             return Ok(());
         }
 
-        println!(
-            "🚀 Processing {total_positions} positions from binary format..."
-        );
+        println!("🚀 Processing {total_positions} positions from binary format...");
 
         // Progress bar for loading positions
         let pb = ProgressBar::new(total_positions as u64);
@@ -1252,9 +1250,7 @@ impl ChessVectorEngine {
         csv_path: P,
         max_puzzles: usize,
     ) -> Result<(), Box<dyn std::error::Error>> {
-        println!(
-            "📚 Loading Lichess puzzles (basic tier, limited to {max_puzzles} puzzles)..."
-        );
+        println!("📚 Loading Lichess puzzles (basic tier, limited to {max_puzzles} puzzles)...");
         let puzzle_entries =
             crate::lichess_loader::load_lichess_puzzles_basic_with_moves(csv_path, max_puzzles)?;
 
@@ -1793,9 +1789,7 @@ impl ChessVectorEngine {
             }
 
             let output_file_path = input_file.replace(".json", ".msgpack");
-            println!(
-                "🔄 Converting {input_file} → {output_file_path} (MessagePack format)"
-            );
+            println!("🔄 Converting {input_file} → {output_file_path} (MessagePack format)");
 
             // Load JSON data and handle both formats
             let file = File::open(input_path)?;
@@ -1901,9 +1895,7 @@ impl ChessVectorEngine {
             return Ok(());
         }
 
-        println!(
-            "🔄 Converting A100 binary data {binary_path} → {json_path} (JSON format)"
-        );
+        println!("🔄 Converting A100 binary data {binary_path} → {json_path} (JSON format)");
 
         // Load binary data using the existing binary loader
         let mut engine = ChessVectorEngine::new(1024);
@@ -1964,9 +1956,7 @@ impl ChessVectorEngine {
                 continue;
             }
 
-            println!(
-                "🔄 Converting {input_file} → {output_file} (Zstd compression)"
-            );
+            println!("🔄 Converting {input_file} → {output_file} (Zstd compression)");
 
             let input_file = File::open(input_path)?;
             let output_file_handle = File::create(output_file)?;
@@ -2020,9 +2010,7 @@ impl ChessVectorEngine {
                 continue;
             }
 
-            println!(
-                "🔄 Converting {input_file} → {output_file} (Memory-mapped format)"
-            );
+            println!("🔄 Converting {input_file} → {output_file} (Memory-mapped format)");
 
             // Load data based on input format
             let data: Vec<(String, f32)> = if input_file.ends_with(".json") {
@@ -2822,9 +2810,7 @@ impl ChessVectorEngine {
         if let Some(ref mut tactical_search) = self.tactical_search {
             tactical_search.config.enable_parallel_search = true;
             tactical_search.config.num_threads = num_threads;
-            println!(
-                "🧵 Parallel tactical search enabled with {num_threads} threads"
-            );
+            println!("🧵 Parallel tactical search enabled with {num_threads} threads");
         }
     }
 
@@ -2888,9 +2874,7 @@ impl ChessVectorEngine {
             }
         }
 
-        println!(
-            "🧠 Self-play training complete: {positions_added} new positions learned"
-        );
+        println!("🧠 Self-play training complete: {positions_added} new positions learned");
         Ok(positions_added)
     }
 
@@ -2904,9 +2888,7 @@ impl ChessVectorEngine {
         let mut total_positions = 0;
         let mut trainer = training::SelfPlayTrainer::new(config.clone());
 
-        println!(
-            "🔄 Starting continuous self-play training for {iterations} iterations..."
-        );
+        println!("🔄 Starting continuous self-play training for {iterations} iterations...");
 
         for iteration in 1..=iterations {
             println!("\n--- Self-Play Iteration {iteration}/{iterations} ---");
@@ -2961,9 +2943,7 @@ impl ChessVectorEngine {
             }
         }
 
-        println!(
-            "\n🎉 Continuous self-play complete: {total_positions} total new positions"
-        );
+        println!("\n🎉 Continuous self-play complete: {total_positions} total new positions");
         Ok(total_positions)
     }
 

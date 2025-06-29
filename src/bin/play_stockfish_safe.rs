@@ -514,26 +514,10 @@ fn play_game(
 
     // Configure strong tactical search to match Stockfish strength
     use chess_vector_engine::TacticalConfig;
-    let strong_tactical_config = TacticalConfig {
-        max_depth: tactical_depth as u32,  // Match or exceed Stockfish depth
-        max_time_ms: time_per_move as u64, // Match Stockfish thinking time
-        max_nodes: 2_000_000,              // 4x higher node limit for stronger play
-        quiescence_depth: 8,               // Even deeper quiescence search for tactics
-        enable_transposition_table: true,
-        enable_iterative_deepening: true,
-        enable_aspiration_windows: true, // Enable for stronger play
-        enable_null_move_pruning: true,
-        enable_late_move_reductions: true,
-        enable_principal_variation_search: true,
-        enable_parallel_search: true,
-        num_threads: 8, // More threads for stronger search
-        enable_futility_pruning: true,
-        enable_razoring: true,
-        enable_extended_futility_pruning: true,
-        futility_margin_base: 100.0, // Even tighter margins
-        razor_margin: 200.0,
-        extended_futility_margin: 40.0,
-    };
+    let mut strong_tactical_config = TacticalConfig::strong(); // Use optimized strong config
+    strong_tactical_config.max_depth = tactical_depth as u32; // Match or exceed Stockfish depth
+    strong_tactical_config.max_time_ms = time_per_move as u64; // Match Stockfish thinking time
+    strong_tactical_config.num_threads = 8; // More threads for stronger search
 
     chess_vector_engine.enable_tactical_search(strong_tactical_config);
     println!(

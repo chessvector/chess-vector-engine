@@ -540,9 +540,7 @@ impl StockfishPool {
     pub fn new(depth: u8, pool_size: usize) -> Result<Self, Box<dyn std::error::Error>> {
         let mut processes = Vec::with_capacity(pool_size);
 
-        println!(
-            "🚀 Initializing Stockfish pool with {pool_size} processes..."
-        );
+        println!("🚀 Initializing Stockfish pool with {pool_size} processes...");
 
         for i in 0..pool_size {
             match StockfishProcess::new(depth) {
@@ -1668,9 +1666,7 @@ impl TacticalPuzzleParser {
             ));
         }
 
-        pb.finish_with_message(format!(
-            "Parsed {processed} puzzles (skipped: {skipped})"
-        ));
+        pb.finish_with_message(format!("Parsed {processed} puzzles (skipped: {skipped})"));
 
         Ok(tactical_data)
     }

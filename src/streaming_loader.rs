@@ -80,7 +80,8 @@ impl StreamingLoader {
 
                             pb.set_message(format!(
                                 "{loaded} loaded, {dupes} dupes",
-                                loaded = self.loaded_count, dupes = self.duplicate_count
+                                loaded = self.loaded_count,
+                                dupes = self.duplicate_count
                             ));
                         }
                     } else {
@@ -188,7 +189,10 @@ impl StreamingLoader {
             pb.set_message(format!("{count} loaded", count = self.loaded_count));
         }
 
-        pb.finish_with_message(format!("✅ Loaded {count} positions", count = self.loaded_count));
+        pb.finish_with_message(format!(
+            "✅ Loaded {count} positions",
+            count = self.loaded_count
+        ));
 
         Ok(())
     }
