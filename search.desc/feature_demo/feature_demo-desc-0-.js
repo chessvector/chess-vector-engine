@@ -1,1 +1,1 @@
-searchState.loadedDescShard("feature_demo", 0, "Demonstrate the feature gating system")
+searchState.loadedDescShard("feature_demo", 0, "Demonstrate the full open source feature set of the Chess …")

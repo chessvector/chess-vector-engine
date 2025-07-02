@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"fn":["find_test_file","main"]};
+window.SIDEBAR_ITEMS = {"fn":["main"]};

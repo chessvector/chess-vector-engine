@@ -1,1 +1,0 @@
-window.SIDEBAR_ITEMS = {"enum":["FeatureError","FeatureTier"],"struct":["FeatureChecker","FeatureRegistry"]};

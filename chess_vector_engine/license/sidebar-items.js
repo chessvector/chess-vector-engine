@@ -1,1 +1,0 @@
-window.SIDEBAR_ITEMS = {"enum":["LicenseError","LicenseStatus"],"fn":["current_timestamp"],"struct":["LicenseKey","LicenseVerifier","LicensedFeatureChecker"]};

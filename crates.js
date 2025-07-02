@@ -1,2 +1,2 @@
-window.ALL_CRATES = ["analyze","benchmark","chess_vector_engine","creator_premium_demo","debug_panic","demo","feature_demo","license_demo","play_stockfish","play_stockfish_safe","uci_engine"];
-//{"start":21,"fragment_lengths":[9,12,22,23,14,7,15,15,17,22,13]}
+window.ALL_CRATES = ["analyze","analyze_full","benchmark","chess_vector_engine","demo","feature_demo","play_stockfish","play_stockfish_safe","uci_engine"];
+//{"start":21,"fragment_lengths":[9,15,12,22,7,15,17,22,13]}
