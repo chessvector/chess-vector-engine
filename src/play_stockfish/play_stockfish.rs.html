@@ -580,360 +580,369 @@
 <a href=#580 id=580 data-nosnippet>580</a>
 <a href=#581 id=581 data-nosnippet>581</a>    <span class="kw">let </span><span class="kw-2">mut </span>game_state = GameState::new(chess_vector_color);
 <a href=#582 id=582 data-nosnippet>582</a>
-<a href=#583 id=583 data-nosnippet>583</a>    <span class="comment">// Initialize Chess Vector Engine with full open source features
-<a href=#584 id=584 data-nosnippet>584</a>    </span><span class="macro">println!</span>(<span class="string">"🤖 Initializing Chess Vector Engine (Full Feature Demo)..."</span>);
+<a href=#583 id=583 data-nosnippet>583</a>    <span class="comment">// Initialize Chess Vector Engine with full open source features + v0.4.0 Strategic Initiative
+<a href=#584 id=584 data-nosnippet>584</a>    </span><span class="macro">println!</span>(<span class="string">"🤖 Initializing Chess Vector Engine v0.4.0 (Strategic Initiative)..."</span>);
 <a href=#585 id=585 data-nosnippet>585</a>    <span class="kw">let </span><span class="kw-2">mut </span>chess_vector_engine = ChessVectorEngine::new_strong(<span class="number">1024</span>);
 <a href=#586 id=586 data-nosnippet>586</a>
-<a href=#587 id=587 data-nosnippet>587</a>    <span class="comment">// Enable opening book
-<a href=#588 id=588 data-nosnippet>588</a>    </span>chess_vector_engine.enable_opening_book();
-<a href=#589 id=589 data-nosnippet>589</a>    <span class="macro">println!</span>(<span class="string">"📚 Opening book enabled (50+ openings)"</span>);
-<a href=#590 id=590 data-nosnippet>590</a>
-<a href=#591 id=591 data-nosnippet>591</a>    <span class="comment">// Enable and train NNUE for fast position evaluation
-<a href=#592 id=592 data-nosnippet>592</a>    </span><span class="kw">if let </span><span class="prelude-val">Err</span>(e) = chess_vector_engine.enable_nnue_with_auto_load(!disable_auto_load) {
-<a href=#593 id=593 data-nosnippet>593</a>        <span class="macro">println!</span>(<span class="string">"⚠️  NNUE initialization failed: {}"</span>, e);
-<a href=#594 id=594 data-nosnippet>594</a>        <span class="macro">println!</span>(<span class="string">"   Continuing with tactical search only"</span>);
-<a href=#595 id=595 data-nosnippet>595</a>    } <span class="kw">else </span>{
-<a href=#596 id=596 data-nosnippet>596</a>        <span class="macro">println!</span>(<span class="string">"🧠 NNUE neural network enabled"</span>);
-<a href=#597 id=597 data-nosnippet>597</a>
-<a href=#598 id=598 data-nosnippet>598</a>        <span class="comment">// Run appropriate training based on auto-loading status
-<a href=#599 id=599 data-nosnippet>599</a>        </span><span class="kw">if </span>disable_auto_load {
-<a href=#600 id=600 data-nosnippet>600</a>            <span class="macro">println!</span>(<span class="string">"🎯 Auto-loading disabled, training NNUE on basic chess positions..."</span>);
-<a href=#601 id=601 data-nosnippet>601</a>            <span class="kw">if let </span><span class="prelude-val">Err</span>(e) = train_basic_nnue(<span class="kw-2">&amp;mut </span>chess_vector_engine) {
-<a href=#602 id=602 data-nosnippet>602</a>                <span class="macro">println!</span>(<span class="string">"⚠️  NNUE training failed: {}"</span>, e);
-<a href=#603 id=603 data-nosnippet>603</a>            } <span class="kw">else </span>{
-<a href=#604 id=604 data-nosnippet>604</a>                <span class="macro">println!</span>(<span class="string">"✅ NNUE basic training complete - should now give varying evaluations"</span>);
-<a href=#605 id=605 data-nosnippet>605</a>            }
-<a href=#606 id=606 data-nosnippet>606</a>        } <span class="kw">else </span>{
-<a href=#607 id=607 data-nosnippet>607</a>            <span class="comment">// Auto-loading was enabled, check if quick fix training is needed
-<a href=#608 id=608 data-nosnippet>608</a>            </span><span class="kw">if let </span><span class="prelude-val">Err</span>(e) = chess_vector_engine.quick_fix_nnue_if_needed() {
-<a href=#609 id=609 data-nosnippet>609</a>                <span class="macro">println!</span>(<span class="string">"⚠️  Quick fix training failed: {}"</span>, e);
-<a href=#610 id=610 data-nosnippet>610</a>            }
-<a href=#611 id=611 data-nosnippet>611</a>        }
-<a href=#612 id=612 data-nosnippet>612</a>    }
-<a href=#613 id=613 data-nosnippet>613</a>
-<a href=#614 id=614 data-nosnippet>614</a>    <span class="comment">// Configure BALANCED tactical search - backup to NNUE
-<a href=#615 id=615 data-nosnippet>615</a>    </span><span class="kw">use </span>chess_vector_engine::TacticalConfig;
-<a href=#616 id=616 data-nosnippet>616</a>    <span class="kw">let </span><span class="kw-2">mut </span>stockfish_config = TacticalConfig::stockfish_optimized();
-<a href=#617 id=617 data-nosnippet>617</a>    <span class="comment">// Fast tactical search as backup to trained NNUE
-<a href=#618 id=618 data-nosnippet>618</a>    </span>stockfish_config.max_depth = <span class="number">8</span>; <span class="comment">// Moderate depth for speed
-<a href=#619 id=619 data-nosnippet>619</a>    </span>stockfish_config.max_time_ms = (time_per_move <span class="kw">as </span>f64 * <span class="number">0.5</span>) <span class="kw">as </span>u64; <span class="comment">// Use 50% of available time
-<a href=#620 id=620 data-nosnippet>620</a>    </span>stockfish_config.max_nodes = <span class="number">1_000_000</span>; <span class="comment">// Balanced nodes
-<a href=#621 id=621 data-nosnippet>621</a>    </span>stockfish_config.quiescence_depth = <span class="number">6</span>; <span class="comment">// Moderate quiescence
-<a href=#622 id=622 data-nosnippet>622</a>                                           // Aggressive pruning for speed (NNUE handles most evaluation)
-<a href=#623 id=623 data-nosnippet>623</a>    </span>stockfish_config.futility_margin_base = <span class="number">300.0</span>; <span class="comment">// Aggressive for speed
-<a href=#624 id=624 data-nosnippet>624</a>    </span>stockfish_config.razor_margin = <span class="number">600.0</span>; <span class="comment">// Aggressive for speed
-<a href=#625 id=625 data-nosnippet>625</a>
-<a href=#626 id=626 data-nosnippet>626</a>    </span>chess_vector_engine.enable_tactical_search(stockfish_config.clone());
-<a href=#627 id=627 data-nosnippet>627</a>    <span class="macro">println!</span>(<span class="string">"⚔️  BALANCED tactical search enabled (8-ply, 1M nodes, 50% time, NNUE backup)"</span>,);
-<a href=#628 id=628 data-nosnippet>628</a>
-<a href=#629 id=629 data-nosnippet>629</a>    <span class="comment">// Configure INTELLIGENT hybrid evaluation - use fast methods first
-<a href=#630 id=630 data-nosnippet>630</a>    </span><span class="kw">let </span>hybrid_config = HybridConfig {
-<a href=#631 id=631 data-nosnippet>631</a>        pattern_confidence_threshold: <span class="number">0.60</span>, <span class="comment">// Lower threshold - trust patterns more for speed
-<a href=#632 id=632 data-nosnippet>632</a>        </span>enable_tactical_refinement: <span class="bool-val">true</span>,   <span class="comment">// Only use tactical when patterns are uncertain
-<a href=#633 id=633 data-nosnippet>633</a>        </span>tactical_config: stockfish_config,
-<a href=#634 id=634 data-nosnippet>634</a>        pattern_weight: <span class="number">0.7</span>, <span class="comment">// High pattern weight - trust fast pattern recognition
-<a href=#635 id=635 data-nosnippet>635</a>        </span>min_similar_positions: <span class="number">3</span>, <span class="comment">// Lower requirement - use patterns more often
-<a href=#636 id=636 data-nosnippet>636</a>    </span>};
-<a href=#637 id=637 data-nosnippet>637</a>    chess_vector_engine.configure_hybrid_evaluation(hybrid_config);
-<a href=#638 id=638 data-nosnippet>638</a>    <span class="macro">println!</span>(<span class="string">"🎯 INTELLIGENT evaluation configured (NNUE+Patterns dominate, tactical backup only)"</span>);
-<a href=#639 id=639 data-nosnippet>639</a>
-<a href=#640 id=640 data-nosnippet>640</a>    <span class="comment">// Load minimal training data for better evaluation (but skip heavy Lichess data)
-<a href=#641 id=641 data-nosnippet>641</a>    </span><span class="macro">println!</span>(<span class="string">"🧠 Loading basic training data for strategic guidance..."</span>);
-<a href=#642 id=642 data-nosnippet>642</a>    <span class="kw">if let </span><span class="prelude-val">Err</span>(e) = chess_vector_engine.auto_load_training_data() {
-<a href=#643 id=643 data-nosnippet>643</a>        <span class="macro">println!</span>(<span class="string">"⚠️  No training data found: {}"</span>, e);
-<a href=#644 id=644 data-nosnippet>644</a>        <span class="macro">println!</span>(<span class="string">"   (Relying on NNUE + tactical search only)"</span>);
-<a href=#645 id=645 data-nosnippet>645</a>    } <span class="kw">else </span>{
-<a href=#646 id=646 data-nosnippet>646</a>        <span class="macro">println!</span>(<span class="string">"✅ Basic training data loaded - strategic patterns active"</span>);
-<a href=#647 id=647 data-nosnippet>647</a>    }
-<a href=#648 id=648 data-nosnippet>648</a>
-<a href=#649 id=649 data-nosnippet>649</a>    <span class="macro">println!</span>(<span class="string">"⚡ Speed mode enabled - using lightweight evaluation for instant moves"</span>);
-<a href=#650 id=650 data-nosnippet>650</a>
-<a href=#651 id=651 data-nosnippet>651</a>    <span class="comment">// Check for available advanced features (but don't load heavy data)
-<a href=#652 id=652 data-nosnippet>652</a>    </span><span class="kw">if </span>chess_vector_engine.check_gpu_acceleration().is_ok() {
-<a href=#653 id=653 data-nosnippet>653</a>        <span class="macro">println!</span>(<span class="string">"🚀 GPU acceleration available (Premium feature)"</span>);
-<a href=#654 id=654 data-nosnippet>654</a>    }
-<a href=#655 id=655 data-nosnippet>655</a>    <span class="kw">if </span>chess_vector_engine.is_tactical_search_enabled() {
-<a href=#656 id=656 data-nosnippet>656</a>        <span class="macro">println!</span>(<span class="string">"⚡ Advanced tactical search available (Premium feature)"</span>);
-<a href=#657 id=657 data-nosnippet>657</a>        <span class="macro">println!</span>(<span class="string">"   (Using enhanced search algorithms and deeper analysis)"</span>);
-<a href=#658 id=658 data-nosnippet>658</a>    }
-<a href=#659 id=659 data-nosnippet>659</a>
-<a href=#660 id=660 data-nosnippet>660</a>    <span class="macro">println!</span>(<span class="string">"🧠 FIXED NNUE Evaluation Pipeline Active:"</span>);
-<a href=#661 id=661 data-nosnippet>661</a>    <span class="macro">println!</span>(<span class="string">"   1. Opening Book Lookup (instant for known positions)"</span>);
-<a href=#662 id=662 data-nosnippet>662</a>    <span class="macro">println!</span>(<span class="string">"   2. TRAINED NNUE Network (fast, varying evaluations - PRIMARY)"</span>);
-<a href=#663 id=663 data-nosnippet>663</a>    <span class="macro">println!</span>(<span class="string">"   3. Pattern Recognition (strategic guidance - SECONDARY)"</span>);
-<a href=#664 id=664 data-nosnippet>664</a>    <span class="macro">println!</span>(<span class="string">"   4. Tactical Search (8-ply, 1M nodes, 50% time - BACKUP)"</span>);
-<a href=#665 id=665 data-nosnippet>665</a>    <span class="macro">println!</span>(<span class="string">"   5. ACCURACY + SPEED: Trained NNUE provides fast, accurate evaluation"</span>);
-<a href=#666 id=666 data-nosnippet>666</a>
-<a href=#667 id=667 data-nosnippet>667</a>    <span class="kw">let </span><span class="kw-2">mut </span>stockfish = StockfishPlayer::new(stockfish_depth, time_per_move)<span class="question-mark">?</span>;
-<a href=#668 id=668 data-nosnippet>668</a>
-<a href=#669 id=669 data-nosnippet>669</a>    <span class="comment">// Game loop
-<a href=#670 id=670 data-nosnippet>670</a>    </span><span class="kw">let </span><span class="kw-2">mut </span>move_count = <span class="number">0</span>;
-<a href=#671 id=671 data-nosnippet>671</a>    <span class="kw">while </span>game_state.game.result().is_none() &amp;&amp; move_count &lt; <span class="number">200 </span>{
-<a href=#672 id=672 data-nosnippet>672</a>        <span class="kw">let </span>current_board = game_state.current_board();
-<a href=#673 id=673 data-nosnippet>673</a>        <span class="kw">let </span>is_chess_vector_turn = game_state.is_chess_vector_turn();
-<a href=#674 id=674 data-nosnippet>674</a>
-<a href=#675 id=675 data-nosnippet>675</a>        <span class="macro">println!</span>(<span class="string">"\n--- Move {} ---"</span>, move_count + <span class="number">1</span>);
-<a href=#676 id=676 data-nosnippet>676</a>        <span class="macro">println!</span>(<span class="string">"Position: {}"</span>, current_board);
-<a href=#677 id=677 data-nosnippet>677</a>        <span class="macro">println!</span>(
-<a href=#678 id=678 data-nosnippet>678</a>            <span class="string">"Turn: {}"</span>,
-<a href=#679 id=679 data-nosnippet>679</a>            <span class="kw">if </span>current_board.side_to_move() == Color::White {
-<a href=#680 id=680 data-nosnippet>680</a>                <span class="string">"White"
-<a href=#681 id=681 data-nosnippet>681</a>            </span>} <span class="kw">else </span>{
-<a href=#682 id=682 data-nosnippet>682</a>                <span class="string">"Black"
-<a href=#683 id=683 data-nosnippet>683</a>            </span>}
-<a href=#684 id=684 data-nosnippet>684</a>        );
-<a href=#685 id=685 data-nosnippet>685</a>
-<a href=#686 id=686 data-nosnippet>686</a>        <span class="kw">let </span>start_time = std::time::Instant::now();
-<a href=#687 id=687 data-nosnippet>687</a>
-<a href=#688 id=688 data-nosnippet>688</a>        <span class="kw">if </span>is_chess_vector_turn {
-<a href=#689 id=689 data-nosnippet>689</a>            <span class="macro">println!</span>(<span class="string">"🤖 Chess Vector is thinking... (using hybrid evaluation)"</span>);
-<a href=#690 id=690 data-nosnippet>690</a>
-<a href=#691 id=691 data-nosnippet>691</a>            <span class="comment">// Check which evaluation method will be used
-<a href=#692 id=692 data-nosnippet>692</a>            </span><span class="kw">let </span>eval_method = <span class="kw">if </span>chess_vector_engine
-<a href=#693 id=693 data-nosnippet>693</a>                .get_opening_entry(<span class="kw-2">&amp;</span>current_board)
-<a href=#694 id=694 data-nosnippet>694</a>                .is_some()
-<a href=#695 id=695 data-nosnippet>695</a>            {
-<a href=#696 id=696 data-nosnippet>696</a>                <span class="string">"📚 Opening Book"
-<a href=#697 id=697 data-nosnippet>697</a>            </span>} <span class="kw">else </span>{
-<a href=#698 id=698 data-nosnippet>698</a>                <span class="comment">// This is a simplified check - the engine internally decides between patterns and tactical
-<a href=#699 id=699 data-nosnippet>699</a>                </span><span class="string">"🧠 Pattern Recognition + ⚔️ Tactical Search"
-<a href=#700 id=700 data-nosnippet>700</a>            </span>};
-<a href=#701 id=701 data-nosnippet>701</a>
-<a href=#702 id=702 data-nosnippet>702</a>            <span class="comment">// Get current evaluation using hybrid approach
-<a href=#703 id=703 data-nosnippet>703</a>            </span><span class="kw">let </span>eval_before = chess_vector_engine
-<a href=#704 id=704 data-nosnippet>704</a>                .evaluate_position(<span class="kw-2">&amp;</span>current_board)
-<a href=#705 id=705 data-nosnippet>705</a>                .unwrap_or(<span class="number">0.0</span>);
-<a href=#706 id=706 data-nosnippet>706</a>
-<a href=#707 id=707 data-nosnippet>707</a>            <span class="comment">// Get best move from Chess Vector Engine (uses hybrid recommendation system)
-<a href=#708 id=708 data-nosnippet>708</a>            </span><span class="kw">let </span>recommendations = chess_vector_engine.recommend_moves(<span class="kw-2">&amp;</span>current_board, <span class="number">1</span>);
-<a href=#709 id=709 data-nosnippet>709</a>
-<a href=#710 id=710 data-nosnippet>710</a>            <span class="kw">if </span>recommendations.is_empty() {
-<a href=#711 id=711 data-nosnippet>711</a>                <span class="macro">println!</span>(<span class="string">"❌ Chess Vector has no legal moves!"</span>);
-<a href=#712 id=712 data-nosnippet>712</a>                <span class="kw">break</span>;
-<a href=#713 id=713 data-nosnippet>713</a>            }
-<a href=#714 id=714 data-nosnippet>714</a>
-<a href=#715 id=715 data-nosnippet>715</a>            <span class="kw">let </span>best_move = recommendations[<span class="number">0</span>].chess_move;
-<a href=#716 id=716 data-nosnippet>716</a>            <span class="kw">let </span>confidence = recommendations[<span class="number">0</span>].confidence;
-<a href=#717 id=717 data-nosnippet>717</a>
-<a href=#718 id=718 data-nosnippet>718</a>            <span class="comment">// Make the move to evaluate the resulting position
-<a href=#719 id=719 data-nosnippet>719</a>            </span><span class="kw">let </span><span class="kw-2">mut </span>temp_board = current_board;
-<a href=#720 id=720 data-nosnippet>720</a>            temp_board = temp_board.make_move_new(best_move);
-<a href=#721 id=721 data-nosnippet>721</a>            <span class="kw">let </span>eval_after_raw = chess_vector_engine
-<a href=#722 id=722 data-nosnippet>722</a>                .evaluate_position(<span class="kw-2">&amp;</span>temp_board)
-<a href=#723 id=723 data-nosnippet>723</a>                .unwrap_or(<span class="number">0.0</span>);
-<a href=#724 id=724 data-nosnippet>724</a>
-<a href=#725 id=725 data-nosnippet>725</a>            <span class="comment">// Normalize evaluation: convert from centipawns to pawns and fix perspective
-<a href=#726 id=726 data-nosnippet>726</a>            </span><span class="kw">let </span>eval_after = normalize_evaluation(eval_after_raw, temp_board.side_to_move());
-<a href=#727 id=727 data-nosnippet>727</a>
-<a href=#728 id=728 data-nosnippet>728</a>            <span class="kw">let </span>time_taken = start_time.elapsed().as_millis() <span class="kw">as </span>u64;
-<a href=#729 id=729 data-nosnippet>729</a>
-<a href=#730 id=730 data-nosnippet>730</a>            <span class="comment">// Show which hybrid component was primarily used
-<a href=#731 id=731 data-nosnippet>731</a>            </span><span class="macro">println!</span>(
-<a href=#732 id=732 data-nosnippet>732</a>                <span class="string">"🎯 Chess Vector plays: {} | Method: {} | Confidence: {:.2} | Eval: {:.2}"</span>,
-<a href=#733 id=733 data-nosnippet>733</a>                best_move, eval_method, confidence, eval_after
-<a href=#734 id=734 data-nosnippet>734</a>            );
-<a href=#735 id=735 data-nosnippet>735</a>
-<a href=#736 id=736 data-nosnippet>736</a>            <span class="kw">let </span>analysis = MoveAnalysis {
-<a href=#737 id=737 data-nosnippet>737</a>                chess_move: best_move,
-<a href=#738 id=738 data-nosnippet>738</a>                evaluation_before: normalize_evaluation(eval_before, current_board.side_to_move()),
-<a href=#739 id=739 data-nosnippet>739</a>                evaluation_after: eval_after,
-<a href=#740 id=740 data-nosnippet>740</a>                centipawn_loss: <span class="number">0.0</span>, <span class="comment">// Will be calculated later
-<a href=#741 id=741 data-nosnippet>741</a>                </span>engine_name: <span class="string">"Chess Vector"</span>.to_string(),
-<a href=#742 id=742 data-nosnippet>742</a>                time_taken,
-<a href=#743 id=743 data-nosnippet>743</a>                depth_searched: <span class="number">6</span>, <span class="comment">// Chess Vector's typical depth
-<a href=#744 id=744 data-nosnippet>744</a>            </span>};
-<a href=#745 id=745 data-nosnippet>745</a>
-<a href=#746 id=746 data-nosnippet>746</a>            game_state.make_move(analysis)<span class="question-mark">?</span>;
-<a href=#747 id=747 data-nosnippet>747</a>        } <span class="kw">else </span>{
-<a href=#748 id=748 data-nosnippet>748</a>            <span class="macro">println!</span>(<span class="string">"🐟 Stockfish is thinking..."</span>);
-<a href=#749 id=749 data-nosnippet>749</a>
-<a href=#750 id=750 data-nosnippet>750</a>            <span class="comment">// Get Stockfish's evaluation before move
-<a href=#751 id=751 data-nosnippet>751</a>            </span><span class="kw">let </span>(best_move, eval_after_raw) = stockfish.get_best_move(<span class="kw-2">&amp;</span>current_board)<span class="question-mark">?</span>;
-<a href=#752 id=752 data-nosnippet>752</a>            <span class="kw">let </span>time_taken = start_time.elapsed().as_millis() <span class="kw">as </span>u64;
-<a href=#753 id=753 data-nosnippet>753</a>
-<a href=#754 id=754 data-nosnippet>754</a>            <span class="comment">// Normalize Stockfish evaluation (it's already in pawns, just clamp it)
-<a href=#755 id=755 data-nosnippet>755</a>            </span><span class="kw">let </span>eval_after = eval_after_raw.clamp(-<span class="number">10.0</span>, <span class="number">10.0</span>);
-<a href=#756 id=756 data-nosnippet>756</a>
-<a href=#757 id=757 data-nosnippet>757</a>            <span class="comment">// Convert evaluation to be from the perspective of the player who just moved
-<a href=#758 id=758 data-nosnippet>758</a>            // Stockfish returns evaluation from White's perspective, but when Black moves,
-<a href=#759 id=759 data-nosnippet>759</a>            // we should show the evaluation from Black's perspective (negate it)
-<a href=#760 id=760 data-nosnippet>760</a>            </span><span class="kw">let </span>eval_for_player = <span class="kw">if </span>current_board.side_to_move() == Color::Black {
-<a href=#761 id=761 data-nosnippet>761</a>                -eval_after <span class="comment">// For Black's move, negate the evaluation (positive for White = negative for Black)
-<a href=#762 id=762 data-nosnippet>762</a>            </span>} <span class="kw">else </span>{
-<a href=#763 id=763 data-nosnippet>763</a>                eval_after <span class="comment">// For White's move, keep as-is (positive for White = positive for White)
-<a href=#764 id=764 data-nosnippet>764</a>            </span>};
+<a href=#587 id=587 data-nosnippet>587</a>    <span class="comment">// v0.4.0: Enable Strategic Initiative system for master-level play
+<a href=#588 id=588 data-nosnippet>588</a>    </span><span class="kw">use </span>chess_vector_engine::StrategicConfig;
+<a href=#589 id=589 data-nosnippet>589</a>    <span class="kw">let </span>strategic_config = StrategicConfig::master_level(); <span class="comment">// Use master-level strategy for 2000+ ELO
+<a href=#590 id=590 data-nosnippet>590</a>    </span>chess_vector_engine.enable_strategic_evaluation(strategic_config);
+<a href=#591 id=591 data-nosnippet>591</a>    <span class="macro">println!</span>(<span class="string">"🎯 Strategic Initiative enabled - master-level positional play for 2000+ ELO"</span>);
+<a href=#592 id=592 data-nosnippet>592</a>
+<a href=#593 id=593 data-nosnippet>593</a>    <span class="comment">// Enable opening book
+<a href=#594 id=594 data-nosnippet>594</a>    </span>chess_vector_engine.enable_opening_book();
+<a href=#595 id=595 data-nosnippet>595</a>    <span class="macro">println!</span>(<span class="string">"📚 Opening book enabled (50+ openings)"</span>);
+<a href=#596 id=596 data-nosnippet>596</a>
+<a href=#597 id=597 data-nosnippet>597</a>    <span class="comment">// Enable and train NNUE for fast position evaluation
+<a href=#598 id=598 data-nosnippet>598</a>    </span><span class="kw">if let </span><span class="prelude-val">Err</span>(e) = chess_vector_engine.enable_nnue_with_auto_load(!disable_auto_load) {
+<a href=#599 id=599 data-nosnippet>599</a>        <span class="macro">println!</span>(<span class="string">"⚠️  NNUE initialization failed: {}"</span>, e);
+<a href=#600 id=600 data-nosnippet>600</a>        <span class="macro">println!</span>(<span class="string">"   Continuing with tactical search only"</span>);
+<a href=#601 id=601 data-nosnippet>601</a>    } <span class="kw">else </span>{
+<a href=#602 id=602 data-nosnippet>602</a>        <span class="macro">println!</span>(<span class="string">"🧠 NNUE neural network enabled"</span>);
+<a href=#603 id=603 data-nosnippet>603</a>
+<a href=#604 id=604 data-nosnippet>604</a>        <span class="comment">// Run appropriate training based on auto-loading status
+<a href=#605 id=605 data-nosnippet>605</a>        </span><span class="kw">if </span>disable_auto_load {
+<a href=#606 id=606 data-nosnippet>606</a>            <span class="macro">println!</span>(<span class="string">"🎯 Auto-loading disabled, training NNUE on basic chess positions..."</span>);
+<a href=#607 id=607 data-nosnippet>607</a>            <span class="kw">if let </span><span class="prelude-val">Err</span>(e) = train_basic_nnue(<span class="kw-2">&amp;mut </span>chess_vector_engine) {
+<a href=#608 id=608 data-nosnippet>608</a>                <span class="macro">println!</span>(<span class="string">"⚠️  NNUE training failed: {}"</span>, e);
+<a href=#609 id=609 data-nosnippet>609</a>            } <span class="kw">else </span>{
+<a href=#610 id=610 data-nosnippet>610</a>                <span class="macro">println!</span>(<span class="string">"✅ NNUE basic training complete - should now give varying evaluations"</span>);
+<a href=#611 id=611 data-nosnippet>611</a>            }
+<a href=#612 id=612 data-nosnippet>612</a>        } <span class="kw">else </span>{
+<a href=#613 id=613 data-nosnippet>613</a>            <span class="comment">// Auto-loading was enabled, check if quick fix training is needed
+<a href=#614 id=614 data-nosnippet>614</a>            </span><span class="kw">if let </span><span class="prelude-val">Err</span>(e) = chess_vector_engine.quick_fix_nnue_if_needed() {
+<a href=#615 id=615 data-nosnippet>615</a>                <span class="macro">println!</span>(<span class="string">"⚠️  Quick fix training failed: {}"</span>, e);
+<a href=#616 id=616 data-nosnippet>616</a>            }
+<a href=#617 id=617 data-nosnippet>617</a>        }
+<a href=#618 id=618 data-nosnippet>618</a>    }
+<a href=#619 id=619 data-nosnippet>619</a>
+<a href=#620 id=620 data-nosnippet>620</a>    <span class="comment">// Configure BALANCED tactical search - backup to NNUE
+<a href=#621 id=621 data-nosnippet>621</a>    </span><span class="kw">use </span>chess_vector_engine::TacticalConfig;
+<a href=#622 id=622 data-nosnippet>622</a>    <span class="kw">let </span><span class="kw-2">mut </span>stockfish_config = TacticalConfig::stockfish_optimized();
+<a href=#623 id=623 data-nosnippet>623</a>    <span class="comment">// Fast tactical search as backup to trained NNUE
+<a href=#624 id=624 data-nosnippet>624</a>    </span>stockfish_config.max_depth = <span class="number">8</span>; <span class="comment">// Moderate depth for speed
+<a href=#625 id=625 data-nosnippet>625</a>    </span>stockfish_config.max_time_ms = (time_per_move <span class="kw">as </span>f64 * <span class="number">0.5</span>) <span class="kw">as </span>u64; <span class="comment">// Use 50% of available time
+<a href=#626 id=626 data-nosnippet>626</a>    </span>stockfish_config.max_nodes = <span class="number">1_000_000</span>; <span class="comment">// Balanced nodes
+<a href=#627 id=627 data-nosnippet>627</a>    </span>stockfish_config.quiescence_depth = <span class="number">6</span>; <span class="comment">// Moderate quiescence
+<a href=#628 id=628 data-nosnippet>628</a>                                           // Aggressive pruning for speed (NNUE handles most evaluation)
+<a href=#629 id=629 data-nosnippet>629</a>    </span>stockfish_config.futility_margin_base = <span class="number">300.0</span>; <span class="comment">// Aggressive for speed
+<a href=#630 id=630 data-nosnippet>630</a>    </span>stockfish_config.razor_margin = <span class="number">600.0</span>; <span class="comment">// Aggressive for speed
+<a href=#631 id=631 data-nosnippet>631</a>
+<a href=#632 id=632 data-nosnippet>632</a>    </span>chess_vector_engine.enable_tactical_search(stockfish_config.clone());
+<a href=#633 id=633 data-nosnippet>633</a>    <span class="macro">println!</span>(<span class="string">"⚔️  BALANCED tactical search enabled (8-ply, 1M nodes, 50% time, NNUE backup)"</span>,);
+<a href=#634 id=634 data-nosnippet>634</a>
+<a href=#635 id=635 data-nosnippet>635</a>    <span class="comment">// Configure INTELLIGENT hybrid evaluation - use fast methods first
+<a href=#636 id=636 data-nosnippet>636</a>    </span><span class="kw">let </span>hybrid_config = HybridConfig {
+<a href=#637 id=637 data-nosnippet>637</a>        pattern_confidence_threshold: <span class="number">0.60</span>, <span class="comment">// Lower threshold - trust patterns more for speed
+<a href=#638 id=638 data-nosnippet>638</a>        </span>enable_tactical_refinement: <span class="bool-val">true</span>,   <span class="comment">// Only use tactical when patterns are uncertain
+<a href=#639 id=639 data-nosnippet>639</a>        </span>tactical_config: stockfish_config,
+<a href=#640 id=640 data-nosnippet>640</a>        pattern_weight: <span class="number">0.7</span>, <span class="comment">// High pattern weight - trust fast pattern recognition
+<a href=#641 id=641 data-nosnippet>641</a>        </span>min_similar_positions: <span class="number">3</span>, <span class="comment">// Lower requirement - use patterns more often
+<a href=#642 id=642 data-nosnippet>642</a>    </span>};
+<a href=#643 id=643 data-nosnippet>643</a>    chess_vector_engine.configure_hybrid_evaluation(hybrid_config);
+<a href=#644 id=644 data-nosnippet>644</a>    <span class="macro">println!</span>(<span class="string">"🎯 INTELLIGENT evaluation configured (NNUE+Patterns dominate, tactical backup only)"</span>);
+<a href=#645 id=645 data-nosnippet>645</a>
+<a href=#646 id=646 data-nosnippet>646</a>    <span class="comment">// Load minimal training data for better evaluation (but skip heavy Lichess data)
+<a href=#647 id=647 data-nosnippet>647</a>    </span><span class="macro">println!</span>(<span class="string">"🧠 Loading basic training data for strategic guidance..."</span>);
+<a href=#648 id=648 data-nosnippet>648</a>    <span class="kw">if let </span><span class="prelude-val">Err</span>(e) = chess_vector_engine.auto_load_training_data() {
+<a href=#649 id=649 data-nosnippet>649</a>        <span class="macro">println!</span>(<span class="string">"⚠️  No training data found: {}"</span>, e);
+<a href=#650 id=650 data-nosnippet>650</a>        <span class="macro">println!</span>(<span class="string">"   (Relying on NNUE + tactical search only)"</span>);
+<a href=#651 id=651 data-nosnippet>651</a>    } <span class="kw">else </span>{
+<a href=#652 id=652 data-nosnippet>652</a>        <span class="macro">println!</span>(<span class="string">"✅ Basic training data loaded - strategic patterns active"</span>);
+<a href=#653 id=653 data-nosnippet>653</a>    }
+<a href=#654 id=654 data-nosnippet>654</a>
+<a href=#655 id=655 data-nosnippet>655</a>    <span class="macro">println!</span>(<span class="string">"⚡ Speed mode enabled - using lightweight evaluation for instant moves"</span>);
+<a href=#656 id=656 data-nosnippet>656</a>
+<a href=#657 id=657 data-nosnippet>657</a>    <span class="comment">// Check for available advanced features (but don't load heavy data)
+<a href=#658 id=658 data-nosnippet>658</a>    </span><span class="kw">if </span>chess_vector_engine.check_gpu_acceleration().is_ok() {
+<a href=#659 id=659 data-nosnippet>659</a>        <span class="macro">println!</span>(<span class="string">"🚀 GPU acceleration available (Premium feature)"</span>);
+<a href=#660 id=660 data-nosnippet>660</a>    }
+<a href=#661 id=661 data-nosnippet>661</a>    <span class="kw">if </span>chess_vector_engine.is_tactical_search_enabled() {
+<a href=#662 id=662 data-nosnippet>662</a>        <span class="macro">println!</span>(<span class="string">"⚡ Advanced tactical search available (Premium feature)"</span>);
+<a href=#663 id=663 data-nosnippet>663</a>        <span class="macro">println!</span>(<span class="string">"   (Using enhanced search algorithms and deeper analysis)"</span>);
+<a href=#664 id=664 data-nosnippet>664</a>    }
+<a href=#665 id=665 data-nosnippet>665</a>
+<a href=#666 id=666 data-nosnippet>666</a>    <span class="macro">println!</span>(<span class="string">"🧠 v0.4.0 Strategic Initiative Evaluation Pipeline Active:"</span>);
+<a href=#667 id=667 data-nosnippet>667</a>    <span class="macro">println!</span>(<span class="string">"   1. Opening Book Lookup (instant for known positions)"</span>);
+<a href=#668 id=668 data-nosnippet>668</a>    <span class="macro">println!</span>(<span class="string">"   2. 🎯 MASTER-LEVEL STRATEGIC EVALUATION (2000+ ELO positional principles - NEW!)"</span>);
+<a href=#669 id=669 data-nosnippet>669</a>    <span class="macro">println!</span>(<span class="string">"   3. TRAINED NNUE Network (fast, varying evaluations - PRIMARY)"</span>);
+<a href=#670 id=670 data-nosnippet>670</a>    <span class="macro">println!</span>(<span class="string">"   4. Pattern Recognition (strategic guidance - SECONDARY)"</span>);
+<a href=#671 id=671 data-nosnippet>671</a>    <span class="macro">println!</span>(<span class="string">"   5. Plan-Aware Tactical Search (8-ply, 1M nodes, 50% time - BACKUP)"</span>);
+<a href=#672 id=672 data-nosnippet>672</a>    <span class="macro">println!</span>(
+<a href=#673 id=673 data-nosnippet>673</a>        <span class="string">"   6. MASTER PLAY: Advanced positional understanding + safety + strategic initiative"
+<a href=#674 id=674 data-nosnippet>674</a>    </span>);
+<a href=#675 id=675 data-nosnippet>675</a>
+<a href=#676 id=676 data-nosnippet>676</a>    <span class="kw">let </span><span class="kw-2">mut </span>stockfish = StockfishPlayer::new(stockfish_depth, time_per_move)<span class="question-mark">?</span>;
+<a href=#677 id=677 data-nosnippet>677</a>
+<a href=#678 id=678 data-nosnippet>678</a>    <span class="comment">// Game loop
+<a href=#679 id=679 data-nosnippet>679</a>    </span><span class="kw">let </span><span class="kw-2">mut </span>move_count = <span class="number">0</span>;
+<a href=#680 id=680 data-nosnippet>680</a>    <span class="kw">while </span>game_state.game.result().is_none() &amp;&amp; move_count &lt; <span class="number">200 </span>{
+<a href=#681 id=681 data-nosnippet>681</a>        <span class="kw">let </span>current_board = game_state.current_board();
+<a href=#682 id=682 data-nosnippet>682</a>        <span class="kw">let </span>is_chess_vector_turn = game_state.is_chess_vector_turn();
+<a href=#683 id=683 data-nosnippet>683</a>
+<a href=#684 id=684 data-nosnippet>684</a>        <span class="macro">println!</span>(<span class="string">"\n--- Move {} ---"</span>, move_count + <span class="number">1</span>);
+<a href=#685 id=685 data-nosnippet>685</a>        <span class="macro">println!</span>(<span class="string">"Position: {}"</span>, current_board);
+<a href=#686 id=686 data-nosnippet>686</a>        <span class="macro">println!</span>(
+<a href=#687 id=687 data-nosnippet>687</a>            <span class="string">"Turn: {}"</span>,
+<a href=#688 id=688 data-nosnippet>688</a>            <span class="kw">if </span>current_board.side_to_move() == Color::White {
+<a href=#689 id=689 data-nosnippet>689</a>                <span class="string">"White"
+<a href=#690 id=690 data-nosnippet>690</a>            </span>} <span class="kw">else </span>{
+<a href=#691 id=691 data-nosnippet>691</a>                <span class="string">"Black"
+<a href=#692 id=692 data-nosnippet>692</a>            </span>}
+<a href=#693 id=693 data-nosnippet>693</a>        );
+<a href=#694 id=694 data-nosnippet>694</a>
+<a href=#695 id=695 data-nosnippet>695</a>        <span class="kw">let </span>start_time = std::time::Instant::now();
+<a href=#696 id=696 data-nosnippet>696</a>
+<a href=#697 id=697 data-nosnippet>697</a>        <span class="kw">if </span>is_chess_vector_turn {
+<a href=#698 id=698 data-nosnippet>698</a>            <span class="macro">println!</span>(<span class="string">"🤖 Chess Vector is thinking... (using hybrid evaluation)"</span>);
+<a href=#699 id=699 data-nosnippet>699</a>
+<a href=#700 id=700 data-nosnippet>700</a>            <span class="comment">// Check which evaluation method will be used
+<a href=#701 id=701 data-nosnippet>701</a>            </span><span class="kw">let </span>eval_method = <span class="kw">if </span>chess_vector_engine
+<a href=#702 id=702 data-nosnippet>702</a>                .get_opening_entry(<span class="kw-2">&amp;</span>current_board)
+<a href=#703 id=703 data-nosnippet>703</a>                .is_some()
+<a href=#704 id=704 data-nosnippet>704</a>            {
+<a href=#705 id=705 data-nosnippet>705</a>                <span class="string">"📚 Opening Book"
+<a href=#706 id=706 data-nosnippet>706</a>            </span>} <span class="kw">else </span>{
+<a href=#707 id=707 data-nosnippet>707</a>                <span class="comment">// v0.4.0: Strategic evaluation now prioritizes proactive moves
+<a href=#708 id=708 data-nosnippet>708</a>                </span><span class="string">"🎯 Strategic Initiative + 🧠 Pattern Recognition + ⚔️ Tactical Search"
+<a href=#709 id=709 data-nosnippet>709</a>            </span>};
+<a href=#710 id=710 data-nosnippet>710</a>
+<a href=#711 id=711 data-nosnippet>711</a>            <span class="comment">// Get current evaluation using hybrid approach
+<a href=#712 id=712 data-nosnippet>712</a>            </span><span class="kw">let </span>eval_before = chess_vector_engine
+<a href=#713 id=713 data-nosnippet>713</a>                .evaluate_position(<span class="kw-2">&amp;</span>current_board)
+<a href=#714 id=714 data-nosnippet>714</a>                .unwrap_or(<span class="number">0.0</span>);
+<a href=#715 id=715 data-nosnippet>715</a>
+<a href=#716 id=716 data-nosnippet>716</a>            <span class="comment">// Get best move from Chess Vector Engine (uses hybrid recommendation system)
+<a href=#717 id=717 data-nosnippet>717</a>            </span><span class="kw">let </span>recommendations = chess_vector_engine.recommend_moves(<span class="kw-2">&amp;</span>current_board, <span class="number">1</span>);
+<a href=#718 id=718 data-nosnippet>718</a>
+<a href=#719 id=719 data-nosnippet>719</a>            <span class="kw">if </span>recommendations.is_empty() {
+<a href=#720 id=720 data-nosnippet>720</a>                <span class="macro">println!</span>(<span class="string">"❌ Chess Vector has no legal moves!"</span>);
+<a href=#721 id=721 data-nosnippet>721</a>                <span class="kw">break</span>;
+<a href=#722 id=722 data-nosnippet>722</a>            }
+<a href=#723 id=723 data-nosnippet>723</a>
+<a href=#724 id=724 data-nosnippet>724</a>            <span class="kw">let </span>best_move = recommendations[<span class="number">0</span>].chess_move;
+<a href=#725 id=725 data-nosnippet>725</a>            <span class="kw">let </span>confidence = recommendations[<span class="number">0</span>].confidence;
+<a href=#726 id=726 data-nosnippet>726</a>
+<a href=#727 id=727 data-nosnippet>727</a>            <span class="comment">// Make the move to evaluate the resulting position
+<a href=#728 id=728 data-nosnippet>728</a>            </span><span class="kw">let </span><span class="kw-2">mut </span>temp_board = current_board;
+<a href=#729 id=729 data-nosnippet>729</a>            temp_board = temp_board.make_move_new(best_move);
+<a href=#730 id=730 data-nosnippet>730</a>            <span class="kw">let </span>eval_after_raw = chess_vector_engine
+<a href=#731 id=731 data-nosnippet>731</a>                .evaluate_position(<span class="kw-2">&amp;</span>temp_board)
+<a href=#732 id=732 data-nosnippet>732</a>                .unwrap_or(<span class="number">0.0</span>);
+<a href=#733 id=733 data-nosnippet>733</a>
+<a href=#734 id=734 data-nosnippet>734</a>            <span class="comment">// Normalize evaluation: convert from centipawns to pawns and fix perspective
+<a href=#735 id=735 data-nosnippet>735</a>            </span><span class="kw">let </span>eval_after = normalize_evaluation(eval_after_raw, temp_board.side_to_move());
+<a href=#736 id=736 data-nosnippet>736</a>
+<a href=#737 id=737 data-nosnippet>737</a>            <span class="kw">let </span>time_taken = start_time.elapsed().as_millis() <span class="kw">as </span>u64;
+<a href=#738 id=738 data-nosnippet>738</a>
+<a href=#739 id=739 data-nosnippet>739</a>            <span class="comment">// Show which hybrid component was primarily used
+<a href=#740 id=740 data-nosnippet>740</a>            </span><span class="macro">println!</span>(
+<a href=#741 id=741 data-nosnippet>741</a>                <span class="string">"🎯 Chess Vector plays: {} | Method: {} | Confidence: {:.2} | Eval: {:.2}"</span>,
+<a href=#742 id=742 data-nosnippet>742</a>                best_move, eval_method, confidence, eval_after
+<a href=#743 id=743 data-nosnippet>743</a>            );
+<a href=#744 id=744 data-nosnippet>744</a>
+<a href=#745 id=745 data-nosnippet>745</a>            <span class="kw">let </span>analysis = MoveAnalysis {
+<a href=#746 id=746 data-nosnippet>746</a>                chess_move: best_move,
+<a href=#747 id=747 data-nosnippet>747</a>                evaluation_before: normalize_evaluation(eval_before, current_board.side_to_move()),
+<a href=#748 id=748 data-nosnippet>748</a>                evaluation_after: eval_after,
+<a href=#749 id=749 data-nosnippet>749</a>                centipawn_loss: <span class="number">0.0</span>, <span class="comment">// Will be calculated later
+<a href=#750 id=750 data-nosnippet>750</a>                </span>engine_name: <span class="string">"Chess Vector"</span>.to_string(),
+<a href=#751 id=751 data-nosnippet>751</a>                time_taken,
+<a href=#752 id=752 data-nosnippet>752</a>                depth_searched: <span class="number">6</span>, <span class="comment">// Chess Vector's typical depth
+<a href=#753 id=753 data-nosnippet>753</a>            </span>};
+<a href=#754 id=754 data-nosnippet>754</a>
+<a href=#755 id=755 data-nosnippet>755</a>            game_state.make_move(analysis)<span class="question-mark">?</span>;
+<a href=#756 id=756 data-nosnippet>756</a>        } <span class="kw">else </span>{
+<a href=#757 id=757 data-nosnippet>757</a>            <span class="macro">println!</span>(<span class="string">"🐟 Stockfish is thinking..."</span>);
+<a href=#758 id=758 data-nosnippet>758</a>
+<a href=#759 id=759 data-nosnippet>759</a>            <span class="comment">// Get Stockfish's evaluation before move
+<a href=#760 id=760 data-nosnippet>760</a>            </span><span class="kw">let </span>(best_move, eval_after_raw) = stockfish.get_best_move(<span class="kw-2">&amp;</span>current_board)<span class="question-mark">?</span>;
+<a href=#761 id=761 data-nosnippet>761</a>            <span class="kw">let </span>time_taken = start_time.elapsed().as_millis() <span class="kw">as </span>u64;
+<a href=#762 id=762 data-nosnippet>762</a>
+<a href=#763 id=763 data-nosnippet>763</a>            <span class="comment">// Normalize Stockfish evaluation (it's already in pawns, just clamp it)
+<a href=#764 id=764 data-nosnippet>764</a>            </span><span class="kw">let </span>eval_after = eval_after_raw.clamp(-<span class="number">10.0</span>, <span class="number">10.0</span>);
 <a href=#765 id=765 data-nosnippet>765</a>
-<a href=#766 id=766 data-nosnippet>766</a>            <span class="macro">println!</span>(
-<a href=#767 id=767 data-nosnippet>767</a>                <span class="string">"🎯 Stockfish plays: {} (eval: {:.2})"</span>,
-<a href=#768 id=768 data-nosnippet>768</a>                best_move, eval_for_player
-<a href=#769 id=769 data-nosnippet>769</a>            );
-<a href=#770 id=770 data-nosnippet>770</a>
-<a href=#771 id=771 data-nosnippet>771</a>            <span class="kw">let </span>analysis = MoveAnalysis {
-<a href=#772 id=772 data-nosnippet>772</a>                chess_move: best_move,
-<a href=#773 id=773 data-nosnippet>773</a>                evaluation_before: <span class="number">0.0</span>, <span class="comment">// Will be set from previous move
-<a href=#774 id=774 data-nosnippet>774</a>                </span>evaluation_after: eval_after,
-<a href=#775 id=775 data-nosnippet>775</a>                centipawn_loss: <span class="number">0.0</span>, <span class="comment">// Will be calculated later
-<a href=#776 id=776 data-nosnippet>776</a>                </span>engine_name: <span class="string">"Stockfish"</span>.to_string(),
-<a href=#777 id=777 data-nosnippet>777</a>                time_taken,
-<a href=#778 id=778 data-nosnippet>778</a>                depth_searched: stockfish_depth,
-<a href=#779 id=779 data-nosnippet>779</a>            };
-<a href=#780 id=780 data-nosnippet>780</a>
-<a href=#781 id=781 data-nosnippet>781</a>            game_state.make_move(analysis)<span class="question-mark">?</span>;
-<a href=#782 id=782 data-nosnippet>782</a>        }
-<a href=#783 id=783 data-nosnippet>783</a>
-<a href=#784 id=784 data-nosnippet>784</a>        move_count += <span class="number">1</span>;
-<a href=#785 id=785 data-nosnippet>785</a>
-<a href=#786 id=786 data-nosnippet>786</a>        <span class="comment">// Show current game status
-<a href=#787 id=787 data-nosnippet>787</a>        </span><span class="kw">let </span>board = game_state.current_board();
-<a href=#788 id=788 data-nosnippet>788</a>        <span class="kw">if </span>board.checkers().<span class="number">0 </span>!= <span class="number">0 </span>{
-<a href=#789 id=789 data-nosnippet>789</a>            <span class="macro">println!</span>(<span class="string">"⚠️  Check!"</span>);
-<a href=#790 id=790 data-nosnippet>790</a>        }
-<a href=#791 id=791 data-nosnippet>791</a>    }
+<a href=#766 id=766 data-nosnippet>766</a>            <span class="comment">// Convert evaluation to be from the perspective of the player who just moved
+<a href=#767 id=767 data-nosnippet>767</a>            // Stockfish returns evaluation from White's perspective, but when Black moves,
+<a href=#768 id=768 data-nosnippet>768</a>            // we should show the evaluation from Black's perspective (negate it)
+<a href=#769 id=769 data-nosnippet>769</a>            </span><span class="kw">let </span>eval_for_player = <span class="kw">if </span>current_board.side_to_move() == Color::Black {
+<a href=#770 id=770 data-nosnippet>770</a>                -eval_after <span class="comment">// For Black's move, negate the evaluation (positive for White = negative for Black)
+<a href=#771 id=771 data-nosnippet>771</a>            </span>} <span class="kw">else </span>{
+<a href=#772 id=772 data-nosnippet>772</a>                eval_after <span class="comment">// For White's move, keep as-is (positive for White = positive for White)
+<a href=#773 id=773 data-nosnippet>773</a>            </span>};
+<a href=#774 id=774 data-nosnippet>774</a>
+<a href=#775 id=775 data-nosnippet>775</a>            <span class="macro">println!</span>(
+<a href=#776 id=776 data-nosnippet>776</a>                <span class="string">"🎯 Stockfish plays: {} (eval: {:.2})"</span>,
+<a href=#777 id=777 data-nosnippet>777</a>                best_move, eval_for_player
+<a href=#778 id=778 data-nosnippet>778</a>            );
+<a href=#779 id=779 data-nosnippet>779</a>
+<a href=#780 id=780 data-nosnippet>780</a>            <span class="kw">let </span>analysis = MoveAnalysis {
+<a href=#781 id=781 data-nosnippet>781</a>                chess_move: best_move,
+<a href=#782 id=782 data-nosnippet>782</a>                evaluation_before: <span class="number">0.0</span>, <span class="comment">// Will be set from previous move
+<a href=#783 id=783 data-nosnippet>783</a>                </span>evaluation_after: eval_after,
+<a href=#784 id=784 data-nosnippet>784</a>                centipawn_loss: <span class="number">0.0</span>, <span class="comment">// Will be calculated later
+<a href=#785 id=785 data-nosnippet>785</a>                </span>engine_name: <span class="string">"Stockfish"</span>.to_string(),
+<a href=#786 id=786 data-nosnippet>786</a>                time_taken,
+<a href=#787 id=787 data-nosnippet>787</a>                depth_searched: stockfish_depth,
+<a href=#788 id=788 data-nosnippet>788</a>            };
+<a href=#789 id=789 data-nosnippet>789</a>
+<a href=#790 id=790 data-nosnippet>790</a>            game_state.make_move(analysis)<span class="question-mark">?</span>;
+<a href=#791 id=791 data-nosnippet>791</a>        }
 <a href=#792 id=792 data-nosnippet>792</a>
-<a href=#793 id=793 data-nosnippet>793</a>    <span class="comment">// Calculate centipawn losses
-<a href=#794 id=794 data-nosnippet>794</a>    </span>calculate_centipawn_losses(<span class="kw-2">&amp;mut </span>game_state.move_history);
-<a href=#795 id=795 data-nosnippet>795</a>
-<a href=#796 id=796 data-nosnippet>796</a>    <span class="comment">// Game finished
-<a href=#797 id=797 data-nosnippet>797</a>    </span><span class="macro">println!</span>(<span class="string">"\n🏁 Game finished!"</span>);
-<a href=#798 id=798 data-nosnippet>798</a>    <span class="kw">match </span>game_state.game.result() {
-<a href=#799 id=799 data-nosnippet>799</a>        <span class="prelude-val">Some</span>(chess::GameResult::WhiteCheckmates) =&gt; <span class="macro">println!</span>(<span class="string">"🏆 White wins by checkmate!"</span>),
-<a href=#800 id=800 data-nosnippet>800</a>        <span class="prelude-val">Some</span>(chess::GameResult::BlackCheckmates) =&gt; <span class="macro">println!</span>(<span class="string">"🏆 Black wins by checkmate!"</span>),
-<a href=#801 id=801 data-nosnippet>801</a>        <span class="prelude-val">Some</span>(chess::GameResult::WhiteResigns) =&gt; <span class="macro">println!</span>(<span class="string">"🏆 Black wins by resignation!"</span>),
-<a href=#802 id=802 data-nosnippet>802</a>        <span class="prelude-val">Some</span>(chess::GameResult::BlackResigns) =&gt; <span class="macro">println!</span>(<span class="string">"🏆 White wins by resignation!"</span>),
-<a href=#803 id=803 data-nosnippet>803</a>        <span class="prelude-val">Some</span>(chess::GameResult::Stalemate) =&gt; <span class="macro">println!</span>(<span class="string">"🤝 Draw by stalemate"</span>),
-<a href=#804 id=804 data-nosnippet>804</a>        <span class="prelude-val">Some</span>(chess::GameResult::DrawAccepted) =&gt; <span class="macro">println!</span>(<span class="string">"🤝 Draw agreed"</span>),
-<a href=#805 id=805 data-nosnippet>805</a>        <span class="prelude-val">Some</span>(chess::GameResult::DrawDeclared) =&gt; <span class="macro">println!</span>(<span class="string">"🤝 Draw declared"</span>),
-<a href=#806 id=806 data-nosnippet>806</a>        <span class="prelude-val">None </span>=&gt; <span class="macro">println!</span>(<span class="string">"🤝 Game incomplete (move limit reached)"</span>),
-<a href=#807 id=807 data-nosnippet>807</a>    }
-<a href=#808 id=808 data-nosnippet>808</a>
-<a href=#809 id=809 data-nosnippet>809</a>    <span class="comment">// Show statistics
-<a href=#810 id=810 data-nosnippet>810</a>    </span><span class="kw">let </span>(cv_loss, cv_accuracy, sf_loss, sf_accuracy) = game_state.calculate_statistics();
-<a href=#811 id=811 data-nosnippet>811</a>
-<a href=#812 id=812 data-nosnippet>812</a>    <span class="macro">println!</span>(<span class="string">"\n📊 Game Statistics:"</span>);
-<a href=#813 id=813 data-nosnippet>813</a>    <span class="macro">println!</span>(<span class="string">"Chess Vector Engine:"</span>);
-<a href=#814 id=814 data-nosnippet>814</a>    <span class="macro">println!</span>(<span class="string">"  - Total centipawn loss: {:.1}"</span>, cv_loss);
-<a href=#815 id=815 data-nosnippet>815</a>    <span class="macro">println!</span>(<span class="string">"  - Accuracy: {:.1}%"</span>, cv_accuracy);
-<a href=#816 id=816 data-nosnippet>816</a>    <span class="macro">println!</span>(<span class="string">"\nStockfish:"</span>);
-<a href=#817 id=817 data-nosnippet>817</a>    <span class="macro">println!</span>(<span class="string">"  - Total centipawn loss: {:.1}"</span>, sf_loss);
-<a href=#818 id=818 data-nosnippet>818</a>    <span class="macro">println!</span>(<span class="string">"  - Accuracy: {:.1}%"</span>, sf_accuracy);
-<a href=#819 id=819 data-nosnippet>819</a>
-<a href=#820 id=820 data-nosnippet>820</a>    <span class="comment">// Generate and display PGN
-<a href=#821 id=821 data-nosnippet>821</a>    </span><span class="macro">println!</span>(<span class="string">"\n📋 PGN:"</span>);
-<a href=#822 id=822 data-nosnippet>822</a>    <span class="macro">println!</span>(<span class="string">"{}"</span>, game_state.generate_pgn());
-<a href=#823 id=823 data-nosnippet>823</a>
-<a href=#824 id=824 data-nosnippet>824</a>    <span class="comment">// Save PGN to file
-<a href=#825 id=825 data-nosnippet>825</a>    </span><span class="kw">let </span>filename = <span class="macro">format!</span>(
-<a href=#826 id=826 data-nosnippet>826</a>        <span class="string">"chess_vector_vs_stockfish_{}.pgn"</span>,
-<a href=#827 id=827 data-nosnippet>827</a>        game_state.start_time.format(<span class="string">"%Y%m%d_%H%M%S"</span>)
-<a href=#828 id=828 data-nosnippet>828</a>    );
-<a href=#829 id=829 data-nosnippet>829</a>    std::fs::write(<span class="kw-2">&amp;</span>filename, game_state.generate_pgn())<span class="question-mark">?</span>;
-<a href=#830 id=830 data-nosnippet>830</a>    <span class="macro">println!</span>(<span class="string">"📁 Game saved to {filename}"</span>);
-<a href=#831 id=831 data-nosnippet>831</a>
-<a href=#832 id=832 data-nosnippet>832</a>    <span class="prelude-val">Ok</span>(())
-<a href=#833 id=833 data-nosnippet>833</a>}
-<a href=#834 id=834 data-nosnippet>834</a>
-<a href=#835 id=835 data-nosnippet>835</a><span class="kw">fn </span>calculate_centipawn_losses(move_history: <span class="kw-2">&amp;mut </span>[MoveAnalysis]) {
-<a href=#836 id=836 data-nosnippet>836</a>    <span class="kw">for </span>i <span class="kw">in </span><span class="number">0</span>..move_history.len() {
-<a href=#837 id=837 data-nosnippet>837</a>        <span class="kw">if </span>i &gt; <span class="number">0 </span>{
-<a href=#838 id=838 data-nosnippet>838</a>            <span class="kw">let </span>prev_eval = move_history[i - <span class="number">1</span>].evaluation_after;
-<a href=#839 id=839 data-nosnippet>839</a>            <span class="kw">let </span>current_eval = move_history[i].evaluation_after;
+<a href=#793 id=793 data-nosnippet>793</a>        move_count += <span class="number">1</span>;
+<a href=#794 id=794 data-nosnippet>794</a>
+<a href=#795 id=795 data-nosnippet>795</a>        <span class="comment">// Show current game status
+<a href=#796 id=796 data-nosnippet>796</a>        </span><span class="kw">let </span>board = game_state.current_board();
+<a href=#797 id=797 data-nosnippet>797</a>        <span class="kw">if </span>board.checkers().<span class="number">0 </span>!= <span class="number">0 </span>{
+<a href=#798 id=798 data-nosnippet>798</a>            <span class="macro">println!</span>(<span class="string">"⚠️  Check!"</span>);
+<a href=#799 id=799 data-nosnippet>799</a>        }
+<a href=#800 id=800 data-nosnippet>800</a>    }
+<a href=#801 id=801 data-nosnippet>801</a>
+<a href=#802 id=802 data-nosnippet>802</a>    <span class="comment">// Calculate centipawn losses
+<a href=#803 id=803 data-nosnippet>803</a>    </span>calculate_centipawn_losses(<span class="kw-2">&amp;mut </span>game_state.move_history);
+<a href=#804 id=804 data-nosnippet>804</a>
+<a href=#805 id=805 data-nosnippet>805</a>    <span class="comment">// Game finished
+<a href=#806 id=806 data-nosnippet>806</a>    </span><span class="macro">println!</span>(<span class="string">"\n🏁 Game finished!"</span>);
+<a href=#807 id=807 data-nosnippet>807</a>    <span class="kw">match </span>game_state.game.result() {
+<a href=#808 id=808 data-nosnippet>808</a>        <span class="prelude-val">Some</span>(chess::GameResult::WhiteCheckmates) =&gt; <span class="macro">println!</span>(<span class="string">"🏆 White wins by checkmate!"</span>),
+<a href=#809 id=809 data-nosnippet>809</a>        <span class="prelude-val">Some</span>(chess::GameResult::BlackCheckmates) =&gt; <span class="macro">println!</span>(<span class="string">"🏆 Black wins by checkmate!"</span>),
+<a href=#810 id=810 data-nosnippet>810</a>        <span class="prelude-val">Some</span>(chess::GameResult::WhiteResigns) =&gt; <span class="macro">println!</span>(<span class="string">"🏆 Black wins by resignation!"</span>),
+<a href=#811 id=811 data-nosnippet>811</a>        <span class="prelude-val">Some</span>(chess::GameResult::BlackResigns) =&gt; <span class="macro">println!</span>(<span class="string">"🏆 White wins by resignation!"</span>),
+<a href=#812 id=812 data-nosnippet>812</a>        <span class="prelude-val">Some</span>(chess::GameResult::Stalemate) =&gt; <span class="macro">println!</span>(<span class="string">"🤝 Draw by stalemate"</span>),
+<a href=#813 id=813 data-nosnippet>813</a>        <span class="prelude-val">Some</span>(chess::GameResult::DrawAccepted) =&gt; <span class="macro">println!</span>(<span class="string">"🤝 Draw agreed"</span>),
+<a href=#814 id=814 data-nosnippet>814</a>        <span class="prelude-val">Some</span>(chess::GameResult::DrawDeclared) =&gt; <span class="macro">println!</span>(<span class="string">"🤝 Draw declared"</span>),
+<a href=#815 id=815 data-nosnippet>815</a>        <span class="prelude-val">None </span>=&gt; <span class="macro">println!</span>(<span class="string">"🤝 Game incomplete (move limit reached)"</span>),
+<a href=#816 id=816 data-nosnippet>816</a>    }
+<a href=#817 id=817 data-nosnippet>817</a>
+<a href=#818 id=818 data-nosnippet>818</a>    <span class="comment">// Show statistics
+<a href=#819 id=819 data-nosnippet>819</a>    </span><span class="kw">let </span>(cv_loss, cv_accuracy, sf_loss, sf_accuracy) = game_state.calculate_statistics();
+<a href=#820 id=820 data-nosnippet>820</a>
+<a href=#821 id=821 data-nosnippet>821</a>    <span class="macro">println!</span>(<span class="string">"\n📊 Game Statistics:"</span>);
+<a href=#822 id=822 data-nosnippet>822</a>    <span class="macro">println!</span>(<span class="string">"Chess Vector Engine:"</span>);
+<a href=#823 id=823 data-nosnippet>823</a>    <span class="macro">println!</span>(<span class="string">"  - Total centipawn loss: {:.1}"</span>, cv_loss);
+<a href=#824 id=824 data-nosnippet>824</a>    <span class="macro">println!</span>(<span class="string">"  - Accuracy: {:.1}%"</span>, cv_accuracy);
+<a href=#825 id=825 data-nosnippet>825</a>    <span class="macro">println!</span>(<span class="string">"\nStockfish:"</span>);
+<a href=#826 id=826 data-nosnippet>826</a>    <span class="macro">println!</span>(<span class="string">"  - Total centipawn loss: {:.1}"</span>, sf_loss);
+<a href=#827 id=827 data-nosnippet>827</a>    <span class="macro">println!</span>(<span class="string">"  - Accuracy: {:.1}%"</span>, sf_accuracy);
+<a href=#828 id=828 data-nosnippet>828</a>
+<a href=#829 id=829 data-nosnippet>829</a>    <span class="comment">// Generate and display PGN
+<a href=#830 id=830 data-nosnippet>830</a>    </span><span class="macro">println!</span>(<span class="string">"\n📋 PGN:"</span>);
+<a href=#831 id=831 data-nosnippet>831</a>    <span class="macro">println!</span>(<span class="string">"{}"</span>, game_state.generate_pgn());
+<a href=#832 id=832 data-nosnippet>832</a>
+<a href=#833 id=833 data-nosnippet>833</a>    <span class="comment">// Save PGN to file
+<a href=#834 id=834 data-nosnippet>834</a>    </span><span class="kw">let </span>filename = <span class="macro">format!</span>(
+<a href=#835 id=835 data-nosnippet>835</a>        <span class="string">"chess_vector_vs_stockfish_{}.pgn"</span>,
+<a href=#836 id=836 data-nosnippet>836</a>        game_state.start_time.format(<span class="string">"%Y%m%d_%H%M%S"</span>)
+<a href=#837 id=837 data-nosnippet>837</a>    );
+<a href=#838 id=838 data-nosnippet>838</a>    std::fs::write(<span class="kw-2">&amp;</span>filename, game_state.generate_pgn())<span class="question-mark">?</span>;
+<a href=#839 id=839 data-nosnippet>839</a>    <span class="macro">println!</span>(<span class="string">"📁 Game saved to {filename}"</span>);
 <a href=#840 id=840 data-nosnippet>840</a>
-<a href=#841 id=841 data-nosnippet>841</a>            <span class="comment">// Calculate centipawn loss properly
-<a href=#842 id=842 data-nosnippet>842</a>            // All evaluations are from White's perspective
-<a href=#843 id=843 data-nosnippet>843</a>            // So for ANY move, if the evaluation gets worse for the side to move, that's a loss
-<a href=#844 id=844 data-nosnippet>844</a>            </span><span class="kw">let </span>eval_diff = <span class="kw">if </span>i % <span class="number">2 </span>== <span class="number">1 </span>{
-<a href=#845 id=845 data-nosnippet>845</a>                <span class="comment">// Odd index = White just moved (0-indexed)
-<a href=#846 id=846 data-nosnippet>846</a>                // White move: if evaluation decreased, that's bad for white
-<a href=#847 id=847 data-nosnippet>847</a>                </span>prev_eval - current_eval
-<a href=#848 id=848 data-nosnippet>848</a>            } <span class="kw">else </span>{
-<a href=#849 id=849 data-nosnippet>849</a>                <span class="comment">// Even index = Black just moved
-<a href=#850 id=850 data-nosnippet>850</a>                // Black move: if evaluation increased (better for white), that's bad for black
-<a href=#851 id=851 data-nosnippet>851</a>                </span>current_eval - prev_eval
-<a href=#852 id=852 data-nosnippet>852</a>            };
-<a href=#853 id=853 data-nosnippet>853</a>
-<a href=#854 id=854 data-nosnippet>854</a>            <span class="comment">// Convert to centipawns and ensure non-negative
-<a href=#855 id=855 data-nosnippet>855</a>            </span>move_history[i].centipawn_loss = (eval_diff * <span class="number">100.0</span>).max(<span class="number">0.0</span>);
-<a href=#856 id=856 data-nosnippet>856</a>        }
-<a href=#857 id=857 data-nosnippet>857</a>    }
-<a href=#858 id=858 data-nosnippet>858</a>}
-<a href=#859 id=859 data-nosnippet>859</a>
-<a href=#860 id=860 data-nosnippet>860</a><span class="kw">fn </span>main() -&gt; <span class="prelude-ty">Result</span>&lt;(), Box&lt;<span class="kw">dyn </span>std::error::Error&gt;&gt; {
-<a href=#861 id=861 data-nosnippet>861</a>    <span class="kw">let </span>matches = Command::new(<span class="string">"Chess Vector vs Stockfish"</span>)
-<a href=#862 id=862 data-nosnippet>862</a>        .version(<span class="string">"1.0"</span>)
-<a href=#863 id=863 data-nosnippet>863</a>        .author(<span class="string">"Chess Vector Team"</span>)
-<a href=#864 id=864 data-nosnippet>864</a>        .about(<span class="string">"Play Chess Vector Engine against Stockfish with analysis"</span>)
-<a href=#865 id=865 data-nosnippet>865</a>        .arg(
-<a href=#866 id=866 data-nosnippet>866</a>            Arg::new(<span class="string">"color"</span>)
-<a href=#867 id=867 data-nosnippet>867</a>                .short(<span class="string">'c'</span>)
-<a href=#868 id=868 data-nosnippet>868</a>                .long(<span class="string">"color"</span>)
-<a href=#869 id=869 data-nosnippet>869</a>                .value_name(<span class="string">"COLOR"</span>)
-<a href=#870 id=870 data-nosnippet>870</a>                .help(<span class="string">"Color for Chess Vector Engine (white/black)"</span>)
-<a href=#871 id=871 data-nosnippet>871</a>                .value_parser([<span class="string">"white"</span>, <span class="string">"black"</span>])
-<a href=#872 id=872 data-nosnippet>872</a>                .default_value(<span class="string">"white"</span>),
-<a href=#873 id=873 data-nosnippet>873</a>        )
+<a href=#841 id=841 data-nosnippet>841</a>    <span class="prelude-val">Ok</span>(())
+<a href=#842 id=842 data-nosnippet>842</a>}
+<a href=#843 id=843 data-nosnippet>843</a>
+<a href=#844 id=844 data-nosnippet>844</a><span class="kw">fn </span>calculate_centipawn_losses(move_history: <span class="kw-2">&amp;mut </span>[MoveAnalysis]) {
+<a href=#845 id=845 data-nosnippet>845</a>    <span class="kw">for </span>i <span class="kw">in </span><span class="number">0</span>..move_history.len() {
+<a href=#846 id=846 data-nosnippet>846</a>        <span class="kw">if </span>i &gt; <span class="number">0 </span>{
+<a href=#847 id=847 data-nosnippet>847</a>            <span class="kw">let </span>prev_eval = move_history[i - <span class="number">1</span>].evaluation_after;
+<a href=#848 id=848 data-nosnippet>848</a>            <span class="kw">let </span>current_eval = move_history[i].evaluation_after;
+<a href=#849 id=849 data-nosnippet>849</a>
+<a href=#850 id=850 data-nosnippet>850</a>            <span class="comment">// Calculate centipawn loss properly
+<a href=#851 id=851 data-nosnippet>851</a>            // All evaluations are from White's perspective
+<a href=#852 id=852 data-nosnippet>852</a>            // So for ANY move, if the evaluation gets worse for the side to move, that's a loss
+<a href=#853 id=853 data-nosnippet>853</a>            </span><span class="kw">let </span>eval_diff = <span class="kw">if </span>i % <span class="number">2 </span>== <span class="number">1 </span>{
+<a href=#854 id=854 data-nosnippet>854</a>                <span class="comment">// Odd index = White just moved (0-indexed)
+<a href=#855 id=855 data-nosnippet>855</a>                // White move: if evaluation decreased, that's bad for white
+<a href=#856 id=856 data-nosnippet>856</a>                </span>prev_eval - current_eval
+<a href=#857 id=857 data-nosnippet>857</a>            } <span class="kw">else </span>{
+<a href=#858 id=858 data-nosnippet>858</a>                <span class="comment">// Even index = Black just moved
+<a href=#859 id=859 data-nosnippet>859</a>                // Black move: if evaluation increased (better for white), that's bad for black
+<a href=#860 id=860 data-nosnippet>860</a>                </span>current_eval - prev_eval
+<a href=#861 id=861 data-nosnippet>861</a>            };
+<a href=#862 id=862 data-nosnippet>862</a>
+<a href=#863 id=863 data-nosnippet>863</a>            <span class="comment">// Convert to centipawns and ensure non-negative
+<a href=#864 id=864 data-nosnippet>864</a>            </span>move_history[i].centipawn_loss = (eval_diff * <span class="number">100.0</span>).max(<span class="number">0.0</span>);
+<a href=#865 id=865 data-nosnippet>865</a>        }
+<a href=#866 id=866 data-nosnippet>866</a>    }
+<a href=#867 id=867 data-nosnippet>867</a>}
+<a href=#868 id=868 data-nosnippet>868</a>
+<a href=#869 id=869 data-nosnippet>869</a><span class="kw">fn </span>main() -&gt; <span class="prelude-ty">Result</span>&lt;(), Box&lt;<span class="kw">dyn </span>std::error::Error&gt;&gt; {
+<a href=#870 id=870 data-nosnippet>870</a>    <span class="kw">let </span>matches = Command::new(<span class="string">"Chess Vector vs Stockfish"</span>)
+<a href=#871 id=871 data-nosnippet>871</a>        .version(<span class="string">"1.0"</span>)
+<a href=#872 id=872 data-nosnippet>872</a>        .author(<span class="string">"Chess Vector Team"</span>)
+<a href=#873 id=873 data-nosnippet>873</a>        .about(<span class="string">"Play Chess Vector Engine against Stockfish with analysis"</span>)
 <a href=#874 id=874 data-nosnippet>874</a>        .arg(
-<a href=#875 id=875 data-nosnippet>875</a>            Arg::new(<span class="string">"depth"</span>)
-<a href=#876 id=876 data-nosnippet>876</a>                .short(<span class="string">'d'</span>)
-<a href=#877 id=877 data-nosnippet>877</a>                .long(<span class="string">"depth"</span>)
-<a href=#878 id=878 data-nosnippet>878</a>                .value_name(<span class="string">"DEPTH"</span>)
-<a href=#879 id=879 data-nosnippet>879</a>                .help(<span class="string">"Stockfish search depth"</span>)
-<a href=#880 id=880 data-nosnippet>880</a>                .value_parser(<span class="macro">clap::value_parser!</span>(u8).range(<span class="number">1</span>..=<span class="number">20</span>))
-<a href=#881 id=881 data-nosnippet>881</a>                .default_value(<span class="string">"10"</span>),
+<a href=#875 id=875 data-nosnippet>875</a>            Arg::new(<span class="string">"color"</span>)
+<a href=#876 id=876 data-nosnippet>876</a>                .short(<span class="string">'c'</span>)
+<a href=#877 id=877 data-nosnippet>877</a>                .long(<span class="string">"color"</span>)
+<a href=#878 id=878 data-nosnippet>878</a>                .value_name(<span class="string">"COLOR"</span>)
+<a href=#879 id=879 data-nosnippet>879</a>                .help(<span class="string">"Color for Chess Vector Engine (white/black)"</span>)
+<a href=#880 id=880 data-nosnippet>880</a>                .value_parser([<span class="string">"white"</span>, <span class="string">"black"</span>])
+<a href=#881 id=881 data-nosnippet>881</a>                .default_value(<span class="string">"white"</span>),
 <a href=#882 id=882 data-nosnippet>882</a>        )
 <a href=#883 id=883 data-nosnippet>883</a>        .arg(
-<a href=#884 id=884 data-nosnippet>884</a>            Arg::new(<span class="string">"time"</span>)
-<a href=#885 id=885 data-nosnippet>885</a>                .short(<span class="string">'t'</span>)
-<a href=#886 id=886 data-nosnippet>886</a>                .long(<span class="string">"time"</span>)
-<a href=#887 id=887 data-nosnippet>887</a>                .value_name(<span class="string">"MILLISECONDS"</span>)
-<a href=#888 id=888 data-nosnippet>888</a>                .help(<span class="string">"Time per move in milliseconds"</span>)
-<a href=#889 id=889 data-nosnippet>889</a>                .value_parser(<span class="macro">clap::value_parser!</span>(u32).range(<span class="number">100</span>..=<span class="number">60000</span>))
-<a href=#890 id=890 data-nosnippet>890</a>                .default_value(<span class="string">"3000"</span>),
+<a href=#884 id=884 data-nosnippet>884</a>            Arg::new(<span class="string">"depth"</span>)
+<a href=#885 id=885 data-nosnippet>885</a>                .short(<span class="string">'d'</span>)
+<a href=#886 id=886 data-nosnippet>886</a>                .long(<span class="string">"depth"</span>)
+<a href=#887 id=887 data-nosnippet>887</a>                .value_name(<span class="string">"DEPTH"</span>)
+<a href=#888 id=888 data-nosnippet>888</a>                .help(<span class="string">"Stockfish search depth"</span>)
+<a href=#889 id=889 data-nosnippet>889</a>                .value_parser(<span class="macro">clap::value_parser!</span>(u8).range(<span class="number">1</span>..=<span class="number">20</span>))
+<a href=#890 id=890 data-nosnippet>890</a>                .default_value(<span class="string">"10"</span>),
 <a href=#891 id=891 data-nosnippet>891</a>        )
 <a href=#892 id=892 data-nosnippet>892</a>        .arg(
-<a href=#893 id=893 data-nosnippet>893</a>            Arg::new(<span class="string">"tactical_depth"</span>)
-<a href=#894 id=894 data-nosnippet>894</a>                .long(<span class="string">"tactical-depth"</span>)
-<a href=#895 id=895 data-nosnippet>895</a>                .value_name(<span class="string">"DEPTH"</span>)
-<a href=#896 id=896 data-nosnippet>896</a>                .help(<span class="string">"Chess Vector tactical search depth (higher = stronger but slower)"</span>)
-<a href=#897 id=897 data-nosnippet>897</a>                .value_parser(<span class="macro">clap::value_parser!</span>(u8).range(<span class="number">4</span>..=<span class="number">16</span>))
-<a href=#898 id=898 data-nosnippet>898</a>                .default_value(<span class="string">"10"</span>),
-<a href=#899 id=899 data-nosnippet>899</a>        )
-<a href=#900 id=900 data-nosnippet>900</a>        .arg(
-<a href=#901 id=901 data-nosnippet>901</a>            Arg::new(<span class="string">"disable_auto_load"</span>)
-<a href=#902 id=902 data-nosnippet>902</a>                .long(<span class="string">"disable-auto-load"</span>)
-<a href=#903 id=903 data-nosnippet>903</a>                .help(<span class="string">"Disable automatic loading of default NNUE model (for development)"</span>)
-<a href=#904 id=904 data-nosnippet>904</a>                .action(clap::ArgAction::SetTrue),
-<a href=#905 id=905 data-nosnippet>905</a>        )
-<a href=#906 id=906 data-nosnippet>906</a>        .get_matches();
-<a href=#907 id=907 data-nosnippet>907</a>
-<a href=#908 id=908 data-nosnippet>908</a>    <span class="kw">let </span>color_str = matches.get_one::&lt;String&gt;(<span class="string">"color"</span>).unwrap();
-<a href=#909 id=909 data-nosnippet>909</a>    <span class="kw">let </span>chess_vector_color = <span class="kw">match </span>color_str.as_str() {
-<a href=#910 id=910 data-nosnippet>910</a>        <span class="string">"white" </span>=&gt; Color::White,
-<a href=#911 id=911 data-nosnippet>911</a>        <span class="string">"black" </span>=&gt; Color::Black,
-<a href=#912 id=912 data-nosnippet>912</a>        <span class="kw">_ </span>=&gt; <span class="macro">unreachable!</span>(),
-<a href=#913 id=913 data-nosnippet>913</a>    };
-<a href=#914 id=914 data-nosnippet>914</a>
-<a href=#915 id=915 data-nosnippet>915</a>    <span class="kw">let </span>stockfish_depth = <span class="kw-2">*</span>matches.get_one::&lt;u8&gt;(<span class="string">"depth"</span>).unwrap();
-<a href=#916 id=916 data-nosnippet>916</a>    <span class="kw">let </span>time_per_move = <span class="kw-2">*</span>matches.get_one::&lt;u32&gt;(<span class="string">"time"</span>).unwrap();
-<a href=#917 id=917 data-nosnippet>917</a>    <span class="kw">let </span>tactical_depth = <span class="kw-2">*</span>matches.get_one::&lt;u8&gt;(<span class="string">"tactical_depth"</span>).unwrap();
-<a href=#918 id=918 data-nosnippet>918</a>    <span class="kw">let </span>disable_auto_load = matches.get_flag(<span class="string">"disable_auto_load"</span>);
-<a href=#919 id=919 data-nosnippet>919</a>
-<a href=#920 id=920 data-nosnippet>920</a>    <span class="comment">// Check if Stockfish is available
-<a href=#921 id=921 data-nosnippet>921</a>    </span><span class="kw">match </span>ProcessCommand::new(<span class="string">"stockfish"</span>).arg(<span class="string">"--help"</span>).output() {
-<a href=#922 id=922 data-nosnippet>922</a>        <span class="prelude-val">Ok</span>(<span class="kw">_</span>) =&gt; {}
-<a href=#923 id=923 data-nosnippet>923</a>        <span class="prelude-val">Err</span>(<span class="kw">_</span>) =&gt; {
-<a href=#924 id=924 data-nosnippet>924</a>            <span class="macro">eprintln!</span>(
-<a href=#925 id=925 data-nosnippet>925</a>                <span class="string">"❌ Stockfish not found! Please install Stockfish and make sure it's in your PATH."
-<a href=#926 id=926 data-nosnippet>926</a>            </span>);
-<a href=#927 id=927 data-nosnippet>927</a>            <span class="macro">eprintln!</span>(<span class="string">"   Download from: https://stockfishchess.org/download/"</span>);
-<a href=#928 id=928 data-nosnippet>928</a>            std::process::exit(<span class="number">1</span>);
-<a href=#929 id=929 data-nosnippet>929</a>        }
-<a href=#930 id=930 data-nosnippet>930</a>    }
-<a href=#931 id=931 data-nosnippet>931</a>
-<a href=#932 id=932 data-nosnippet>932</a>    play_game(
-<a href=#933 id=933 data-nosnippet>933</a>        chess_vector_color,
-<a href=#934 id=934 data-nosnippet>934</a>        stockfish_depth,
-<a href=#935 id=935 data-nosnippet>935</a>        time_per_move,
-<a href=#936 id=936 data-nosnippet>936</a>        tactical_depth,
-<a href=#937 id=937 data-nosnippet>937</a>        disable_auto_load,
-<a href=#938 id=938 data-nosnippet>938</a>    )
-<a href=#939 id=939 data-nosnippet>939</a>}</code></pre></div></section></main></body></html>
+<a href=#893 id=893 data-nosnippet>893</a>            Arg::new(<span class="string">"time"</span>)
+<a href=#894 id=894 data-nosnippet>894</a>                .short(<span class="string">'t'</span>)
+<a href=#895 id=895 data-nosnippet>895</a>                .long(<span class="string">"time"</span>)
+<a href=#896 id=896 data-nosnippet>896</a>                .value_name(<span class="string">"MILLISECONDS"</span>)
+<a href=#897 id=897 data-nosnippet>897</a>                .help(<span class="string">"Time per move in milliseconds"</span>)
+<a href=#898 id=898 data-nosnippet>898</a>                .value_parser(<span class="macro">clap::value_parser!</span>(u32).range(<span class="number">100</span>..=<span class="number">60000</span>))
+<a href=#899 id=899 data-nosnippet>899</a>                .default_value(<span class="string">"3000"</span>),
+<a href=#900 id=900 data-nosnippet>900</a>        )
+<a href=#901 id=901 data-nosnippet>901</a>        .arg(
+<a href=#902 id=902 data-nosnippet>902</a>            Arg::new(<span class="string">"tactical_depth"</span>)
+<a href=#903 id=903 data-nosnippet>903</a>                .long(<span class="string">"tactical-depth"</span>)
+<a href=#904 id=904 data-nosnippet>904</a>                .value_name(<span class="string">"DEPTH"</span>)
+<a href=#905 id=905 data-nosnippet>905</a>                .help(<span class="string">"Chess Vector tactical search depth (higher = stronger but slower)"</span>)
+<a href=#906 id=906 data-nosnippet>906</a>                .value_parser(<span class="macro">clap::value_parser!</span>(u8).range(<span class="number">4</span>..=<span class="number">16</span>))
+<a href=#907 id=907 data-nosnippet>907</a>                .default_value(<span class="string">"10"</span>),
+<a href=#908 id=908 data-nosnippet>908</a>        )
+<a href=#909 id=909 data-nosnippet>909</a>        .arg(
+<a href=#910 id=910 data-nosnippet>910</a>            Arg::new(<span class="string">"disable_auto_load"</span>)
+<a href=#911 id=911 data-nosnippet>911</a>                .long(<span class="string">"disable-auto-load"</span>)
+<a href=#912 id=912 data-nosnippet>912</a>                .help(<span class="string">"Disable automatic loading of default NNUE model (for development)"</span>)
+<a href=#913 id=913 data-nosnippet>913</a>                .action(clap::ArgAction::SetTrue),
+<a href=#914 id=914 data-nosnippet>914</a>        )
+<a href=#915 id=915 data-nosnippet>915</a>        .get_matches();
+<a href=#916 id=916 data-nosnippet>916</a>
+<a href=#917 id=917 data-nosnippet>917</a>    <span class="kw">let </span>color_str = matches.get_one::&lt;String&gt;(<span class="string">"color"</span>).unwrap();
+<a href=#918 id=918 data-nosnippet>918</a>    <span class="kw">let </span>chess_vector_color = <span class="kw">match </span>color_str.as_str() {
+<a href=#919 id=919 data-nosnippet>919</a>        <span class="string">"white" </span>=&gt; Color::White,
+<a href=#920 id=920 data-nosnippet>920</a>        <span class="string">"black" </span>=&gt; Color::Black,
+<a href=#921 id=921 data-nosnippet>921</a>        <span class="kw">_ </span>=&gt; <span class="macro">unreachable!</span>(),
+<a href=#922 id=922 data-nosnippet>922</a>    };
+<a href=#923 id=923 data-nosnippet>923</a>
+<a href=#924 id=924 data-nosnippet>924</a>    <span class="kw">let </span>stockfish_depth = <span class="kw-2">*</span>matches.get_one::&lt;u8&gt;(<span class="string">"depth"</span>).unwrap();
+<a href=#925 id=925 data-nosnippet>925</a>    <span class="kw">let </span>time_per_move = <span class="kw-2">*</span>matches.get_one::&lt;u32&gt;(<span class="string">"time"</span>).unwrap();
+<a href=#926 id=926 data-nosnippet>926</a>    <span class="kw">let </span>tactical_depth = <span class="kw-2">*</span>matches.get_one::&lt;u8&gt;(<span class="string">"tactical_depth"</span>).unwrap();
+<a href=#927 id=927 data-nosnippet>927</a>    <span class="kw">let </span>disable_auto_load = matches.get_flag(<span class="string">"disable_auto_load"</span>);
+<a href=#928 id=928 data-nosnippet>928</a>
+<a href=#929 id=929 data-nosnippet>929</a>    <span class="comment">// Check if Stockfish is available
+<a href=#930 id=930 data-nosnippet>930</a>    </span><span class="kw">match </span>ProcessCommand::new(<span class="string">"stockfish"</span>).arg(<span class="string">"--help"</span>).output() {
+<a href=#931 id=931 data-nosnippet>931</a>        <span class="prelude-val">Ok</span>(<span class="kw">_</span>) =&gt; {}
+<a href=#932 id=932 data-nosnippet>932</a>        <span class="prelude-val">Err</span>(<span class="kw">_</span>) =&gt; {
+<a href=#933 id=933 data-nosnippet>933</a>            <span class="macro">eprintln!</span>(
+<a href=#934 id=934 data-nosnippet>934</a>                <span class="string">"❌ Stockfish not found! Please install Stockfish and make sure it's in your PATH."
+<a href=#935 id=935 data-nosnippet>935</a>            </span>);
+<a href=#936 id=936 data-nosnippet>936</a>            <span class="macro">eprintln!</span>(<span class="string">"   Download from: https://stockfishchess.org/download/"</span>);
+<a href=#937 id=937 data-nosnippet>937</a>            std::process::exit(<span class="number">1</span>);
+<a href=#938 id=938 data-nosnippet>938</a>        }
+<a href=#939 id=939 data-nosnippet>939</a>    }
+<a href=#940 id=940 data-nosnippet>940</a>
+<a href=#941 id=941 data-nosnippet>941</a>    play_game(
+<a href=#942 id=942 data-nosnippet>942</a>        chess_vector_color,
+<a href=#943 id=943 data-nosnippet>943</a>        stockfish_depth,
+<a href=#944 id=944 data-nosnippet>944</a>        time_per_move,
+<a href=#945 id=945 data-nosnippet>945</a>        tactical_depth,
+<a href=#946 id=946 data-nosnippet>946</a>        disable_auto_load,
+<a href=#947 id=947 data-nosnippet>947</a>    )
+<a href=#948 id=948 data-nosnippet>948</a>}</code></pre></div></section></main></body></html>

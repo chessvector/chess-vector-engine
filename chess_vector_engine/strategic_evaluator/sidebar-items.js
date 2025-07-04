@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"enum":["PlanGoal","PlanUrgency"],"struct":["AttackingPattern","PositionalPlan","StrategicConfig","StrategicEvaluation","StrategicEvaluator"]};
