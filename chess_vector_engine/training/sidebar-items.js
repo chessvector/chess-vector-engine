@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"struct":["EngineEvaluator","GameExtractor","SelfPlayConfig","SelfPlayTrainer","StockfishEvaluator","StockfishPool","TacticalPuzzle","TacticalPuzzleParser","TacticalTrainingData","TrainingData","TrainingDataset"]};
+window.SIDEBAR_ITEMS = {"struct":["AdvancedSelfLearningSystem","EngineEvaluator","GameExtractor","LearningProgress","LearningStats","SelfPlayConfig","SelfPlayTrainer","StockfishEvaluator","StockfishPool","TacticalPuzzle","TacticalPuzzleParser","TacticalTrainingData","TrainingData","TrainingDataset"]};

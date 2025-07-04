@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"fn":["load_pgn_games","main","print_usage","run_continuous_learning","run_fast_training","run_training","show_progress"]};

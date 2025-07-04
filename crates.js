@@ -1,2 +1,2 @@
-window.ALL_CRATES = ["analyze","analyze_full","benchmark","chess_vector_engine","demo","feature_demo","play_stockfish","play_stockfish_safe","uci_engine"];
-//{"start":21,"fragment_lengths":[9,15,12,22,7,15,17,22,13]}
+window.ALL_CRATES = ["analyze","analyze_full","benchmark","chess_vector_engine","demo","feature_demo","play_stockfish","play_stockfish_safe","self_learning","train_nnue","uci_engine"];
+//{"start":21,"fragment_lengths":[9,15,12,22,7,15,17,22,16,13,13]}

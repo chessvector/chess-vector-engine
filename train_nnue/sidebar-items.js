@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"fn":["evaluate_position_heuristic","generate_game_positions","generate_training_positions","main","test_existing_model","test_integration","test_nnue_model","train_nnue_comprehensive"]};
