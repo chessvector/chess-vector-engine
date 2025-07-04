@@ -1,0 +1,284 @@
+name: 🔍 Fork Monitor
+
+on:
+  schedule:
+    - cron: '0 */6 * * *'  # Every 6 hours
+  workflow_dispatch:
+
+env:
+  REPO_OWNER: chessvector
+  REPO_NAME: chess-vector-engine
+
+jobs:
+  monitor-forks:
+    name: 🔍 Monitor Forks for License Violations
+    runs-on: ubuntu-latest
+    steps:
+    - name: 📥 Checkout code
+      uses: actions/checkout@v4
+
+    - name: 🔍 Get repository forks
+      id: get_forks
+      uses: actions/github-script@v7
+      with:
+        github-token: ${{ secrets.GITHUB_TOKEN }}
+        script: |
+          const { data: forks } = await github.rest.repos.listForks({
+            owner: context.repo.owner,
+            repo: context.repo.repo,
+            per_page: 100
+          });
+          
+          console.log(`Found ${forks.length} forks to analyze`);
+          
+          const suspiciousForks = [];
+          
+          for (const fork of forks) {
+            // Skip private forks (can't analyze)
+            if (fork.private) continue;
+            
+            try {
+              // Check if fork has been modified recently
+              const { data: commits } = await github.rest.repos.listCommits({
+                owner: fork.owner.login,
+                repo: fork.name,
+                since: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString(),
+                per_page: 10
+              });
+              
+              if (commits.length > 0) {
+                // Analyze recent commits for suspicious patterns
+                for (const commit of commits) {
+                  const message = commit.commit.message.toLowerCase();
+                  const suspiciousPatterns = [
+                    'remove license',
+                    'bypass license',
+                    'disable license',
+                    'free premium',
+                    'unlock features',
+                    'remove protection',
+                    'crack',
+                    'premium free'
+                  ];
+                  
+                  if (suspiciousPatterns.some(pattern => message.includes(pattern))) {
+                    suspiciousForks.push({
+                      owner: fork.owner.login,
+                      repo: fork.name,
+                      url: fork.html_url,
+                      commit_message: commit.commit.message,
+                      commit_sha: commit.sha,
+                      commit_date: commit.commit.author.date
+                    });
+                    break;
+                  }
+                }
+              }
+            } catch (error) {
+              console.log(`Could not analyze fork ${fork.owner.login}/${fork.name}: ${error.message}`);
+            }
+          }
+          
+          return suspiciousForks;
+
+    - name: 🚨 Analyze suspicious forks
+      if: steps.get_forks.outputs.result != '[]'
+      uses: actions/github-script@v7
+      with:
+        github-token: ${{ secrets.GITHUB_TOKEN }}
+        script: |
+          const suspiciousForks = JSON.parse('${{ steps.get_forks.outputs.result }}');
+          
+          if (suspiciousForks.length === 0) {
+            console.log('✅ No suspicious forks detected');
+            return;
+          }
+          
+          console.log(`🚨 Found ${suspiciousForks.length} suspicious forks`);
+          
+          // Create issue for each suspicious fork
+          for (const fork of suspiciousForks) {
+            const issueTitle = `🚨 Potential License Violation: ${fork.owner}/${fork.repo}`;
+            const issueBody = `
+          ## 🔒 Potential License Violation Detected
+          
+          **Repository:** [${fork.owner}/${fork.repo}](${fork.url})
+          
+          ### 📊 Detection Details
+          - **Suspicious Commit:** ${fork.commit_sha}
+          - **Commit Date:** ${fork.commit_date}
+          - **Commit Message:** "${fork.commit_message}"
+          
+          ### 🔍 Automated Analysis
+          This fork was flagged by our automated monitoring system for potentially suspicious activity related to license circumvention.
+          
+          ### 📋 Investigation Checklist
+          - [ ] Manual review of repository changes
+          - [ ] Analysis of license verification code
+          - [ ] Check for premium feature modifications
+          - [ ] Verify copyright notices
+          - [ ] Document evidence if violation confirmed
+          
+          ### ⚖️ Next Steps
+          1. **Manual Investigation** - Security team to review the repository
+          2. **Evidence Collection** - Document any license violations
+          3. **Contact Owner** - Reach out for clarification if needed
+          4. **Legal Action** - Pursue DMCA takedown if necessary
+          
+          ### 📞 Contact Information
+          - **Repository Owner:** @${fork.owner}
+          - **Security Team:** @chessvector/security-team
+          - **Legal Contact:** legal@chessvector.ai
+          
+          ---
+          
+          *This issue was created automatically by our fork monitoring system. Please investigate promptly.*
+          `;
+          
+            try {
+              await github.rest.issues.create({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                title: issueTitle,
+                body: issueBody,
+                labels: ['security', 'license-violation', 'investigation-required']
+              });
+              
+              console.log(`Created issue for ${fork.owner}/${fork.repo}`);
+            } catch (error) {
+              console.error(`Failed to create issue for ${fork.owner}/${fork.repo}: ${error.message}`);
+            }
+          }
+
+  scan-package-registries:
+    name: 📦 Scan Package Registries
+    runs-on: ubuntu-latest
+    steps:
+    - name: 🔍 Search crates.io for similar packages
+      run: |
+        echo "🔍 Scanning crates.io for potential unauthorized packages..."
+        
+        # Search for packages with similar names
+        SEARCH_TERMS=("chess-vector" "chessvector" "chess_vector" "vector-chess" "chess-ai-engine")
+        
+        for term in "${SEARCH_TERMS[@]}"; do
+          echo "Searching for: $term"
+          curl -s "https://crates.io/api/v1/crates?q=${term}" | jq -r '.crates[] | "\(.name) - \(.description // "No description")"' || true
+        done
+        
+        # TODO: Implement more sophisticated analysis
+        # - Download and analyze suspicious packages
+        # - Check for license header removal
+        # - Verify copyright notices
+        # - Compare against known premium features
+
+  notify-security-team:
+    name: 📧 Notify Security Team
+    needs: [monitor-forks, scan-package-registries]
+    runs-on: ubuntu-latest
+    if: always()
+    steps:
+    - name: 📊 Generate monitoring report
+      uses: actions/github-script@v7
+      with:
+        github-token: ${{ secrets.GITHUB_TOKEN }}
+        script: |
+          const now = new Date().toISOString();
+          
+          // Get recent security issues
+          const { data: issues } = await github.rest.issues.listForRepo({
+            owner: context.repo.owner,
+            repo: context.repo.repo,
+            labels: 'license-violation',
+            state: 'open',
+            since: new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString()
+          });
+          
+          const reportData = {
+            timestamp: now,
+            new_violations: issues.length,
+            total_open_violations: issues.length,
+            monitoring_status: 'active'
+          };
+          
+          console.log('📊 Monitoring Report:');
+          console.log(JSON.stringify(reportData, null, 2));
+          
+          // TODO: Send to security dashboard/webhook
+          // await fetch(process.env.SECURITY_WEBHOOK_URL, {
+          //   method: 'POST',
+          //   headers: { 'Content-Type': 'application/json' },
+          //   body: JSON.stringify(reportData)
+          // });
+
+  check-similar-repositories:
+    name: 🔍 Check Similar Repositories
+    runs-on: ubuntu-latest
+    steps:
+    - name: 🔍 Search for repositories with similar names
+      uses: actions/github-script@v7
+      with:
+        github-token: ${{ secrets.GITHUB_TOKEN }}
+        script: |
+          const searchTerms = [
+            'chess vector engine',
+            'chessvector',
+            'chess-vector',
+            'vector chess engine',
+            'chess ai engine'
+          ];
+          
+          const suspiciousRepos = [];
+          
+          for (const term of searchTerms) {
+            try {
+              const { data } = await github.rest.search.repos({
+                q: term,
+                sort: 'updated',
+                per_page: 20
+              });
+              
+              for (const repo of data.items) {
+                // Skip our own repository and known forks
+                if (repo.full_name === `${context.repo.owner}/${context.repo.repo}`) continue;
+                if (repo.fork && repo.parent?.full_name === `${context.repo.owner}/${context.repo.repo}`) continue;
+                
+                // Check for suspicious indicators
+                const description = (repo.description || '').toLowerCase();
+                const name = repo.name.toLowerCase();
+                
+                const suspiciousPatterns = [
+                  'chess vector',
+                  'premium free',
+                  'license free',
+                  'cracked',
+                  'unlimited'
+                ];
+                
+                if (suspiciousPatterns.some(pattern => 
+                  name.includes(pattern) || description.includes(pattern))) {
+                  suspiciousRepos.push({
+                    name: repo.full_name,
+                    url: repo.html_url,
+                    description: repo.description,
+                    updated: repo.updated_at,
+                    stars: repo.stargazers_count
+                  });
+                }
+              }
+            } catch (error) {
+              console.error(`Search failed for term "${term}": ${error.message}`);
+            }
+          }
+          
+          if (suspiciousRepos.length > 0) {
+            console.log(`🚨 Found ${suspiciousRepos.length} potentially suspicious repositories:`);
+            for (const repo of suspiciousRepos) {
+              console.log(`- ${repo.name}: ${repo.description}`);
+            }
+            
+            // TODO: Create investigation issues for suspicious repositories
+            // TODO: Add to monitoring database
+          } else {
+            console.log('✅ No suspicious repositories detected');
+          }

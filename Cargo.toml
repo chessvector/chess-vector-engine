@@ -1,0 +1,170 @@
+[package]
+name = "chess-vector-engine"
+version = "0.4.0"
+edition = "2021"
+rust-version = "1.81"
+authors = ["Justin <justin@speroleague.com>"]
+description = "Open source chess engine with hybrid vector-based position analysis, advanced tactical search, and NNUE neural network evaluation"
+documentation = "https://docs.rs/chess-vector-engine"
+homepage = "https://chessvector.ai"
+repository = "https://github.com/chessvector/chess-vector-engine"
+license = "MIT OR Apache-2.0"
+keywords = ["chess", "engine", "ai", "vector", "nnue"]
+categories = ["games", "algorithms", "simulation"]
+readme = "README.md"
+publish = true
+exclude = [
+    # Training data and model files
+    "training_data/*.bin",
+    "training_data/*.mmap", 
+    "training_data/*.msgpack",
+    "training_data/*.zst",
+    "*.weights",
+    "*.config",
+    "*.nnue",
+    "*.model",
+    "*.bin",
+    "*.msgpack",
+    "*.mmap",
+    "*.zst",
+    "*.db",
+    "*.db-*",
+    
+    # Development and testing files
+    "test_*",
+    "benchmark_*",
+    "creator_*",
+    "play_*",
+    "analyze_*",
+    
+    # IDE and build directories
+    ".vscode/",
+    ".idea/",
+    "target/",
+    ".gitea/",
+    
+    # Temporary and cache files
+    "*.tmp",
+    "*.cache",
+    "log_*"
+]
+
+[lib]
+name = "chess_vector_engine"
+path = "src/lib.rs"
+
+# Essential example binaries for public release
+[[bin]]
+name = "demo"
+path = "src/bin/demo.rs"
+
+[[bin]]
+name = "uci_engine"
+path = "src/bin/uci_engine.rs"
+
+[[bin]]
+name = "analyze"
+path = "src/bin/analyze.rs"
+
+[[bin]]
+name = "benchmark"
+path = "src/bin/benchmark.rs"
+
+[[bin]]
+name = "feature_demo"
+path = "src/bin/feature_demo.rs"
+
+[[bin]]
+name = "train_nnue"
+path = "src/bin/train_nnue.rs"
+
+# All binaries are now available in open source
+# Additional binaries for advanced use cases:
+# - play_stockfish: Game playing demonstration 
+# - play_stockfish_safe: Development testing tool
+# - analyze_full: Comprehensive position analysis
+# - train_nnue: NNUE neural network training and model saving
+
+[dependencies]
+# Chess game logic
+chess = "3.2"
+
+# Numerical computing and arrays
+ndarray = "0.16"
+ndarray-rand = "0.15"
+
+# Machine learning framework - CPU only for compatibility
+candle-core = { version = "0.9", default-features = false }
+candle-nn = { version = "0.9", default-features = false }
+
+# Optional GPU dependencies (only compiled when explicitly requested)
+# Note: These are separate optional dependencies to avoid conflicts with base candle-core
+safetensors = "0.4"
+bytemuck = "1.14"
+
+# Serialization for saving/loading models
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+
+# Random number generation
+rand = "0.8"
+fastrand = "2.0"
+
+# Parallel processing
+rayon = "1.8"
+
+# Async runtime (for future parallel processing)
+tokio = { version = "1.0", features = ["full"] }
+
+# CLI and utilities
+clap = { version = "4.5", features = ["derive"] }
+
+# PGN parsing and Stockfish integration
+pgn-reader = "0.22"
+
+# Progress bars and indicators
+indicatif = "0.17"
+
+# CSV parsing for tactical puzzles
+csv = "1.3"
+num_cpus = "1.16"
+
+# Syzygy tablebase support for endgame evaluation
+shakmaty-syzygy = "0.25.2"
+shakmaty = "0.25.0"
+
+# Date/time formatting
+chrono = "0.4"
+
+# Database persistence
+rusqlite = { version = "0.32", features = ["bundled", "blob"] }
+bincode = "1.3"
+
+# Compression for fast training data
+lz4_flex = "0.11"
+
+# Ultra-fast loading optimizations
+memmap2 = "0.9"       # Memory-mapped files for instant loading
+rmp-serde = "1.1"     # MessagePack binary format (faster than bincode)
+zstd = "0.13"         # High-performance compression
+crossbeam = "0.8"     # Lock-free data structures
+dashmap = "5.5"       # Concurrent hash map for parallel loading
+
+# Note: Some dependencies are pinned to specific versions via Cargo.lock
+# to maintain compatibility with MSRV (rust-version = "1.81")
+# Use: cargo update <package> --precise <version> to control versions
+
+[features]
+default = []
+# GPU features - implemented via conditional compilation in code
+# These don't add problematic dependencies, avoiding CI build failures
+cuda = []  # Enables CUDA code paths when available
+metal = []  # Enables Metal code paths when available (macOS only)
+verbose = []  # Enables verbose output for debugging and development
+gpu = ["cuda"]  # Default GPU feature to CUDA
+# CI-safe feature set that excludes problematic dependencies
+ci-safe = []
+
+[dev-dependencies]
+criterion = "0.5"
+tempfile = "3.8"
