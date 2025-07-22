@@ -1,6 +1,6 @@
 [package]
 name = "chess-vector-engine"
-version = "0.4.0"
+version = "0.5.0"
 edition = "2021"
 rust-version = "1.81"
 authors = ["Justin <justin@speroleague.com>"]
@@ -78,6 +78,22 @@ path = "src/bin/feature_demo.rs"
 name = "train_nnue"
 path = "src/bin/train_nnue.rs"
 
+[[bin]]
+name = "load_lichess_puzzles"
+path = "src/bin/load_lichess_puzzles.rs"
+
+[[bin]]
+name = "extract_strategic_motifs"
+path = "src/bin/extract_strategic_motifs.rs"
+
+[[bin]]
+name = "validate_hypothesis"
+path = "bin/validate_hypothesis.rs"
+
+[[bin]]
+name = "simplified_demo"
+path = "bin/simplified_demo.rs"
+
 # All binaries are now available in open source
 # Additional binaries for advanced use cases:
 # - play_stockfish: Game playing demonstration 
@@ -125,6 +141,9 @@ pgn-reader = "0.22"
 # Progress bars and indicators
 indicatif = "0.17"
 
+# LRU cache for strategic motifs
+lru = "0.12"
+
 # CSV parsing for tactical puzzles
 csv = "1.3"
 num_cpus = "1.16"
@@ -164,6 +183,8 @@ verbose = []  # Enables verbose output for debugging and development
 gpu = ["cuda"]  # Default GPU feature to CUDA
 # CI-safe feature set that excludes problematic dependencies
 ci-safe = []
+# Database feature for conditional compilation
+database = []
 
 [dev-dependencies]
 criterion = "0.5"

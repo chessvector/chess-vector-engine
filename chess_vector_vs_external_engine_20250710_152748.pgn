@@ -1,0 +1,25 @@
+[Event "Chess Vector vs External Engine"]
+[Site "CLI Match"]
+[Date "2025.07.10"]
+[Round "1"]
+[White "External Engine"]
+[Black "Chess Vector Engine"]
+[Result "1-0"]
+
+1. e4 { eval: 0.40, loss: 0.0cp } e5? { eval: 0.00, loss: 40.0cp } 
+2. Nf3? { eval: 0.40, loss: 40.0cp } Qe7 { eval: 1.00, loss: 0.0cp } 
+3. d4 { eval: 1.04, loss: 4.0cp } Qb4+?? { eval: 0.00, loss: 104.0cp } 
+4. Bd2?? { eval: 2.88, loss: 288.0cp } Qe7?? { eval: 1.00, loss: 188.0cp } 
+5. dxe5?? { eval: 3.10, loss: 210.0cp } Qe6?? { eval: 1.00, loss: 210.0cp } 
+6. Nc3?? { eval: 4.04, loss: 304.0cp } Bb4?? { eval: 0.10, loss: 394.0cp } 
+7. Nd5?? { eval: 6.30, loss: 620.0cp } Bxd2+?? { eval: 2.00, loss: 430.0cp } 
+8. Qxd2?? { eval: 6.32, loss: 432.0cp } Qc6?? { eval: 1.00, loss: 532.0cp } 
+9. Bb5?? { eval: 6.54, loss: 554.0cp } Qc5?? { eval: 1.00, loss: 554.0cp } 
+10. b4?? { eval: 7.39, loss: 639.0cp } Qxb5?? { eval: 4.00, loss: 339.0cp } 
+11. Nxc7+?? { eval: 8.24, loss: 424.0cp } Ke7?? { eval: 4.00, loss: 424.0cp } 
+12. Qd6+?? { eval: 10.00, loss: 600.0cp } Kd8?? { eval: 4.00, loss: 600.0cp } 
+13. Nxb5?? { eval: 10.00, loss: 600.0cp } Nf6?? { eval: 4.00, loss: 600.0cp } 
+14. exf6?? { eval: 10.00, loss: 600.0cp } Nc6?? { eval: 4.00, loss: 600.0cp } 
+15. fxg7?? { eval: 10.00, loss: 600.0cp } Re8?? { eval: 4.00, loss: 600.0cp } 
+16. Ne5?? { eval: 10.00, loss: 600.0cp } f5 { eval: 10.00, loss: 0.0cp } 
+17. Nf7+ { eval: 10.00, loss: 0.0cp }  1-0

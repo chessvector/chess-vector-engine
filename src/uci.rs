@@ -74,12 +74,17 @@ pub enum SearchScore {
 
 impl UCIEngine {
     pub fn new() -> Self {
-        let mut engine = ChessVectorEngine::new(1024);
+        let mut engine = ChessVectorEngine::new_lightweight(1024);
 
-        // Enable all advanced features for UCI
+        // Enable fast features for UCI compliance - no auto-loading
         engine.enable_opening_book();
         engine.enable_tactical_search_default();
         engine.configure_hybrid_evaluation(HybridConfig::default());
+
+        // Enable strategic motifs for instant master-level pattern recognition
+        let _ = engine.enable_strategic_motifs();
+
+        // Skip auto-loading for UCI fast startup - data can be loaded on demand
 
         let mut options = HashMap::new();
 
@@ -168,6 +173,8 @@ impl UCIEngine {
                 value: true,
             },
         );
+
+        options.insert("Load_Position_Data".to_string(), UCIOption::Button);
 
         Self {
             engine,
@@ -361,6 +368,10 @@ impl UCIEngine {
                 }
                 UCIOption::Button => {
                     // Handle button press
+                    if name == "Load_Position_Data" {
+                        // Load position data on demand
+                        let _ = self.engine.auto_load_training_data();
+                    }
                 }
             }
         }
@@ -762,12 +773,24 @@ impl UCIEngine {
             // 2. Continue search with time limits
             // 3. Output bestmove when search completes
 
-            // For now, just output a quick result
+            // Evaluate the pondered position and return best move
             if let Some(ponder_board) = self.ponder_board {
                 let legal_moves: Vec<ChessMove> =
                     chess::MoveGen::new_legal(&ponder_board).collect();
                 if !legal_moves.is_empty() {
-                    let best_move = legal_moves[0]; // Simple fallback
+                    // Use engine evaluation to find best move instead of simple fallback
+                    let mut best_move = legal_moves[0];
+                    let mut best_eval = f32::NEG_INFINITY;
+                    
+                    for chess_move in legal_moves.iter().take(5) {
+                        let new_board = ponder_board.make_move_new(*chess_move);
+                        if let Some(eval) = self.engine.evaluate_position(&new_board) {
+                            if eval > best_eval {
+                                best_eval = eval;
+                                best_move = *chess_move;
+                            }
+                        }
+                    }
                     thread::spawn(move || {
                         println!("bestmove {best_move}");
                     });

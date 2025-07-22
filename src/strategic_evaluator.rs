@@ -725,7 +725,9 @@ impl StrategicEvaluator {
             let enemy_color = !board.side_to_move();
 
             for enemy_square in chess::ALL_SQUARES {
-                if temp_board.color_on(enemy_square) == Some(enemy_color) && self.can_piece_attack_square(&temp_board, dest, piece, enemy_square) {
+                if temp_board.color_on(enemy_square) == Some(enemy_color)
+                    && self.can_piece_attack_square(&temp_board, dest, piece, enemy_square)
+                {
                     return true;
                 }
             }
@@ -1008,7 +1010,10 @@ impl StrategicEvaluator {
 
         for square in chess::ALL_SQUARES {
             if let Some(piece) = board.piece_on(square) {
-                if piece != Piece::Pawn && piece != Piece::King && self.is_piece_developed(square, board.color_on(square).unwrap()) {
+                if piece != Piece::Pawn
+                    && piece != Piece::King
+                    && self.is_piece_developed(square, board.color_on(square).unwrap())
+                {
                     developed_pieces += 1;
                 }
             }

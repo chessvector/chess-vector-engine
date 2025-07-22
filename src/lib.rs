@@ -48,48 +48,44 @@
 //! - **Ultra-fast Loading**: Memory-mapped files and optimized data structures
 //! - **Vector Analysis**: High-dimensional position encoding and similarity search
 //! - **Opening Book**: 50+ professional chess openings and variations
-//!
-//! ## Performance
-//!
-//! - **🚀 Ultra-Fast Loading**: O(n²) → O(n) duplicate detection (seconds instead of hours)
-//! - **💻 SIMD Vector Operations**: AVX2/SSE4.1/NEON optimized for 2-4x speedup
-//! - **🧠 Memory Optimization**: 75-80% memory reduction with streaming processing
-//! - **🎯 Advanced Search**: 2800+ nodes/ms with PVS and sophisticated pruning
-//! - **📊 Comprehensive Testing**: 123 tests with 100% pass rate
-//!
-//! ## License
-//!
-//! Licensed under either of:
-//! - Apache License, Version 2.0 ([LICENSE-APACHE](LICENSE-APACHE))
-//! - MIT License ([LICENSE-MIT](LICENSE-MIT))
-//!
-//! at your option.
 
-pub mod ann;
+// Core modules
+pub mod errors;
+pub mod utils;
+
+// Re-export commonly used types
+pub use errors::ChessEngineError;
+
+pub mod core_evaluation;
 pub mod auto_discovery;
 pub mod gpu_acceleration;
 pub mod lichess_loader;
 pub mod lsh;
-pub mod manifold_learner;
+pub mod motif_extractor;
 pub mod nnue;
 pub mod opening_book;
 pub mod persistence;
 pub mod position_encoder;
 pub mod similarity_search;
 pub mod strategic_evaluator;
+pub mod strategic_evaluator_lazy;
+pub mod strategic_motifs;
 pub mod streaming_loader;
 pub mod tactical_search;
 pub mod training;
 pub mod ultra_fast_loader;
-pub mod variational_autoencoder;
 // pub mod tablebase; // Temporarily disabled due to version conflicts
+pub mod hybrid_evaluation;
+pub mod pattern_recognition;
+pub mod strategic_initiative;
+pub mod evaluation_calibration;
+pub mod stockfish_testing;
 pub mod uci;
 
 pub use auto_discovery::{AutoDiscovery, FormatPriority, TrainingFile};
 pub use gpu_acceleration::{DeviceType, GPUAccelerator};
 pub use lichess_loader::LichessLoader;
 pub use lsh::LSH;
-pub use manifold_learner::ManifoldLearner;
 pub use nnue::{BlendStrategy, EvalStats, HybridEvaluator, NNUEConfig, NNUE};
 pub use opening_book::{OpeningBook, OpeningBookStats, OpeningEntry};
 pub use persistence::{Database, LSHTableData, PositionData};
@@ -99,7 +95,14 @@ pub use strategic_evaluator::{
     AttackingPattern, PlanGoal, PlanUrgency, PositionalPlan, StrategicConfig, StrategicEvaluation,
     StrategicEvaluator,
 };
+pub use strategic_evaluator_lazy::{
+    LazyStrategicEvaluator, EnhancedStrategicEvaluation, StrategicThemeAnalysis,
+};
 pub use streaming_loader::StreamingLoader;
+pub use core_evaluation::{
+    CoreEvaluator, CoreEvaluationResult, SimilarityInsights, StrategicInsights, 
+    SimilarityEngine, StrategicAnalyzer, EvaluationBlender as CoreEvaluationBlender,
+};
 pub use tactical_search::{TacticalConfig, TacticalResult, TacticalSearch};
 pub use training::{
     AdvancedSelfLearningSystem, EngineEvaluator, GameExtractor, LearningProgress, LearningStats,
@@ -107,12 +110,48 @@ pub use training::{
     TrainingData, TrainingDataset,
 };
 pub use ultra_fast_loader::{LoadingStats, UltraFastLoader};
-pub use variational_autoencoder::{VAEConfig, VariationalAutoencoder};
 // pub use tablebase::{TablebaseProber, TablebaseResult, WdlValue};
+pub use evaluation_calibration::{
+    CalibrationConfig, CalibratedEvaluator, EvaluationBreakdown, EvaluationComponent,
+    MaterialEvaluator, PieceValues, PositionalEvaluator,
+};
+pub use stockfish_testing::{
+    StockfishTester, StockfishTestConfig, EvaluationComparison, EvaluationCategory,
+    TestSuiteResults, TestStatistics, StockfishTestError,
+};
+pub use hybrid_evaluation::{
+    AdaptiveLearningStats, AnalysisDepth, BlendWeights, ComplexityAnalysisResult,
+    ComplexityAnalyzer, ComplexityCategory, ComplexityFactor, ComplexityWeights, ConfidenceScorer,
+    EvaluationBlender, EvaluationComponent as HybridEvaluationComponent, EvaluationRecommendations,
+    GamePhase as HybridGamePhase, GamePhaseAnalysisResult, GamePhaseDetector,
+    HybridEvaluationEngine, HybridEvaluationResult, HybridEvaluationStats, NNUEEvaluator,
+    PatternEvaluator, PhaseAdaptationRecommendations, PhaseAdaptationSettings,
+    PhaseDetectionWeights, PhaseIndicator, PhaseTransition,
+    StrategicEvaluator as HybridStrategicEvaluator, TacticalEvaluator,
+};
+pub use pattern_recognition::{
+    AdvancedPatternRecognizer, EndgamePatternAnalysis, KingSafetyAnalysis, LearnedPatternMatch,
+    PatternAnalysisResult, PatternRecognitionStats, PatternWeights, PawnStructureAnalysis,
+    PieceCoordinationAnalysis, TacticalPatternAnalysis,
+};
+pub use strategic_initiative::{
+    ColorInitiativeAnalysis, InitiativeAnalyzer, InitiativeFactors, PlanOutcome,
+    PositionalPressure, PositionalPressureEvaluator, StrategicInitiativeEvaluator,
+    StrategicInitiativeResult, StrategicInitiativeStats, StrategicPlan, StrategicPlanGenerator,
+    StrategicPlanType, TimePressure, TimePressureAnalyzer,
+};
 pub use uci::{run_uci_engine, run_uci_engine_with_config, UCIConfig, UCIEngine};
 
+// Strategic motif system exports
+pub use motif_extractor::MotifExtractor;
+pub use strategic_motifs::{
+    CoordinationPattern, EndgamePattern, GamePhase, InitiativePattern, MotifMatch, MotifType,
+    OpeningPattern, PawnPattern, SafetyPattern, StrategicContext, StrategicDatabase,
+    StrategicMotif,
+};
+
 use chess::{Board, ChessMove};
-use ndarray::{Array1, Array2};
+use ndarray::Array1;
 use serde_json::Value;
 use std::collections::HashMap;
 use std::path::Path;
@@ -155,8 +194,14 @@ pub struct TrainingStats {
     pub has_move_data: bool,
     pub move_data_entries: usize,
     pub lsh_enabled: bool,
-    pub manifold_enabled: bool,
     pub opening_book_enabled: bool,
+}
+
+/// Material balance for tactical awareness
+#[derive(Debug, Clone)]
+pub struct MaterialBalance {
+    pub white_material: f32,
+    pub black_material: f32,
 }
 
 /// Hybrid evaluation configuration
@@ -177,11 +222,11 @@ pub struct HybridConfig {
 impl Default for HybridConfig {
     fn default() -> Self {
         Self {
-            pattern_confidence_threshold: 0.85, // Higher threshold - be more selective about patterns
+            pattern_confidence_threshold: 0.55, // Lowered to 0.55 - trust vector patterns more easily
             enable_tactical_refinement: true,
             tactical_config: TacticalConfig::default(),
-            pattern_weight: 0.3, // CRITICAL: Favor tactical search for 2000+ ELO (30% pattern, 70% tactical)
-            min_similar_positions: 5, // Require more similar positions for confidence
+            pattern_weight: 0.7, // VECTOR-FIRST: 70% pattern weight, 30% tactical (reversed from before)
+            min_similar_positions: 2, // Lowered to 2 - more aggressive pattern recognition
         }
     }
 }
@@ -243,15 +288,9 @@ pub struct ChessVectorEngine {
     encoder: PositionEncoder,
     similarity_search: SimilaritySearch,
     lsh_index: Option<LSH>,
-    manifold_learner: Option<ManifoldLearner>,
     use_lsh: bool,
-    use_manifold: bool,
     /// Map from position index to moves played and their outcomes
     position_moves: HashMap<usize, Vec<(ChessMove, f32)>>,
-    /// Compressed similarity search for manifold vectors
-    manifold_similarity_search: Option<SimilaritySearch>,
-    /// LSH index for compressed vectors
-    manifold_lsh_index: Option<LSH>,
     /// Store position vectors for reverse lookup
     position_vectors: Vec<Array1<f32>>,
     /// Store boards for move generation
@@ -272,6 +311,8 @@ pub struct ChessVectorEngine {
     nnue: Option<NNUE>,
     /// Strategic evaluator for proactive, initiative-based play
     strategic_evaluator: Option<StrategicEvaluator>,
+    /// Strategic motif database for instant master-level pattern recognition
+    strategic_database: Option<crate::strategic_motifs::StrategicDatabase>,
 }
 
 impl Clone for ChessVectorEngine {
@@ -280,12 +321,8 @@ impl Clone for ChessVectorEngine {
             encoder: self.encoder.clone(),
             similarity_search: self.similarity_search.clone(),
             lsh_index: self.lsh_index.clone(),
-            manifold_learner: None, // ManifoldLearner cannot be cloned due to ML components
             use_lsh: self.use_lsh,
-            use_manifold: false, // Disable manifold learning in cloned instance
             position_moves: self.position_moves.clone(),
-            manifold_similarity_search: self.manifold_similarity_search.clone(),
-            manifold_lsh_index: self.manifold_lsh_index.clone(),
             position_vectors: self.position_vectors.clone(),
             position_boards: self.position_boards.clone(),
             position_evaluations: self.position_evaluations.clone(),
@@ -296,23 +333,21 @@ impl Clone for ChessVectorEngine {
             hybrid_config: self.hybrid_config.clone(),
             nnue: None, // NNUE cannot be cloned due to neural network components
             strategic_evaluator: self.strategic_evaluator.clone(),
+            strategic_database: None, // Strategic database can be shared but for safety, clone as None
         }
     }
 }
 
 impl ChessVectorEngine {
-    /// Create a new chess vector engine with tactical search enabled by default
+    /// Create a new chess vector engine with strategic motifs and tactical search enabled by default
+    /// This provides fast startup with master-level strategic understanding
     pub fn new(vector_size: usize) -> Self {
         let mut engine = Self {
             encoder: PositionEncoder::new(vector_size),
             similarity_search: SimilaritySearch::new(vector_size),
             lsh_index: None,
-            manifold_learner: None,
             use_lsh: false,
-            use_manifold: false,
             position_moves: HashMap::new(),
-            manifold_similarity_search: None,
-            manifold_lsh_index: None,
             position_vectors: Vec::new(),
             position_boards: Vec::new(),
             position_evaluations: Vec::new(),
@@ -323,10 +358,16 @@ impl ChessVectorEngine {
             hybrid_config: HybridConfig::default(),
             nnue: None,
             strategic_evaluator: None,
+            strategic_database: None,
         };
 
-        // Enable tactical search by default for strong play
+        // Enable opening book and tactical search by default for strong play
+        engine.enable_opening_book();
         engine.enable_tactical_search_default();
+
+        // Enable strategic motifs for master-level positional understanding
+        let _ = engine.enable_strategic_motifs();
+
         engine
     }
 
@@ -344,12 +385,8 @@ impl ChessVectorEngine {
             encoder: PositionEncoder::new(vector_size),
             similarity_search: SimilaritySearch::new(vector_size),
             lsh_index: None,
-            manifold_learner: None,
             use_lsh: false,
-            use_manifold: false,
             position_moves: HashMap::new(),
-            manifold_similarity_search: None,
-            manifold_lsh_index: None,
             position_vectors: Vec::new(),
             position_boards: Vec::new(),
             position_evaluations: Vec::new(),
@@ -359,7 +396,34 @@ impl ChessVectorEngine {
             hybrid_config: HybridConfig::default(),
             nnue: None,
             strategic_evaluator: None,
+            strategic_database: None,
         }
+    }
+
+    /// Create engine with full position database loading (legacy approach, slower startup)
+    /// Use this for training scenarios where you need access to millions of raw positions
+    pub fn new_with_full_database(vector_size: usize) -> Self {
+        let mut engine = Self {
+            encoder: PositionEncoder::new(vector_size),
+            similarity_search: SimilaritySearch::new(vector_size),
+            lsh_index: None,
+            use_lsh: false,
+            position_moves: HashMap::new(),
+            position_vectors: Vec::new(),
+            position_boards: Vec::new(),
+            position_evaluations: Vec::new(),
+            opening_book: None,
+            database: None,
+            tactical_search: None,
+            hybrid_config: HybridConfig::default(),
+            nnue: None,
+            strategic_evaluator: None,
+            strategic_database: None,
+        };
+
+        // Enable tactical search by default for strong play
+        engine.enable_tactical_search_default();
+        engine
     }
 
     /// Create a new chess vector engine with intelligent architecture selection
@@ -400,12 +464,8 @@ impl ChessVectorEngine {
             encoder: PositionEncoder::new(vector_size),
             similarity_search: SimilaritySearch::new(vector_size),
             lsh_index: Some(LSH::new(vector_size, num_tables, hash_size)),
-            manifold_learner: None,
             use_lsh: true,
-            use_manifold: false,
             position_moves: HashMap::new(),
-            manifold_similarity_search: None,
-            manifold_lsh_index: None,
             position_vectors: Vec::new(),
             position_boards: Vec::new(),
             position_evaluations: Vec::new(),
@@ -416,6 +476,7 @@ impl ChessVectorEngine {
             hybrid_config: HybridConfig::default(),
             nnue: None,
             strategic_evaluator: None,
+            strategic_database: None,
         }
     }
 
@@ -430,6 +491,116 @@ impl ChessVectorEngine {
                 lsh.add_vector(vector, evaluation);
             }
         }
+    }
+
+    /// Add multiple positions in bulk for better performance
+    pub fn add_positions_bulk(
+        &mut self,
+        positions: &[(chess::Board, f32, chess::ChessMove)],
+        pb: &indicatif::ProgressBar,
+    ) -> Result<(), Box<dyn std::error::Error>> {
+        use std::collections::HashSet;
+
+        // Pre-filter duplicates using a HashSet for O(1) lookup
+        let mut seen_fens = HashSet::new();
+        let mut valid_positions = Vec::new();
+
+        for (board, evaluation, chess_move) in positions {
+            let fen = board.to_string();
+            if !seen_fens.contains(&fen) && self.is_position_safe(board) {
+                seen_fens.insert(fen);
+                valid_positions.push((*board, *evaluation, *chess_move));
+            }
+        }
+
+        println!(
+            "🔍 Filtered {} duplicates, processing {} unique positions",
+            positions.len() - valid_positions.len(),
+            valid_positions.len()
+        );
+
+        pb.set_length(valid_positions.len() as u64);
+
+        // Pre-allocate vectors for better performance
+        let initial_size = self.position_vectors.len();
+
+        self.position_vectors.reserve(valid_positions.len());
+        self.position_boards.reserve(valid_positions.len());
+        self.position_evaluations.reserve(valid_positions.len());
+
+        // Batch process in chunks to avoid memory issues
+        const CHUNK_SIZE: usize = 10000;
+        let mut processed = 0;
+
+        for chunk in valid_positions.chunks(CHUNK_SIZE) {
+            // Process chunk
+            for (board, evaluation, chess_move) in chunk {
+                let position_index = self.knowledge_base_size();
+
+                // Use add_position_fast to skip individual database saves
+                self.add_position_fast(board, *evaluation);
+
+                // Store move information
+                self.position_moves
+                    .entry(position_index)
+                    .or_default()
+                    .push((*chess_move, *evaluation));
+
+                processed += 1;
+                if processed % 1000 == 0 {
+                    pb.set_position(processed as u64);
+                }
+            }
+
+            // Optional: Force garbage collection between chunks for large datasets
+            if chunk.len() == CHUNK_SIZE {
+                // This helps with memory management for very large datasets
+                std::hint::black_box(&self.position_vectors);
+            }
+        }
+
+        pb.finish_with_message("✅ All positions added to knowledge base");
+
+        // Batch save to database if persistence is enabled
+        if self.database.is_some() {
+            println!("💾 Batch saving {} positions to database...", processed);
+            match self.save_to_database() {
+                Ok(_) => println!("✅ Database save complete"),
+                Err(e) => println!("⚠️  Database save failed: {}", e),
+            }
+        }
+
+        println!(
+            "📊 Knowledge base grown from {} to {} positions",
+            initial_size,
+            self.knowledge_base_size()
+        );
+
+        Ok(())
+    }
+
+    /// Add a position without database save (for bulk operations)
+    fn add_position_fast(&mut self, board: &Board, evaluation: f32) {
+        // Safety check: Validate position before storing
+        if !self.is_position_safe(board) {
+            return; // Skip unsafe positions
+        }
+
+        let vector = self.encoder.encode(board);
+        self.similarity_search
+            .add_position(vector.clone(), evaluation);
+
+        // Store vector, board, and evaluation for reverse lookup
+        self.position_vectors.push(vector.clone());
+        self.position_boards.push(*board);
+        self.position_evaluations.push(evaluation);
+
+        // Also add to LSH index if enabled
+        if let Some(ref mut lsh) = self.lsh_index {
+            lsh.add_vector(vector.clone(), evaluation);
+        }
+
+        // Skip database save for bulk operations - will be done in batch
     }
 
     /// Add a position with its evaluation to the knowledge base
@@ -453,42 +624,36 @@ impl ChessVectorEngine {
             lsh.add_vector(vector.clone(), evaluation);
         }
 
-        // Add to manifold indices if trained
-        if self.use_manifold {
-            if let Some(ref learner) = self.manifold_learner {
-                let compressed = learner.encode(&vector);
+        // Save to database immediately if persistence is enabled
+        if let Some(ref db) = self.database {
+            let current_time = std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .unwrap_or_default()
+                .as_secs() as i64;
 
-                if let Some(ref mut search) = self.manifold_similarity_search {
-                    search.add_position(compressed.clone(), evaluation);
-                }
+            let position_data = crate::persistence::PositionData {
+                fen: board.to_string(),
+                vector: vector
+                    .as_slice()
+                    .unwrap()
+                    .iter()
+                    .map(|&x| x as f64)
+                    .collect(),
+                evaluation: Some(evaluation as f64),
+                compressed_vector: None,
+                created_at: current_time,
+            };
 
-                if let Some(ref mut lsh) = self.manifold_lsh_index {
-                    lsh.add_vector(compressed, evaluation);
-                }
-            }
+            // Save immediately - ignore errors to avoid disrupting training
+            let _ = db.save_position(&position_data);
         }
+
     }
 
     /// Find similar positions to the given board
-    pub fn find_similar_positions(&self, board: &Board, k: usize) -> Vec<(Array1<f32>, f32, f32)> {
+    pub fn find_similar_positions(&mut self, board: &Board, k: usize) -> Vec<(Array1<f32>, f32, f32)> {
         let query_vector = self.encoder.encode(board);
 
-        // Use manifold space if available and trained
-        if self.use_manifold {
-            if let Some(ref manifold_learner) = self.manifold_learner {
-                let compressed_query = manifold_learner.encode(&query_vector);
-
-                // Use LSH in manifold space if available
-                if let Some(ref lsh) = self.manifold_lsh_index {
-                    return lsh.query(&compressed_query, k);
-                }
-
-                // Fall back to linear search in manifold space
-                if let Some(ref search) = self.manifold_similarity_search {
-                    return search.search(&compressed_query, k);
-                }
-            }
-        }
 
         // Use original space with LSH if enabled
         if self.use_lsh {
@@ -526,7 +691,8 @@ impl ChessVectorEngine {
         results
     }
 
-    /// Get evaluation for a position using hybrid approach (opening book + pattern evaluation + tactical search)
+    /// Get evaluation for a position using VECTOR-FIRST approach (pattern recognition primary, tactical refinement secondary)
+    /// This is the key method that makes our 998k position database the primary competitive advantage
     pub fn evaluate_position(&mut self, board: &Board) -> Option<f32> {
         // // First check tablebase for perfect endgame evaluation - highest priority
         // if let Some(ref tablebase) = self.tablebase {
@@ -540,6 +706,38 @@ impl ChessVectorEngine {
             return Some(entry.evaluation);
         }
 
+        // STRATEGIC MOTIF APPROACH: Master-level pattern recognition as primary evaluation
+        let strategic_motif_eval = self.get_strategic_motif_evaluation(board);
+
+        // Calculate position complexity for adaptive search depth
+        let position_complexity = self.calculate_position_complexity(board);
+        let material_balance = self.calculate_material_balance(board);
+        let material_deficit =
+            (material_balance.white_material - material_balance.black_material).abs();
+
+        // Adjust strategic motif confidence based on material balance and complexity
+        let strategic_motif_confidence = if strategic_motif_eval.abs() > 0.1 {
+            let mut base_confidence = 0.85;
+
+            // Reduce confidence significantly when material down
+            if material_deficit > 3.0 {
+                base_confidence *= 0.2; // Very low confidence when major piece down
+            } else if material_deficit > 1.0 {
+                base_confidence *= 0.5; // Moderate confidence when minor piece down
+            }
+
+            // Reduce confidence in complex tactical positions
+            if position_complexity > 0.7 {
+                base_confidence *= 0.3; // Low confidence in complex positions
+            } else if position_complexity > 0.4 {
+                base_confidence *= 0.6; // Moderate confidence in moderately complex positions
+            }
+
+            base_confidence
+        } else {
+            0.0
+        };
+
         // Third check NNUE for fast neural network evaluation
         let nnue_evaluation = if let Some(ref mut nnue) = self.nnue {
             nnue.evaluate(board).ok()
@@ -547,115 +745,157 @@ impl ChessVectorEngine {
             None
         };
 
-        // Get pattern evaluation from similarity search
-        let similar_positions = self.find_similar_positions(board, 5);
+        // HYBRID APPROACH: Strategic motifs + vector similarity + tactical search
+        // Search for similar positions as secondary pattern recognition
+        let similar_positions = self.find_similar_positions(board, 10);
 
-        if similar_positions.is_empty() {
-            // No similar positions found - try NNUE first, then tactical search
-            if let Some(nnue_eval) = nnue_evaluation {
-                return Some(nnue_eval);
-            }
-
-            if let Some(ref mut tactical_search) = self.tactical_search {
-                let result = tactical_search.search(board);
-                return Some(result.evaluation);
-            }
-            return None;
-        }
-
-        // Calculate pattern evaluation and confidence
-        let mut weighted_sum = 0.0;
-        let mut weight_sum = 0.0;
-        let mut similarity_scores = Vec::new();
-
-        for (_, evaluation, similarity) in &similar_positions {
-            let weight = *similarity;
-            weighted_sum += evaluation * weight;
-            weight_sum += weight;
-            similarity_scores.push(*similarity);
-        }
-
-        let pattern_evaluation = weighted_sum / weight_sum;
-
-        // Calculate pattern confidence based on similarity scores and count
-        let avg_similarity = similarity_scores.iter().sum::<f32>() / similarity_scores.len() as f32;
-        let count_factor = (similar_positions.len() as f32
-            / self.hybrid_config.min_similar_positions as f32)
-            .min(1.0);
-        let pattern_confidence = avg_similarity * count_factor;
-
-        // Decide whether to use tactical refinement
-        let use_tactical = self.hybrid_config.enable_tactical_refinement
-            && pattern_confidence < self.hybrid_config.pattern_confidence_threshold
-            && self.tactical_search.is_some();
-
-        if use_tactical {
-            // Get tactical evaluation (use parallel search if enabled)
-            if let Some(ref mut tactical_search) = self.tactical_search {
-                let tactical_result = if tactical_search.config.enable_parallel_search {
-                    tactical_search.search_parallel(board)
-                } else {
-                    tactical_search.search(board)
-                };
-
-                // Blend pattern, NNUE, and tactical evaluations
-                let mut hybrid_evaluation = pattern_evaluation;
-
-                // Include NNUE if available
-                if nnue_evaluation.is_some() {
-                    // Use NNUE hybrid evaluation that combines with vector evaluation
-                    if let Some(ref mut nnue) = self.nnue {
-                        if let Ok(nnue_hybrid_eval) =
-                            nnue.evaluate_hybrid(board, Some(pattern_evaluation))
-                        {
-                            hybrid_evaluation = nnue_hybrid_eval;
-                        }
-                    }
-                }
-
-                // Blend with tactical evaluation
-                let pattern_weight = self.hybrid_config.pattern_weight * pattern_confidence;
-                let tactical_weight = 1.0 - pattern_weight;
-
-                hybrid_evaluation = (hybrid_evaluation * pattern_weight)
-                    + (tactical_result.evaluation * tactical_weight);
-
-                // v0.4.0: Include strategic evaluation for proactive play
-                if let Some(ref strategic_evaluator) = self.strategic_evaluator {
-                    hybrid_evaluation = strategic_evaluator.blend_with_hybrid_evaluation(
-                        board,
-                        nnue_evaluation.unwrap_or(hybrid_evaluation),
-                        pattern_evaluation,
-                    );
-                }
-
-                Some(hybrid_evaluation)
-            } else {
-                // Tactical search not available - blend pattern with NNUE if available
-                if nnue_evaluation.is_some() {
-                    if let Some(ref mut nnue) = self.nnue {
-                        // Use NNUE's hybrid evaluation to blend with pattern
-                        nnue.evaluate_hybrid(board, Some(pattern_evaluation)).ok()
-                    } else {
-                        Some(pattern_evaluation)
-                    }
-                } else {
-                    Some(pattern_evaluation)
-                }
-            }
+        // Calculate pattern evaluation and confidence from vector similarity search
+        let (pattern_evaluation, pattern_confidence) = if similar_positions.is_empty() {
+            // No similar positions found - use neutral evaluation with very low confidence
+            (0.0, 0.0)
         } else {
-            // High confidence in pattern - blend with NNUE and Strategic if available for extra accuracy
-            let mut final_evaluation = pattern_evaluation;
+            // Calculate weighted pattern evaluation from similar positions
+            let mut weighted_sum = 0.0;
+            let mut weight_sum = 0.0;
+            let mut similarity_scores = Vec::new();
 
-            // Include NNUE evaluation
+            for (_, evaluation, similarity) in &similar_positions {
+                let weight = *similarity;
+                weighted_sum += evaluation * weight;
+                weight_sum += weight;
+                similarity_scores.push(*similarity);
+            }
+
+            let pattern_eval = weighted_sum / weight_sum;
+
+            // Calculate confidence based on similarity scores and position count
+            let avg_similarity =
+                similarity_scores.iter().sum::<f32>() / similarity_scores.len() as f32;
+            let count_factor = (similar_positions.len() as f32
+                / self.hybrid_config.min_similar_positions as f32)
+                .min(1.0);
+            let confidence = avg_similarity * count_factor;
+
+            (pattern_eval, confidence)
+        };
+
+        // Calculate position parameters before mutable borrow
+        let material_balance = self.calculate_material_balance(board);
+        let material_deficit =
+            (material_balance.white_material - material_balance.black_material).abs();
+        let position_criticality =
+            self.calculate_position_criticality(board, material_deficit, position_complexity);
+        let (adaptive_depth, search_time_ms) = self.calculate_adaptive_search_parameters(
+            position_criticality,
+            material_deficit,
+            position_complexity,
+        );
+
+        // Check king danger before entering tactical search scope
+        let has_king_danger = self.has_king_danger(board);
+
+        // Use adaptive tactical search if we have tactical search available
+        if let Some(ref mut tactical_search) = self.tactical_search {
+            // Store original config for restoration
+            let original_config = tactical_search.config.clone();
+
+            // Temporarily configure tactical search with adaptive parameters
+            tactical_search.config.max_depth = adaptive_depth;
+            tactical_search.config.max_time_ms = search_time_ms;
+
+            // For very critical positions, enable all advanced features
+            if position_criticality > 0.8 {
+                tactical_search.config.enable_quiescence = true;
+                tactical_search.config.quiescence_depth = 12;
+                tactical_search.config.enable_principal_variation_search = true;
+            }
+
+            // Enable parallel search for deep searches
+            tactical_search.config.enable_parallel_search = adaptive_depth >= 8;
+
+            // Use the new vector-first search method with adaptive depth
+            // CRITICAL FIX: Prioritize tactical safety over patterns
+            // Always run tactical search first to detect basic blunders
+            let tactical_result = if tactical_search.config.enable_parallel_search {
+                tactical_search.search_parallel(board)
+            } else {
+                tactical_search.search(board)
+            };
+
+            // CRITICAL: Enhanced pattern override for tactical positions
+            let is_tactically_dangerous = tactical_result.evaluation.abs() > 1.5
+                || board.checkers().popcnt() > 0
+                || has_king_danger
+                || tactical_result.is_tactical;
+
+            let final_tactical_result = if !similar_positions.is_empty() && !is_tactically_dangerous
+            {
+                // Position is tactically safe - we can use pattern refinement
+                tactical_search.search_with_pattern_data(
+                    board,
+                    Some(pattern_evaluation),
+                    pattern_confidence,
+                )
+            } else {
+                // Position has tactical issues, in check, king danger, or no patterns - trust pure tactical search
+                tactical_result
+            };
+
+            // The tactical search now handles vector-first blending internally
+            let mut final_evaluation = final_tactical_result.evaluation;
+
+            // NNUE refinement: Use NNUE as secondary evaluation layer
             if nnue_evaluation.is_some() {
                 if let Some(ref mut nnue) = self.nnue {
-                    // Use NNUE's hybrid evaluation with high pattern confidence
                     if let Ok(nnue_hybrid_eval) =
-                        nnue.evaluate_hybrid(board, Some(pattern_evaluation))
+                        nnue.evaluate_hybrid(board, Some(pattern_evaluation), None)
                     {
-                        final_evaluation = nnue_hybrid_eval;
+                        // Higher pattern confidence = more NNUE weight for refinement
+                        let nnue_weight = if pattern_confidence > 0.7 {
+                            0.3 // High confidence patterns get 30% NNUE refinement
+                        } else if pattern_confidence > 0.4 {
+                            0.2 // Medium confidence gets 20% NNUE refinement
+                        } else {
+                            0.1 // Low confidence gets minimal NNUE refinement
+                        };
+
+                        final_evaluation = (final_evaluation * (1.0 - nnue_weight))
+                            + (nnue_hybrid_eval * nnue_weight);
                     }
+                }
+            }
+
+            // INTELLIGENT EVALUATION BLENDING: Handle disagreement between tactical and strategic evaluations
+            let evaluation_disagreement = (final_evaluation - strategic_motif_eval).abs();
+
+            if evaluation_disagreement > 1.5 {
+                // Large disagreement - tactical and strategic evaluations disagree significantly
+                if material_deficit > 2.0 {
+                    // When material down and evaluations disagree, trust tactical evaluation more
+                    let tactical_weight = 0.8; // 80% tactical, 20% strategic
+                    final_evaluation = (final_evaluation * tactical_weight)
+                        + (strategic_motif_eval * (1.0 - tactical_weight));
+                } else if position_complexity > 0.6 {
+                    // Complex position with disagreement - trust tactical evaluation more
+                    let tactical_weight = 0.7; // 70% tactical, 30% strategic
+                    final_evaluation = (final_evaluation * tactical_weight)
+                        + (strategic_motif_eval * (1.0 - tactical_weight));
+                } else {
+                    // Normal position with disagreement - balanced blend
+                    final_evaluation = (final_evaluation * 0.6) + (strategic_motif_eval * 0.4);
+                }
+            } else {
+                // Evaluations agree - use confidence-based blending
+                if strategic_motif_confidence > 0.7 {
+                    // High confidence strategic motifs take priority (master-level understanding)
+                    let strategic_weight = 0.6; // 60% weight for high-confidence strategic patterns
+                    final_evaluation = (final_evaluation * (1.0 - strategic_weight))
+                        + (strategic_motif_eval * strategic_weight);
+                } else if strategic_motif_eval.abs() > 0.05 {
+                    // Lower confidence strategic motifs provide refinement
+                    let strategic_weight = 0.3; // 30% weight for strategic motifs
+                    final_evaluation = (final_evaluation * (1.0 - strategic_weight))
+                        + (strategic_motif_eval * strategic_weight);
                 }
             }
 
@@ -663,13 +903,90 @@ impl ChessVectorEngine {
             if let Some(ref strategic_evaluator) = self.strategic_evaluator {
                 final_evaluation = strategic_evaluator.blend_with_hybrid_evaluation(
                     board,
-                    nnue_evaluation.unwrap_or(0.0),
+                    nnue_evaluation.unwrap_or(final_evaluation),
                     pattern_evaluation,
                 );
             }
 
+            // Restore original tactical search configuration
+            tactical_search.config = original_config;
+
             Some(final_evaluation)
+        } else {
+            // No tactical search available - use strategic motifs + pattern + NNUE evaluation
+            if strategic_motif_confidence > 0.5 {
+                // High confidence strategic motifs are primary evaluation
+                let mut final_evaluation = strategic_motif_eval;
+
+                // Blend with patterns if available
+                if !similar_positions.is_empty() {
+                    final_evaluation = (strategic_motif_eval * 0.7) + (pattern_evaluation * 0.3);
+                }
+
+                // Add NNUE refinement if available
+                if let Some(nnue_eval) = nnue_evaluation {
+                    final_evaluation = (final_evaluation * 0.8) + (nnue_eval * 0.2);
+                }
+
+                Some(final_evaluation)
+            } else if !similar_positions.is_empty() {
+                // Fall back to pattern-based evaluation
+                let mut final_evaluation = pattern_evaluation;
+
+                // Blend with strategic motifs if available
+                if strategic_motif_eval.abs() > 0.05 {
+                    final_evaluation = (pattern_evaluation * 0.7) + (strategic_motif_eval * 0.3);
+                }
+
+                // Blend with NNUE if available
+                if nnue_evaluation.is_some() {
+                    if let Some(ref mut nnue) = self.nnue {
+                        if let Ok(nnue_hybrid_eval) =
+                            nnue.evaluate_hybrid(board, Some(pattern_evaluation), None)
+                        {
+                            final_evaluation = (final_evaluation * 0.7) + (nnue_hybrid_eval * 0.3);
+                        }
+                    }
+                }
+
+                Some(final_evaluation)
+            } else {
+                // No pattern data - try strategic motifs or NNUE only
+                if strategic_motif_eval.abs() > 0.05 {
+                    // Use strategic motifs with optional NNUE blend
+                    if let Some(nnue_eval) = nnue_evaluation {
+                        Some((strategic_motif_eval * 0.6) + (nnue_eval * 0.4))
+                    } else {
+                        Some(strategic_motif_eval)
+                    }
+                } else {
+                    nnue_evaluation
+                }
+            }
         }
+    }
+
+    /// NEW: Simplified evaluation method demonstrating our core hypothesis
+    /// Traditional Engine + Vector Similarity + Strategic Initiative = Unique Strategic Insights
+    /// 
+    /// This method shows our philosophy: we COMPLEMENT traditional evaluation with unique insights,
+    /// not compete with it. Use this for cleaner understanding of our value proposition.
+    pub fn evaluate_position_simplified(&mut self, board: &Board) -> crate::core_evaluation::CoreEvaluationResult {
+        use crate::core_evaluation::CoreEvaluator;
+        
+        // Create our unified evaluator
+        let mut core_evaluator = CoreEvaluator::new();
+        
+        // Transfer our learned positions to the simplified evaluator
+        // (In a real refactor, we'd share the knowledge base)
+        for (i, board_ref) in self.position_boards.iter().enumerate() {
+            if i < self.position_evaluations.len() {
+                core_evaluator.learn_from_position(board_ref, self.position_evaluations[i]);
+            }
+        }
+        
+        // Use our clean, focused evaluation approach
+        core_evaluator.evaluate_position(board)
     }
 
     /// Encode a position to vector (public interface)
@@ -687,6 +1004,449 @@ impl ChessVectorEngine {
     /// Get the size of the knowledge base
     pub fn knowledge_base_size(&self) -> usize {
         self.similarity_search.size()
+    }
+
+    /// Get position and evaluation by index for motif extraction
+    pub fn get_position_ref(&self, index: usize) -> Option<(&Array1<f32>, f32)> {
+        self.similarity_search.get_position_ref(index)
+    }
+
+    /// Get board position by index for motif extraction
+    pub fn get_board_by_index(&self, index: usize) -> Option<&Board> {
+        self.position_boards.get(index)
+    }
+
+    /// Get evaluation by index for motif extraction  
+    pub fn get_evaluation_by_index(&self, index: usize) -> Option<f32> {
+        self.position_evaluations.get(index).copied()
+    }
+
+    /// Load strategic motif database for instant pattern recognition
+    pub fn load_strategic_database<P: AsRef<std::path::Path>>(
+        &mut self,
+        path: P,
+    ) -> Result<(), Box<dyn std::error::Error>> {
+        println!("🎯 Loading strategic motif database...");
+        let start_time = std::time::Instant::now();
+
+        let database = crate::strategic_motifs::StrategicDatabase::load_from_binary(path)?;
+        let load_time = start_time.elapsed();
+
+        let stats = database.stats();
+        println!(
+            "✅ Strategic database loaded in {:.0}ms",
+            load_time.as_millis()
+        );
+        println!("   📚 {} strategic motifs available", stats.total_motifs);
+
+        self.strategic_database = Some(database);
+        Ok(())
+    }
+
+    /// Get strategic motif evaluation using motif database (master-level positional understanding)
+    /// Enhanced with material awareness and tactical safety
+    pub fn get_strategic_motif_evaluation(&mut self, board: &Board) -> f32 {
+        if let Some(ref mut strategic_db) = self.strategic_database {
+            let base_strategic_eval = strategic_db.get_strategic_evaluation(board);
+
+            // Calculate material balance for tactical awareness
+            let material_balance = self.calculate_material_balance(board);
+            let material_deficit =
+                (material_balance.white_material - material_balance.black_material).abs();
+
+            // Apply material-aware adjustments to strategic evaluation
+            let mut adjusted_eval = base_strategic_eval;
+
+            // Large material deficits should heavily influence strategic evaluation
+            if material_deficit > 3.0 {
+                // Major piece down - strategic patterns matter less
+                adjusted_eval *= 0.3;
+                // Apply material penalty
+                let material_penalty = material_deficit * 0.8;
+                if board.side_to_move() == chess::Color::White {
+                    if material_balance.white_material < material_balance.black_material {
+                        adjusted_eval -= material_penalty;
+                    } else {
+                        adjusted_eval += material_penalty;
+                    }
+                } else {
+                    if material_balance.black_material < material_balance.white_material {
+                        adjusted_eval -= material_penalty;
+                    } else {
+                        adjusted_eval += material_penalty;
+                    }
+                }
+            } else if material_deficit > 1.0 {
+                // Minor piece or pawns down - reduce strategic influence
+                adjusted_eval *= 0.6;
+                let material_penalty = material_deficit * 0.5;
+                if board.side_to_move() == chess::Color::White {
+                    if material_balance.white_material < material_balance.black_material {
+                        adjusted_eval -= material_penalty;
+                    } else {
+                        adjusted_eval += material_penalty;
+                    }
+                } else {
+                    if material_balance.black_material < material_balance.white_material {
+                        adjusted_eval -= material_penalty;
+                    } else {
+                        adjusted_eval += material_penalty;
+                    }
+                }
+            }
+
+            adjusted_eval
+        } else {
+            0.0 // No strategic database loaded
+        }
+    }
+
+    /// Calculate material balance for tactical awareness
+    fn calculate_material_balance(&self, board: &Board) -> MaterialBalance {
+        let mut white_material = 0.0;
+        let mut black_material = 0.0;
+
+        for square in chess::ALL_SQUARES {
+            if let Some(piece) = board.piece_on(square) {
+                let value = match piece {
+                    chess::Piece::Pawn => 1.0,
+                    chess::Piece::Knight => 3.0,
+                    chess::Piece::Bishop => 3.0,
+                    chess::Piece::Rook => 5.0,
+                    chess::Piece::Queen => 9.0,
+                    chess::Piece::King => 0.0,
+                };
+
+                if board.color_on(square) == Some(chess::Color::White) {
+                    white_material += value;
+                } else {
+                    black_material += value;
+                }
+            }
+        }
+
+        MaterialBalance {
+            white_material,
+            black_material,
+        }
+    }
+
+    /// Calculate position complexity for adaptive search decisions
+    fn calculate_position_complexity(&self, board: &Board) -> f32 {
+        let mut complexity = 0.0;
+
+        // Check for tactical indicators
+        if *board.checkers() != chess::EMPTY {
+            complexity += 0.4; // In check - high complexity
+        }
+
+        // Count attacked pieces (simplified)
+        let mut attacked_pieces = 0;
+        for square in chess::ALL_SQUARES {
+            if let Some(_piece) = board.piece_on(square) {
+                // Simplified attack detection - in a full implementation this would check actual attacks
+                if self.is_square_attacked(board, square, !board.side_to_move()) {
+                    attacked_pieces += 1;
+                }
+            }
+        }
+        complexity += (attacked_pieces as f32) * 0.05;
+
+        // Count legal moves (more moves = more complexity)
+        let legal_moves = chess::MoveGen::new_legal(board).count();
+        complexity += (legal_moves as f32 - 20.0) * 0.01; // Normalize around 20 moves
+
+        // Material balance affects complexity
+        let material_balance = self.calculate_material_balance(board);
+        let material_imbalance =
+            (material_balance.white_material - material_balance.black_material).abs();
+        complexity += material_imbalance * 0.02;
+
+        // Clamp between 0.0 and 1.0
+        complexity.max(0.0).min(1.0)
+    }
+
+    /// Calculate adaptive search depth based on position characteristics
+    fn calculate_adaptive_search_depth(
+        &self,
+        complexity: f32,
+        material_deficit: f32,
+        board: &Board,
+    ) -> u32 {
+        let mut base_depth = 4u32; // Default depth
+
+        // Increase depth for complex positions
+        if complexity > 0.7 {
+            base_depth += 4; // Very complex positions need deep search
+        } else if complexity > 0.4 {
+            base_depth += 2; // Moderately complex positions need deeper search
+        }
+
+        // Increase depth when material down (need to find tactics)
+        if material_deficit > 3.0 {
+            base_depth += 3; // Major piece down - search deeply for compensation
+        } else if material_deficit > 1.0 {
+            base_depth += 1; // Minor piece down - search a bit deeper
+        }
+
+        // Increase depth when in check
+        if *board.checkers() != chess::EMPTY {
+            base_depth += 2; // In check - need tactical precision
+        }
+
+        // Increase depth in endgame (fewer pieces = deeper search feasible)
+        let total_material = self.calculate_material_balance(board);
+        let total_pieces = total_material.white_material + total_material.black_material;
+        if total_pieces < 20.0 {
+            base_depth += 2; // Endgame - deeper search is feasible and important
+        }
+
+        // Reasonable bounds
+        base_depth.max(3).min(12)
+    }
+
+    /// Proper chess attack detection using move generation
+    fn is_square_attacked(
+        &self,
+        board: &Board,
+        square: chess::Square,
+        by_color: chess::Color,
+    ) -> bool {
+        // Create a temporary board with the side to move set to the attacking color
+        let _test_board = board.clone();
+
+        // We need to check if any piece of the given color can move to the target square
+        // This is a bit complex because we need to temporarily set the side to move
+
+        // Use the chess library's built-in attack detection
+        // Check all pieces of the attacking color to see if they can reach the square
+        let attacking_pieces = board.color_combined(by_color);
+
+        for attacking_square in attacking_pieces.into_iter() {
+            if let Some(piece) = board.piece_on(attacking_square) {
+                if board.color_on(attacking_square) == Some(by_color) {
+                    if self.piece_can_attack_square(board, attacking_square, piece, square) {
+                        return true;
+                    }
+                }
+            }
+        }
+
+        false
+    }
+
+    /// Check if a specific piece can attack a target square according to chess rules
+    fn piece_can_attack_square(
+        &self,
+        board: &Board,
+        piece_square: chess::Square,
+        piece: chess::Piece,
+        target_square: chess::Square,
+    ) -> bool {
+        match piece {
+            chess::Piece::Pawn => self.pawn_can_attack_square(board, piece_square, target_square),
+            chess::Piece::Knight => self.knight_can_attack_square(piece_square, target_square),
+            chess::Piece::Bishop => {
+                self.bishop_can_attack_square(board, piece_square, target_square)
+            }
+            chess::Piece::Rook => self.rook_can_attack_square(board, piece_square, target_square),
+            chess::Piece::Queen => self.queen_can_attack_square(board, piece_square, target_square),
+            chess::Piece::King => self.king_can_attack_square(piece_square, target_square),
+        }
+    }
+
+    /// Check if pawn can attack target square
+    fn pawn_can_attack_square(
+        &self,
+        board: &Board,
+        pawn_square: chess::Square,
+        target_square: chess::Square,
+    ) -> bool {
+        let pawn_color = board.color_on(pawn_square).unwrap();
+        let pawn_rank = pawn_square.get_rank().to_index() as i8;
+        let pawn_file = pawn_square.get_file().to_index() as i8;
+        let target_rank = target_square.get_rank().to_index() as i8;
+        let target_file = target_square.get_file().to_index() as i8;
+
+        let direction = if pawn_color == chess::Color::White {
+            1
+        } else {
+            -1
+        };
+
+        // Pawns attack diagonally one square forward
+        if target_rank == pawn_rank + direction {
+            if (target_file - pawn_file).abs() == 1 {
+                return true;
+            }
+        }
+
+        false
+    }
+
+    /// Check if knight can attack target square  
+    fn knight_can_attack_square(
+        &self,
+        knight_square: chess::Square,
+        target_square: chess::Square,
+    ) -> bool {
+        let knight_rank = knight_square.get_rank().to_index() as i8;
+        let knight_file = knight_square.get_file().to_index() as i8;
+        let target_rank = target_square.get_rank().to_index() as i8;
+        let target_file = target_square.get_file().to_index() as i8;
+
+        let rank_diff = (target_rank - knight_rank).abs();
+        let file_diff = (target_file - knight_file).abs();
+
+        // Knight moves in L-shape: 2+1 or 1+2
+        (rank_diff == 2 && file_diff == 1) || (rank_diff == 1 && file_diff == 2)
+    }
+
+    /// Check if bishop can attack target square
+    fn bishop_can_attack_square(
+        &self,
+        board: &Board,
+        bishop_square: chess::Square,
+        target_square: chess::Square,
+    ) -> bool {
+        let bishop_rank = bishop_square.get_rank().to_index() as i8;
+        let bishop_file = bishop_square.get_file().to_index() as i8;
+        let target_rank = target_square.get_rank().to_index() as i8;
+        let target_file = target_square.get_file().to_index() as i8;
+
+        let rank_diff = target_rank - bishop_rank;
+        let file_diff = target_file - bishop_file;
+
+        // Must be on same diagonal
+        if rank_diff.abs() != file_diff.abs() {
+            return false;
+        }
+
+        // Check for blocking pieces along the diagonal
+        let rank_step = rank_diff.signum();
+        let file_step = file_diff.signum();
+
+        let mut check_rank = bishop_rank + rank_step;
+        let mut check_file = bishop_file + file_step;
+
+        while check_rank != target_rank {
+            let check_square = chess::Square::make_square(
+                chess::Rank::from_index(check_rank as usize),
+                chess::File::from_index(check_file as usize),
+            );
+
+            if board.piece_on(check_square).is_some() {
+                return false; // Blocked by piece
+            }
+
+            check_rank += rank_step;
+            check_file += file_step;
+        }
+
+        true
+    }
+
+    /// Check if rook can attack target square
+    fn rook_can_attack_square(
+        &self,
+        board: &Board,
+        rook_square: chess::Square,
+        target_square: chess::Square,
+    ) -> bool {
+        let rook_rank = rook_square.get_rank().to_index() as i8;
+        let rook_file = rook_square.get_file().to_index() as i8;
+        let target_rank = target_square.get_rank().to_index() as i8;
+        let target_file = target_square.get_file().to_index() as i8;
+
+        // Must be on same rank or file
+        if rook_rank != target_rank && rook_file != target_file {
+            return false;
+        }
+
+        // Check for blocking pieces along the rank or file
+        if rook_rank == target_rank {
+            // Same rank - check file direction
+            let step = (target_file - rook_file).signum();
+            let mut check_file = rook_file + step;
+
+            while check_file != target_file {
+                let check_square = chess::Square::make_square(
+                    chess::Rank::from_index(rook_rank as usize),
+                    chess::File::from_index(check_file as usize),
+                );
+
+                if board.piece_on(check_square).is_some() {
+                    return false; // Blocked by piece
+                }
+
+                check_file += step;
+            }
+        } else {
+            // Same file - check rank direction
+            let step = (target_rank - rook_rank).signum();
+            let mut check_rank = rook_rank + step;
+
+            while check_rank != target_rank {
+                let check_square = chess::Square::make_square(
+                    chess::Rank::from_index(check_rank as usize),
+                    chess::File::from_index(target_file as usize),
+                );
+
+                if board.piece_on(check_square).is_some() {
+                    return false; // Blocked by piece
+                }
+
+                check_rank += step;
+            }
+        }
+
+        true
+    }
+
+    /// Check if queen can attack target square
+    fn queen_can_attack_square(
+        &self,
+        board: &Board,
+        queen_square: chess::Square,
+        target_square: chess::Square,
+    ) -> bool {
+        // Queen moves like both rook and bishop
+        self.rook_can_attack_square(board, queen_square, target_square)
+            || self.bishop_can_attack_square(board, queen_square, target_square)
+    }
+
+    /// Check if king can attack target square
+    fn king_can_attack_square(
+        &self,
+        king_square: chess::Square,
+        target_square: chess::Square,
+    ) -> bool {
+        let king_rank = king_square.get_rank().to_index() as i8;
+        let king_file = king_square.get_file().to_index() as i8;
+        let target_rank = target_square.get_rank().to_index() as i8;
+        let target_file = target_square.get_file().to_index() as i8;
+
+        let rank_diff = (target_rank - king_rank).abs();
+        let file_diff = (target_file - king_file).abs();
+
+        // King can attack one square in any direction
+        rank_diff <= 1 && file_diff <= 1 && (rank_diff != 0 || file_diff != 0)
+    }
+
+    /// Enable strategic motif database with fast loading
+    pub fn enable_strategic_motifs(&mut self) -> Result<(), Box<dyn std::error::Error>> {
+        // Try to load strategic motifs from standard location
+        let strategic_paths = ["strategic_motifs.db", "data/strategic_motifs.db"];
+
+        for path in &strategic_paths {
+            if std::path::Path::new(path).exists() {
+                return self.load_strategic_database(path);
+            }
+        }
+
+        println!("⚠️  No strategic motif database found");
+        println!("   Generate with: cargo run --bin extract_strategic_motifs");
+        Ok(())
     }
 
     /// Save engine state (positions and evaluations) to file for incremental training
@@ -1270,7 +2030,6 @@ impl ChessVectorEngine {
             has_move_data: !self.position_moves.is_empty(),
             move_data_entries: self.position_moves.len(),
             lsh_enabled: self.use_lsh,
-            manifold_enabled: self.use_manifold,
             opening_book_enabled: self.opening_book.is_some(),
         }
     }
@@ -1278,6 +2037,22 @@ impl ChessVectorEngine {
     /// Auto-load training data from common file names if they exist
     pub fn auto_load_training_data(&mut self) -> Result<Vec<String>, Box<dyn std::error::Error>> {
         use indicatif::{ProgressBar, ProgressStyle};
+
+        // First try to load from database if it exists
+        if std::path::Path::new("chess_vector_engine.db").exists() {
+            if let Err(_) = self.enable_persistence("chess_vector_engine.db") {
+                // Continue with file loading if database fails
+            } else if let Ok(_) = self.load_from_database() {
+                let stats = self.training_stats();
+                if stats.total_positions > 0 {
+                    println!(
+                        "🗄️  Auto-loaded engine with {} positions from database!",
+                        stats.total_positions
+                    );
+                    return Ok(vec!["chess_vector_engine.db".to_string()]);
+                }
+            }
+        }
 
         let common_files = vec![
             "training_data.json",
@@ -1387,14 +2162,23 @@ impl ChessVectorEngine {
                 let puzzle_entries =
                     crate::lichess_loader::load_lichess_puzzles_basic_with_moves(csv_path, limit)?;
 
-                for (board, evaluation, best_move) in puzzle_entries {
-                    self.add_position_with_move(
-                        &board,
-                        evaluation,
-                        Some(best_move),
-                        Some(evaluation),
-                    );
-                }
+                println!(
+                    "🔄 Adding {} positions to engine knowledge base...",
+                    puzzle_entries.len()
+                );
+
+                // Add progress bar for the sequential addition phase
+                use indicatif::{ProgressBar, ProgressStyle};
+                let pb = ProgressBar::new(puzzle_entries.len() as u64);
+                pb.set_style(
+                    ProgressStyle::default_bar()
+                        .template("🧠 Adding positions [{elapsed_precise}] [{bar:40.cyan/blue}] {pos:>7}/{len:7} {per_sec} ETA: {eta}")
+                        .expect("Valid progress template")
+                        .progress_chars("██░"),
+                );
+
+                // Use bulk insertion for better performance
+                self.add_positions_bulk(&puzzle_entries, &pb)?;
             }
             None => {
                 // Load all puzzles using the main method
@@ -1438,7 +2222,7 @@ impl ChessVectorEngine {
         let mut engine = Self::new(vector_size);
         engine.enable_opening_book();
 
-        // Enable database persistence for manifold model loading
+        // Enable database persistence
         if let Err(_e) = engine.enable_persistence("chess_vector_engine.db") {
             println!("Loading complete");
         }
@@ -1490,11 +2274,6 @@ impl ChessVectorEngine {
             let _ = engine.auto_load_training_data()?;
         }
 
-        // Try to load pre-trained manifold models for fast compressed similarity search
-        if let Err(e) = engine.load_manifold_models() {
-            println!("⚠️  No pre-trained manifold models found ({e})");
-            println!("   Use --rebuild-models flag to train new models");
-        }
 
         let stats = engine.training_stats();
         println!(
@@ -1512,7 +2291,7 @@ impl ChessVectorEngine {
         let mut engine = Self::new(vector_size);
         engine.enable_opening_book();
 
-        // Enable database persistence for manifold model loading
+        // Enable database persistence
         if let Err(_e) = engine.enable_persistence("chess_vector_engine.db") {
             println!("Loading complete");
         }
@@ -1552,10 +2331,6 @@ impl ChessVectorEngine {
             println!("   💡 To actually remove old files, run: cargo run --bin cleanup_formats");
         }
 
-        // Try to load pre-trained manifold models
-        if let Err(e) = engine.load_manifold_models() {
-            println!("⚠️  No pre-trained manifold models found ({e})");
-        }
 
         println!(
             "🎯 Engine ready: {} positions loaded from {} datasets",
@@ -1572,7 +2347,7 @@ impl ChessVectorEngine {
         let mut engine = Self::new(vector_size);
         engine.enable_opening_book();
 
-        // Enable database persistence for manifold model loading
+        // Enable database persistence
         if let Err(_e) = engine.enable_persistence("chess_vector_engine.db") {
             println!("Loading complete");
         }
@@ -1610,10 +2385,6 @@ impl ChessVectorEngine {
             );
         }
 
-        // Try to load pre-trained manifold models
-        if let Err(e) = engine.load_manifold_models() {
-            println!("⚠️  No pre-trained manifold models found ({e})");
-        }
 
         println!(
             "🎯 Engine ready: {} positions loaded",
@@ -2270,158 +3041,7 @@ impl ChessVectorEngine {
         self.lsh_index.as_ref().map(|lsh| lsh.stats())
     }
 
-    /// Enable manifold learning with specified compression ratio
-    pub fn enable_manifold_learning(&mut self, compression_ratio: f32) -> Result<(), String> {
-        let input_dim = self.encoder.vector_size();
-        let output_dim = ((input_dim as f32) / compression_ratio) as usize;
 
-        if output_dim == 0 {
-            return Err("Compression ratio too high, output dimension would be 0".to_string());
-        }
-
-        let mut learner = ManifoldLearner::new(input_dim, output_dim);
-        learner.init_network()?;
-
-        self.manifold_learner = Some(learner);
-        self.manifold_similarity_search = Some(SimilaritySearch::new(output_dim));
-        self.use_manifold = false; // Don't use until trained
-
-        Ok(())
-    }
-
-    /// Train manifold learning on existing positions
-    pub fn train_manifold_learning(&mut self, epochs: usize) -> Result<(), String> {
-        if self.manifold_learner.is_none() {
-            return Err(
-                "Manifold learning not enabled. Call enable_manifold_learning first.".to_string(),
-            );
-        }
-
-        if self.similarity_search.size() == 0 {
-            return Err("No positions in knowledge base to train on.".to_string());
-        }
-
-        // Create training matrix directly without intermediate vectors
-        let rows = self.similarity_search.size();
-        let cols = self.encoder.vector_size();
-
-        let training_matrix = Array2::from_shape_fn((rows, cols), |(row, col)| {
-            if let Some((vector, _)) = self.similarity_search.get_position_ref(row) {
-                vector[col]
-            } else {
-                0.0
-            }
-        });
-
-        // Train the manifold learner
-        if let Some(ref mut learner) = self.manifold_learner {
-            learner.train(&training_matrix, epochs)?;
-            let compression_ratio = learner.compression_ratio();
-
-            // Release the mutable borrow before calling rebuild_manifold_indices
-            let _ = learner;
-
-            // Rebuild compressed indices
-            self.rebuild_manifold_indices()?;
-            self.use_manifold = true;
-
-            println!(
-                "Manifold learning training completed. Compression ratio: {compression_ratio:.1}x"
-            );
-        }
-
-        Ok(())
-    }
-
-    /// Rebuild manifold-based indices after training (memory efficient)
-    fn rebuild_manifold_indices(&mut self) -> Result<(), String> {
-        if let Some(ref learner) = self.manifold_learner {
-            // Clear existing manifold indices
-            let output_dim = learner.output_dim();
-            if let Some(ref mut search) = self.manifold_similarity_search {
-                *search = SimilaritySearch::new(output_dim);
-            }
-            if let Some(ref mut lsh) = self.manifold_lsh_index {
-                *lsh = LSH::new(output_dim, 8, 16); // Default LSH params for compressed space
-            }
-
-            // Process positions using iterator to avoid cloning all at once
-            for (vector, eval) in self.similarity_search.iter_positions() {
-                let compressed = learner.encode(vector);
-
-                if let Some(ref mut search) = self.manifold_similarity_search {
-                    search.add_position(compressed.clone(), eval);
-                }
-
-                if let Some(ref mut lsh) = self.manifold_lsh_index {
-                    lsh.add_vector(compressed, eval);
-                }
-            }
-        }
-
-        Ok(())
-    }
-
-    /// Enable LSH for manifold space
-    pub fn enable_manifold_lsh(
-        &mut self,
-        num_tables: usize,
-        hash_size: usize,
-    ) -> Result<(), String> {
-        if self.manifold_learner.is_none() {
-            return Err("Manifold learning not enabled".to_string());
-        }
-
-        let output_dim = self.manifold_learner.as_ref().unwrap().output_dim();
-        self.manifold_lsh_index = Some(LSH::new(output_dim, num_tables, hash_size));
-
-        // Rebuild index if we have trained data
-        if self.use_manifold {
-            self.rebuild_manifold_indices()?;
-        }
-
-        Ok(())
-    }
-
-    /// Check if manifold learning is enabled and trained
-    pub fn is_manifold_enabled(&self) -> bool {
-        self.use_manifold && self.manifold_learner.is_some()
-    }
-
-    /// Get manifold learning compression ratio
-    pub fn manifold_compression_ratio(&self) -> Option<f32> {
-        self.manifold_learner
-            .as_ref()
-            .map(|l| l.compression_ratio())
-    }
-
-    /// Load pre-trained manifold models from database
-    /// This enables compressed similarity search without retraining
-    pub fn load_manifold_models(&mut self) -> Result<(), Box<dyn std::error::Error>> {
-        if let Some(ref db) = self.database {
-            match crate::manifold_learner::ManifoldLearner::load_from_database(db)? {
-                Some(learner) => {
-                    let compression_ratio = learner.compression_ratio();
-                    println!(
-                        "🧠 Loaded pre-trained manifold learner (compression: {compression_ratio:.1}x)"
-                    );
-
-                    // Enable manifold learning and rebuild indices
-                    self.manifold_learner = Some(learner);
-                    self.use_manifold = true;
-
-                    // Rebuild compressed similarity search indices
-                    self.rebuild_manifold_indices()?;
-
-                    println!("✅ Manifold learning enabled with compressed vectors");
-                    Ok(())
-                }
-                None => Err("No pre-trained manifold models found in database".into()),
-            }
-        } else {
-            Err("Database not initialized - cannot load manifold models".into())
-        }
-    }
 
     /// Enable opening book with standard openings
     pub fn enable_opening_book(&mut self) {
@@ -2531,6 +3151,522 @@ impl ChessVectorEngine {
         }
 
         recommendations
+    }
+
+    /// Deep tactical safety verification with quiescence search
+    pub fn is_move_tactically_safe(&mut self, board: &Board, chess_move: chess::ChessMove) -> bool {
+        // Make the move and check for immediate tactical problems
+        let new_board = board.make_move_new(chess_move);
+
+        // Check if move leaves king in check (illegal move)
+        if *new_board.checkers() != chess::EMPTY && new_board.side_to_move() != board.side_to_move()
+        {
+            return false; // Illegal move
+        }
+
+        // Phase 1: Quick material analysis
+        let original_material = self.calculate_material_balance(board);
+        let new_material = self.calculate_material_balance(&new_board);
+
+        let immediate_material_change = if board.side_to_move() == chess::Color::White {
+            new_material.white_material - original_material.white_material
+        } else {
+            new_material.black_material - original_material.black_material
+        };
+
+        // Phase 2: Deep tactical verification for suspicious moves
+        if immediate_material_change <= -0.8 || self.is_tactically_critical_position(&new_board) {
+            if let Some(ref mut tactical_search) = self.tactical_search {
+                // Temporarily store current config and set deep search config
+                let original_config = tactical_search.config.clone();
+                tactical_search.config.max_depth = 10; // Deep search for tactical verification
+                tactical_search.config.max_time_ms = 500; // 500ms for tactical verification
+                tactical_search.config.enable_quiescence = true; // Critical: search until position is quiet
+
+                // Search from the resulting position
+                let tactical_result = tactical_search.search(&new_board);
+
+                // Restore original config
+                tactical_search.config = original_config;
+
+                // Evaluate from opponent's perspective (they just got the move)
+                let position_evaluation = -tactical_result.evaluation;
+
+                // If the position is very bad for us after our move, it's unsafe
+                if position_evaluation < -1.5 {
+                    return false;
+                }
+
+                // Special check for material sacrifices - ensure we have compensation
+                if immediate_material_change <= -2.0 {
+                    // Major sacrifice - need significant positional compensation
+                    if position_evaluation < -0.5 {
+                        return false; // Insufficient compensation
+                    }
+                }
+            } else {
+                // No tactical search available - use conservative heuristics
+                return immediate_material_change >= -0.5;
+            }
+        }
+
+        // Phase 3: Check for hanging pieces after the move
+        if self.has_hanging_pieces(&new_board) {
+            return false;
+        }
+
+        // Phase 4: Basic check for immediate king safety
+        let legal_moves = chess::MoveGen::new_legal(&new_board);
+        for opponent_move in legal_moves {
+            if let Some(captured_piece) = new_board.piece_on(opponent_move.get_dest()) {
+                if captured_piece == chess::Piece::King {
+                    return false; // Opponent can capture our king
+                }
+            }
+        }
+
+        true // Move appears tactically safe
+    }
+
+    /// Check if position is tactically critical (requiring deep analysis)
+    fn is_tactically_critical_position(&self, board: &Board) -> bool {
+        // Check for checks, captures, and threats
+        if *board.checkers() != chess::EMPTY {
+            return true; // In check
+        }
+
+        // Check for pieces under attack
+        let attack_count = self.count_attacked_pieces(board);
+        if attack_count > 2 {
+            return true; // Multiple pieces under attack
+        }
+
+        // Check for tactical motifs (pins, forks, etc.)
+        if self.has_tactical_motifs(board) {
+            return true;
+        }
+
+        // Check for king exposure
+        if self.is_king_exposed(board) {
+            return true;
+        }
+
+        false
+    }
+
+    /// Check for hanging pieces (undefended pieces under attack)
+    fn has_hanging_pieces(&self, board: &Board) -> bool {
+        for square in chess::ALL_SQUARES {
+            if let Some(piece) = board.piece_on(square) {
+                if board.color_on(square) == Some(board.side_to_move()) {
+                    // This is our piece - check if it's hanging
+                    if self.is_piece_hanging(board, square, piece) {
+                        return true;
+                    }
+                }
+            }
+        }
+        false
+    }
+
+    /// Check if a specific piece is hanging (attacked and undefended)
+    fn is_piece_hanging(&self, board: &Board, square: chess::Square, piece: chess::Piece) -> bool {
+        // Skip pawns and king for hanging check
+        if piece == chess::Piece::Pawn || piece == chess::Piece::King {
+            return false;
+        }
+
+        // Check if piece is attacked by opponent
+        if !self.is_square_attacked(board, square, !board.side_to_move()) {
+            return false; // Not attacked
+        }
+
+        // Check if piece is defended by us
+        if self.is_square_defended(board, square, board.side_to_move()) {
+            return false; // Defended
+        }
+
+        true // Hanging piece found
+    }
+
+    /// Check if square is defended by friendly pieces
+    fn is_square_defended(
+        &self,
+        board: &Board,
+        square: chess::Square,
+        by_color: chess::Color,
+    ) -> bool {
+        // Simplified defense detection
+        // In a full implementation, this would check actual piece attacks
+        let friendly_pieces = board.color_combined(by_color);
+
+        // Check surrounding squares for defending pieces
+        for rank_offset in -2..=2 {
+            for file_offset in -2..=2 {
+                if rank_offset == 0 && file_offset == 0 {
+                    continue;
+                }
+
+                let current_rank = square.get_rank().to_index() as i8;
+                let current_file = square.get_file().to_index() as i8;
+
+                let new_rank = current_rank + rank_offset;
+                let new_file = current_file + file_offset;
+
+                if new_rank >= 0 && new_rank < 8 && new_file >= 0 && new_file < 8 {
+                    let check_square = chess::Square::make_square(
+                        chess::Rank::from_index(new_rank as usize),
+                        chess::File::from_index(new_file as usize),
+                    );
+
+                    if (friendly_pieces & chess::BitBoard::from_square(check_square))
+                        != chess::EMPTY
+                    {
+                        return true; // Found a defending piece
+                    }
+                }
+            }
+        }
+
+        false
+    }
+
+    /// Count pieces under attack
+    fn count_attacked_pieces(&self, board: &Board) -> u32 {
+        let mut count = 0;
+        for square in chess::ALL_SQUARES {
+            if let Some(_piece) = board.piece_on(square) {
+                if board.color_on(square) == Some(board.side_to_move()) {
+                    if self.is_square_attacked(board, square, !board.side_to_move()) {
+                        count += 1;
+                    }
+                }
+            }
+        }
+        count
+    }
+
+    /// Check for tactical motifs (pins, forks, skewers)
+    fn has_tactical_motifs(&self, board: &Board) -> bool {
+        // Simplified tactical motif detection
+        // Look for pieces that could be creating tactical threats
+        for square in chess::ALL_SQUARES {
+            if let Some(piece) = board.piece_on(square) {
+                if board.color_on(square) == Some(!board.side_to_move()) {
+                    // This is opponent's piece - check if it creates tactical threats
+                    match piece {
+                        chess::Piece::Queen | chess::Piece::Rook | chess::Piece::Bishop => {
+                            // These pieces can create pins and skewers
+                            if self.creates_tactical_threat(board, square, piece) {
+                                return true;
+                            }
+                        }
+                        chess::Piece::Knight => {
+                            // Knights can create forks
+                            if self.creates_fork_threat(board, square) {
+                                return true;
+                            }
+                        }
+                        _ => {}
+                    }
+                }
+            }
+        }
+        false
+    }
+
+    /// Check if piece creates tactical threats (simplified)
+    fn creates_tactical_threat(
+        &self,
+        board: &Board,
+        square: chess::Square,
+        piece: chess::Piece,
+    ) -> bool {
+        // Simplified implementation - count how many of our pieces it attacks
+        let mut threatened_pieces = 0;
+        for target_square in chess::ALL_SQUARES {
+            if let Some(_target_piece) = board.piece_on(target_square) {
+                if board.color_on(target_square) == Some(board.side_to_move()) {
+                    // This is our piece - check if it's threatened by the opponent piece
+                    if self.piece_attacks_square(board, square, piece, target_square) {
+                        threatened_pieces += 1;
+                    }
+                }
+            }
+        }
+        threatened_pieces >= 2 // Fork or multiple threats
+    }
+
+    /// Check if knight creates fork threat
+    fn creates_fork_threat(&self, board: &Board, knight_square: chess::Square) -> bool {
+        // Knights can fork if they attack multiple valuable pieces
+        let mut attacked_valuable_pieces = 0;
+        let knight_attacks = self.get_knight_attacks(knight_square);
+
+        for target_square in chess::ALL_SQUARES {
+            if (knight_attacks & chess::BitBoard::from_square(target_square)) != chess::EMPTY {
+                if let Some(piece) = board.piece_on(target_square) {
+                    if board.color_on(target_square) == Some(board.side_to_move()) {
+                        // This is our piece being attacked by opponent knight
+                        match piece {
+                            chess::Piece::Queen | chess::Piece::Rook | chess::Piece::King => {
+                                attacked_valuable_pieces += 1;
+                            }
+                            _ => {}
+                        }
+                    }
+                }
+            }
+        }
+
+        attacked_valuable_pieces >= 2
+    }
+
+    /// Get knight attack pattern
+    fn get_knight_attacks(&self, square: chess::Square) -> chess::BitBoard {
+        // Knight moves: 2+1 squares in L-shape
+        let mut attacks = chess::EMPTY;
+        let rank = square.get_rank().to_index() as i8;
+        let file = square.get_file().to_index() as i8;
+
+        let moves = [
+            (2, 1),
+            (2, -1),
+            (-2, 1),
+            (-2, -1),
+            (1, 2),
+            (1, -2),
+            (-1, 2),
+            (-1, -2),
+        ];
+
+        for (rank_offset, file_offset) in moves {
+            let new_rank = rank + rank_offset;
+            let new_file = file + file_offset;
+
+            if new_rank >= 0 && new_rank < 8 && new_file >= 0 && new_file < 8 {
+                let target_square = chess::Square::make_square(
+                    chess::Rank::from_index(new_rank as usize),
+                    chess::File::from_index(new_file as usize),
+                );
+                attacks |= chess::BitBoard::from_square(target_square);
+            }
+        }
+
+        attacks
+    }
+
+    /// Check if piece attacks square (simplified)
+    fn piece_attacks_square(
+        &self,
+        _board: &Board,
+        piece_square: chess::Square,
+        piece: chess::Piece,
+        target_square: chess::Square,
+    ) -> bool {
+        match piece {
+            chess::Piece::Knight => {
+                let knight_attacks = self.get_knight_attacks(piece_square);
+                (knight_attacks & chess::BitBoard::from_square(target_square)) != chess::EMPTY
+            }
+            chess::Piece::Queen | chess::Piece::Rook | chess::Piece::Bishop => {
+                // Simplified - just check if they're on same rank/file/diagonal
+                let piece_rank = piece_square.get_rank().to_index();
+                let piece_file = piece_square.get_file().to_index();
+                let target_rank = target_square.get_rank().to_index();
+                let target_file = target_square.get_file().to_index();
+
+                // Same rank or file (rook/queen)
+                if (piece == chess::Piece::Rook || piece == chess::Piece::Queen)
+                    && (piece_rank == target_rank || piece_file == target_file)
+                {
+                    return true;
+                }
+
+                // Same diagonal (bishop/queen)
+                if (piece == chess::Piece::Bishop || piece == chess::Piece::Queen)
+                    && ((piece_rank as i8 - target_rank as i8).abs()
+                        == (piece_file as i8 - target_file as i8).abs())
+                {
+                    return true;
+                }
+
+                false
+            }
+            _ => false,
+        }
+    }
+
+    /// Check if king is exposed to tactical threats
+    /// CRITICAL: Check if kings are in danger (for pattern override decision)
+    fn has_king_danger(&self, board: &Board) -> bool {
+        for color in [chess::Color::White, chess::Color::Black] {
+            let king_square = board.king_square(color);
+
+            // Count attackers on king
+            let mut attackers = 0;
+            let opponent_color = !color;
+
+            // Quick check for direct attacks on king
+            for piece_type in [
+                chess::Piece::Queen,
+                chess::Piece::Rook,
+                chess::Piece::Bishop,
+                chess::Piece::Knight,
+                chess::Piece::Pawn,
+            ] {
+                let opponent_pieces =
+                    board.pieces(piece_type) & board.color_combined(opponent_color);
+                for piece_square in opponent_pieces {
+                    if self.piece_attacks_square(board, piece_square, piece_type, king_square) {
+                        attackers += 1;
+                        if attackers >= 2 {
+                            return true; // Multiple attackers = danger
+                        }
+                    }
+                }
+            }
+
+            // Check if king is in center (dangerous)
+            let king_file = king_square.get_file().to_index();
+            let king_rank = king_square.get_rank().to_index();
+            if king_file >= 2 && king_file <= 5 && king_rank >= 2 && king_rank <= 5 {
+                return true; // King in center is dangerous
+            }
+        }
+
+        false
+    }
+
+    fn is_king_exposed(&self, board: &Board) -> bool {
+        let king_square = board.king_square(board.side_to_move());
+
+        // Check if king has few escape squares
+        let mut escape_squares = 0;
+        for rank_offset in -1..=1 {
+            for file_offset in -1..=1 {
+                if rank_offset == 0 && file_offset == 0 {
+                    continue;
+                }
+
+                let king_rank = king_square.get_rank().to_index() as i8;
+                let king_file = king_square.get_file().to_index() as i8;
+
+                let new_rank = king_rank + rank_offset;
+                let new_file = king_file + file_offset;
+
+                if new_rank >= 0 && new_rank < 8 && new_file >= 0 && new_file < 8 {
+                    let escape_square = chess::Square::make_square(
+                        chess::Rank::from_index(new_rank as usize),
+                        chess::File::from_index(new_file as usize),
+                    );
+
+                    // Check if escape square is safe
+                    if board.piece_on(escape_square).is_none()
+                        && !self.is_square_attacked(board, escape_square, !board.side_to_move())
+                    {
+                        escape_squares += 1;
+                    }
+                }
+            }
+        }
+
+        escape_squares < 3 // King has limited mobility
+    }
+
+    /// Calculate position criticality for adaptive time allocation
+    fn calculate_position_criticality(
+        &self,
+        board: &Board,
+        material_deficit: f32,
+        position_complexity: f32,
+    ) -> f32 {
+        let mut criticality = 0.0;
+
+        // Material imbalance increases criticality
+        criticality += (material_deficit / 10.0).min(0.4); // Up to 0.4 for major piece deficit
+
+        // Position complexity increases criticality
+        criticality += position_complexity * 0.3; // Up to 0.3 from complexity
+
+        // In check dramatically increases criticality
+        if *board.checkers() != chess::EMPTY {
+            criticality += 0.4;
+        }
+
+        // Multiple pieces under attack increases criticality
+        let attacked_pieces = self.count_attacked_pieces(board);
+        criticality += (attacked_pieces as f32 * 0.05).min(0.2); // Up to 0.2 from attacks
+
+        // Tactical motifs increase criticality
+        if self.has_tactical_motifs(board) {
+            criticality += 0.3;
+        }
+
+        // King exposure increases criticality
+        if self.is_king_exposed(board) {
+            criticality += 0.2;
+        }
+
+        // Hanging pieces dramatically increase criticality
+        if self.has_hanging_pieces(board) {
+            criticality += 0.4;
+        }
+
+        // Clamp between 0.0 and 1.0
+        criticality.max(0.0).min(1.0)
+    }
+
+    /// Calculate adaptive search parameters based on position criticality
+    fn calculate_adaptive_search_parameters(
+        &self,
+        criticality: f32,
+        material_deficit: f32,
+        complexity: f32,
+    ) -> (u32, u64) {
+        // Base parameters
+        let mut depth = 6u32;
+        let mut time_ms = 1000u64;
+
+        // Criticality-based adjustments
+        if criticality > 0.9 {
+            // Extremely critical - maximum resources
+            depth = 14;
+            time_ms = 5000;
+        } else if criticality > 0.7 {
+            // Very critical - heavy resources
+            depth = 12;
+            time_ms = 3000;
+        } else if criticality > 0.5 {
+            // Moderately critical - increased resources
+            depth = 10;
+            time_ms = 2000;
+        } else if criticality > 0.3 {
+            // Somewhat critical - slightly increased resources
+            depth = 8;
+            time_ms = 1500;
+        }
+
+        // Material deficit bonus (when behind, search deeper for tactics)
+        if material_deficit > 3.0 {
+            depth = depth.saturating_add(3);
+            time_ms = (time_ms as f64 * 1.5) as u64;
+        } else if material_deficit > 1.0 {
+            depth = depth.saturating_add(1);
+            time_ms = (time_ms as f64 * 1.2) as u64;
+        }
+
+        // Complexity bonus
+        if complexity > 0.7 {
+            depth = depth.saturating_add(2);
+            time_ms = (time_ms as f64 * 1.3) as u64;
+        }
+
+        // Reasonable bounds
+        depth = depth.max(4).min(16);
+        time_ms = time_ms.max(200).min(10000);
+
+        (depth, time_ms)
     }
 
     /// Get move recommendations based on similar positions and opening book
@@ -3243,7 +4379,7 @@ impl ChessVectorEngine {
                     fen: board.to_string(),
                     vector: vector.iter().map(|&x| x as f64).collect(),
                     evaluation: Some(self.position_evaluations[i] as f64),
-                    compressed_vector: None, // Will be filled if manifold is enabled
+                    compressed_vector: None,
                     created_at: current_time,
                 };
                 position_data_batch.push(position_data);
@@ -3261,12 +4397,6 @@ impl ChessVectorEngine {
             lsh.save_to_database(db)?;
         }
 
-        // Save manifold learner if trained
-        if let Some(ref learner) = self.manifold_learner {
-            if learner.is_trained() {
-                learner.save_to_database(db)?;
-            }
-        }
 
         println!("✅ Engine state saved successfully (batch optimized)");
         Ok(())
@@ -3327,19 +4457,6 @@ impl ChessVectorEngine {
             }
         }
 
-        // Load manifold learner if available
-        match ManifoldLearner::load_from_database(db)? {
-            Some(learner) => {
-                self.manifold_learner = Some(learner);
-                if self.use_manifold {
-                    self.rebuild_manifold_indices()?;
-                }
-                println!("Loaded manifold learner from database");
-            }
-            None => {
-                println!("No manifold learner found in database");
-            }
-        }
 
         println!(
             "Engine state loaded successfully ({} positions)",
@@ -3731,14 +4848,6 @@ impl ChessVectorEngine {
                 }
             }
 
-            // Rebuild manifold learning every 10 iterations for large datasets
-            if iteration % 10 == 0
-                && self.knowledge_base_size() > 5000
-                && self.manifold_learner.is_some()
-            {
-                println!("🧠 Retraining manifold learning with new data...");
-                let _ = self.train_manifold_learning(5);
-            }
         }
 
         println!("\n🎉 Continuous self-play complete: {total_positions} total new positions");
@@ -3949,31 +5058,6 @@ mod tests {
         assert!(recommendations[0].confidence > 0.7); // Opening book should have high confidence
     }
 
-    #[test]
-    fn test_manifold_learning_integration() {
-        let mut engine = ChessVectorEngine::new(1024);
-
-        // Add some training data
-        let board = Board::default();
-        for i in 0..10 {
-            engine.add_position(&board, i as f32 * 0.1);
-        }
-
-        // Enable manifold learning
-        assert!(engine.enable_manifold_learning(8.0).is_ok());
-
-        // Test compression ratio
-        let ratio = engine.manifold_compression_ratio();
-        assert!(ratio.is_some());
-        assert!((ratio.unwrap() - 8.0).abs() < 0.1);
-
-        // Train with minimal epochs for testing
-        assert!(engine.train_manifold_learning(5).is_ok());
-
-        // Test that compression is working
-        let original_similar = engine.find_similar_positions(&board, 3);
-        assert!(!original_similar.is_empty());
-    }
 
     #[test]
     fn test_lsh_integration() {
@@ -3998,31 +5082,6 @@ mod tests {
         assert!(eval.is_some());
     }
 
-    #[test]
-    fn test_manifold_lsh_integration() {
-        let mut engine = ChessVectorEngine::new(1024);
-
-        // Add training data
-        let board = Board::default();
-        for i in 0..20 {
-            engine.add_position(&board, i as f32 * 0.05);
-        }
-
-        // Enable manifold learning
-        assert!(engine.enable_manifold_learning(8.0).is_ok());
-        assert!(engine.train_manifold_learning(3).is_ok());
-
-        // Enable LSH in manifold space
-        assert!(engine.enable_manifold_lsh(4, 8).is_ok());
-
-        // Test search works in compressed space
-        let similar = engine.find_similar_positions(&board, 3);
-        assert!(!similar.is_empty());
-
-        // Test move recommendations work
-        let _recommendations = engine.recommend_moves(&board, 2);
-        // May be empty if no moves were stored, but shouldn't crash
-    }
 
     // TODO: Re-enable when database thread safety is implemented
     // #[test]
@@ -4222,8 +5281,7 @@ mod tests {
         assert_eq!(stats.unique_positions, 0);
         assert!(!stats.has_move_data);
         assert!(!stats.lsh_enabled);
-        assert!(!stats.manifold_enabled);
-        assert!(!stats.opening_book_enabled);
+        assert!(stats.opening_book_enabled); // Opening book is now enabled by default
 
         // Add some data
         engine.add_position(&Board::default(), 0.0);

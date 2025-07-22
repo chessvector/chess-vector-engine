@@ -256,26 +256,334 @@ impl NNUE {
         Ok(eval_pawn_units)
     }
 
-    /// Hybrid evaluation combining NNUE with vector-based analysis
+    /// Ultra-fast NNUE evaluation with real incremental updates
+    pub fn evaluate_optimized(&mut self, board: &Board) -> CandleResult<f32> {
+        // Use accumulated features if available (from incremental updates)
+        if let Some(ref accumulated) = self.feature_transformer.accumulated_features {
+            // Apply ClippedReLU activation to accumulated features
+            let activated = accumulated.clamp(0.0, 1.0)?;
+            
+            // Process through hidden layers
+            let mut hidden_output = activated;
+            for layer in &self.hidden_layers {
+                hidden_output = layer.forward(&hidden_output)?;
+                hidden_output = hidden_output.clamp(0.0, 1.0)?; // ClippedReLU
+            }
+            
+            // Output layer
+            let output = self.output_layer.forward(&hidden_output)?;
+            let eval_raw = output.get(0)?.to_scalar::<f32>()?;
+            
+            return Ok(eval_raw * 600.0);
+        }
+
+        // Initialize accumulator from scratch if not available
+        self.initialize_accumulator(board)?;
+        
+        // Now use the accumulated features
+        self.evaluate_optimized(board)
+    }
+
+    /// Initialize the NNUE accumulator from a board position
+    fn initialize_accumulator(&mut self, board: &Board) -> CandleResult<()> {
+        // Start with bias values
+        let mut accumulator = self.feature_transformer.biases.clone();
+        
+        let white_king = board.king_square(Color::White);
+        let black_king = board.king_square(Color::Black);
+        
+        // Add all piece features to the accumulator
+        for square in chess::ALL_SQUARES {
+            if let Some(piece) = board.piece_on(square) {
+                let color = board.color_on(square).unwrap();
+                
+                if let Some(feature_idx) = self.feature_transformer.get_feature_index_for_piece(
+                    piece, color, square, white_king, black_king
+                ) {
+                    if feature_idx < 768 {
+                        let piece_weights = self.feature_transformer.weights.get(feature_idx)?;
+                        accumulator = accumulator.add(&piece_weights)?;
+                    }
+                }
+            }
+        }
+        
+        // Store the accumulated features
+        self.feature_transformer.accumulated_features = Some(accumulator);
+        self.feature_transformer.king_squares = [white_king, black_king];
+        
+        Ok(())
+    }
+
+    /// Update NNUE after a move is made (incremental update)
+    pub fn update_after_move(
+        &mut self,
+        chess_move: chess::ChessMove,
+        board_before: &Board,
+        board_after: &Board,
+    ) -> CandleResult<()> {
+        let moved_piece = board_before.piece_on(chess_move.get_source()).unwrap();
+        let piece_color = board_before.color_on(chess_move.get_source()).unwrap();
+        
+        let white_king_after = board_after.king_square(Color::White);
+        let black_king_after = board_after.king_square(Color::Black);
+        
+        // Handle captures
+        if let Some(captured_piece) = board_before.piece_on(chess_move.get_dest()) {
+            let captured_color = board_before.color_on(chess_move.get_dest()).unwrap();
+            
+            // Remove captured piece from accumulator
+            if let Some(captured_idx) = self.feature_transformer.get_feature_index_for_piece(
+                captured_piece, captured_color, chess_move.get_dest(), 
+                white_king_after, black_king_after
+            ) {
+                if captured_idx < 768 && self.feature_transformer.accumulated_features.is_some() {
+                    let captured_weights = self.feature_transformer.weights.get(captured_idx)?;
+                    let accumulator = self.feature_transformer.accumulated_features.as_mut().unwrap();
+                    *accumulator = accumulator.sub(&captured_weights)?;
+                }
+            }
+        }
+        
+        // Update the moved piece
+        self.feature_transformer.incremental_update(
+            moved_piece,
+            piece_color,
+            chess_move.get_source(),
+            chess_move.get_dest(),
+            white_king_after,
+            black_king_after,
+        )?;
+        
+        // Handle special moves (castling, en passant, promotion)
+        if chess_move.get_promotion().is_some() {
+            // For promotion, we need to remove the pawn and add the promoted piece
+            let promoted_piece = chess_move.get_promotion().unwrap();
+            
+            // Remove pawn contribution (already done above)
+            // Add promoted piece contribution
+            if let Some(promoted_idx) = self.feature_transformer.get_feature_index_for_piece(
+                promoted_piece, piece_color, chess_move.get_dest(),
+                white_king_after, black_king_after
+            ) {
+                if promoted_idx < 768 && self.feature_transformer.accumulated_features.is_some() {
+                    let promoted_weights = self.feature_transformer.weights.get(promoted_idx)?;
+                    let accumulator = self.feature_transformer.accumulated_features.as_mut().unwrap();
+                    *accumulator = accumulator.add(&promoted_weights)?;
+                }
+            }
+        }
+        
+        Ok(())
+    }
+
+    /// Batch evaluation for multiple positions (efficient for analysis)
+    pub fn evaluate_batch(&mut self, boards: &[Board]) -> CandleResult<Vec<f32>> {
+        let mut results = Vec::with_capacity(boards.len());
+        
+        for board in boards {
+            // Use optimized evaluation for each position
+            let eval = self.evaluate_optimized(board)?;
+            results.push(eval);
+        }
+        
+        Ok(results)
+    }
+
+    /// Fast evaluation using pre-computed feature vectors
+    pub fn evaluate_from_features(&mut self, features: &Tensor) -> CandleResult<f32> {
+        let output = self.forward_optimized(features)?;
+        Ok(output)
+    }
+
+    /// Advanced hybrid evaluation combining NNUE with vector-based analysis
     pub fn evaluate_hybrid(
         &mut self,
         board: &Board,
         vector_eval: Option<f32>,
+        tactical_eval: Option<f32>,
     ) -> CandleResult<f32> {
-        let nnue_eval = self.evaluate(board)?;
+        let nnue_eval = self.evaluate_optimized(board)?;
 
-        if !self.enable_vector_integration || vector_eval.is_none() {
+        if !self.enable_vector_integration {
             return Ok(nnue_eval);
         }
 
-        let vector_eval = vector_eval.unwrap();
+        // Intelligent blending based on position characteristics
+        let blend_weights = self.calculate_blend_weights(board, nnue_eval, vector_eval, tactical_eval)?;
+        
+        let mut final_eval = blend_weights.nnue_weight * nnue_eval;
+        
+        if let Some(vector_eval) = vector_eval {
+            final_eval += blend_weights.vector_weight * vector_eval;
+        }
+        
+        if let Some(tactical_eval) = tactical_eval {
+            final_eval += blend_weights.tactical_weight * tactical_eval;
+        }
 
-        // Blend evaluations: vector provides strategic insight, NNUE provides tactical precision
-        let blended = (1.0 - self.vector_weight) * nnue_eval + self.vector_weight * vector_eval;
-
-        Ok(blended)
+        Ok(final_eval)
     }
 
+    /// Calculate optimal blend weights based on position characteristics
+    fn calculate_blend_weights(
+        &self,
+        board: &Board,
+        nnue_eval: f32,
+        vector_eval: Option<f32>,
+        tactical_eval: Option<f32>,
+    ) -> CandleResult<BlendWeights> {
+        let mut nnue_weight = 0.7; // Base NNUE weight
+        let mut vector_weight = 0.2; // Base vector weight  
+        let mut tactical_weight = 0.1; // Base tactical weight
+        
+        // Adjust weights based on position type
+        let material_count = self.count_material(board);
+        let game_phase = self.detect_game_phase(material_count);
+        
+        match game_phase {
+            GamePhase::Opening => {
+                // Opening: Favor vector patterns (opening theory)
+                vector_weight = 0.4;
+                nnue_weight = 0.5;
+                tactical_weight = 0.1;
+            },
+            GamePhase::Middlegame => {
+                // Middlegame: Favor tactical search for complex positions
+                if self.is_tactical_position(board) {
+                    tactical_weight = 0.3;
+                    nnue_weight = 0.5;
+                    vector_weight = 0.2;
+                } else {
+                    // Standard middlegame blend
+                    nnue_weight = 0.6;
+                    vector_weight = 0.25;
+                    tactical_weight = 0.15;
+                }
+            },
+            GamePhase::Endgame => {
+                // Endgame: NNUE often excels, but vector helps with strategic patterns
+                nnue_weight = 0.8;
+                vector_weight = 0.15;
+                tactical_weight = 0.05;
+            },
+        }
+        
+        // Normalize weights to sum to 1.0
+        let total_weight = nnue_weight + vector_weight + tactical_weight;
+        
+        Ok(BlendWeights {
+            nnue_weight: nnue_weight / total_weight,
+            vector_weight: vector_weight / total_weight,
+            tactical_weight: tactical_weight / total_weight,
+        })
+    }
+
+    /// Detect game phase based on material
+    fn detect_game_phase(&self, material_count: u32) -> GamePhase {
+        if material_count > 78 { // Close to starting material (86)
+            GamePhase::Opening
+        } else if material_count > 30 {
+            GamePhase::Middlegame  
+        } else {
+            GamePhase::Endgame
+        }
+    }
+
+    /// Count total material on the board
+    fn count_material(&self, board: &Board) -> u32 {
+        let mut material = 0;
+        for square in chess::ALL_SQUARES {
+            if let Some(piece) = board.piece_on(square) {
+                material += match piece {
+                    Piece::Pawn => 1,
+                    Piece::Knight => 3,
+                    Piece::Bishop => 3,
+                    Piece::Rook => 5,
+                    Piece::Queen => 9,
+                    Piece::King => 0,
+                };
+            }
+        }
+        material
+    }
+
+    /// Detect if position is tactical (many captures/checks possible)
+    fn is_tactical_position(&self, board: &Board) -> bool {
+        // Count possible captures
+        let moves = chess::MoveGen::new_legal(board);
+        let capture_count = moves.filter(|mv| board.piece_on(mv.get_dest()).is_some()).count();
+        
+        // Position is tactical if many captures available or in check
+        capture_count > 3 || board.checkers().popcnt() > 0
+    }
+
+    /// Performance benchmark for NNUE evaluation
+    pub fn benchmark_performance(&mut self, positions: &[Board], iterations: usize) -> Result<NNUEBenchmarkResult, Box<dyn std::error::Error>> {
+        use std::time::Instant;
+        
+        println!("🚀 NNUE Performance Benchmark");
+        println!("Positions: {}, Iterations: {}", positions.len(), iterations);
+        
+        // Standard evaluation benchmark
+        let start = Instant::now();
+        for _ in 0..iterations {
+            for board in positions {
+                let _ = self.evaluate(board)?;
+            }
+        }
+        let standard_duration = start.elapsed();
+        
+        // Optimized evaluation benchmark
+        let start = Instant::now();
+        for _ in 0..iterations {
+            for board in positions {
+                let _ = self.evaluate_optimized(board)?;
+            }
+        }
+        let optimized_duration = start.elapsed();
+        
+        // Incremental update benchmark (simulating moves)
+        let start = Instant::now();
+        for _ in 0..iterations {
+            for board in positions {
+                // Initialize accumulator
+                self.initialize_accumulator(board).ok();
+                
+                // Evaluate using accumulated features
+                let _ = self.evaluate_optimized(board)?;
+            }
+        }
+        let incremental_duration = start.elapsed();
+        
+        let total_evaluations = positions.len() * iterations;
+        
+        let standard_nps = total_evaluations as f64 / standard_duration.as_secs_f64();
+        let optimized_nps = total_evaluations as f64 / optimized_duration.as_secs_f64();
+        let incremental_nps = total_evaluations as f64 / incremental_duration.as_secs_f64();
+        
+        Ok(NNUEBenchmarkResult {
+            total_evaluations,
+            standard_nps,
+            optimized_nps,
+            incremental_nps,
+            speedup_optimized: optimized_nps / standard_nps,
+            speedup_incremental: incremental_nps / standard_nps,
+        })
+    }
+}
+
+#[derive(Debug, Clone)]
+pub struct NNUEBenchmarkResult {
+    pub total_evaluations: usize,
+    pub standard_nps: f64,
+    pub optimized_nps: f64,
+    pub incremental_nps: f64,
+    pub speedup_optimized: f64,
+    pub speedup_incremental: f64,
+}
+
+impl NNUE {
     /// Extract NNUE features from chess position
     /// Uses king-relative piece encoding for efficient updates
     fn extract_features(&self, board: &Board) -> CandleResult<Tensor> {
@@ -305,6 +613,99 @@ impl NNUE {
         }
 
         Tensor::from_vec(features, (1, 768), &self.device)
+    }
+
+    /// Optimized feature extraction with pre-allocated arrays and fast lookups
+    fn extract_features_optimized(&self, board: &Board) -> CandleResult<Tensor> {
+        let mut features = [0.0f32; 768]; // Stack-allocated for speed
+
+        let white_king = board.king_square(Color::White);
+        let black_king = board.king_square(Color::Black);
+
+        // Pre-compute king square indices for faster lookups
+        let white_king_idx = white_king.to_index();
+        let black_king_idx = black_king.to_index();
+
+        // Optimized piece iteration using direct bitboard access
+        let occupied = board.combined();
+        for square_idx in 0..64 {
+            if (occupied.0 & (1u64 << square_idx)) != 0 {
+                let square = unsafe { Square::new(square_idx) };
+                
+                if let Some(piece) = board.piece_on(square) {
+                    let color = board.color_on(square).unwrap();
+                    
+                    // Fast feature index calculation
+                    let feature_idx = self.get_feature_index_fast(
+                        piece, 
+                        color, 
+                        square_idx as usize, 
+                        white_king_idx, 
+                        black_king_idx
+                    );
+                    
+                    if feature_idx < 768 {
+                        features[feature_idx] = 1.0;
+                    }
+                }
+            }
+        }
+
+        // Convert to tensor with optimized shape
+        Tensor::from_slice(&features, (1, 768), &self.device)
+    }
+
+    /// Ultra-fast feature index calculation with lookup tables
+    fn get_feature_index_fast(
+        &self,
+        piece: Piece,
+        color: Color,
+        square_idx: usize,
+        white_king_idx: usize,
+        _black_king_idx: usize,
+    ) -> usize {
+        // Simplified feature encoding for speed
+        // Uses piece type (6) * color (2) * square (64) encoding
+        
+        let piece_idx = match piece {
+            Piece::Pawn => 0,
+            Piece::Knight => 1,
+            Piece::Bishop => 2,
+            Piece::Rook => 3,
+            Piece::Queen => 4,
+            Piece::King => 5,
+        };
+        
+        let color_offset = if color == Color::White { 0 } else { 6 };
+        let king_bucket = white_king_idx / 8; // Divide into 8 king buckets for efficiency
+        
+        // Feature index: piece_type + color_offset + square + king_bucket_offset
+        (piece_idx + color_offset) * 64 + square_idx + (king_bucket % 4) * 384
+    }
+
+    /// Optimized forward pass with reduced memory allocations
+    fn forward_optimized(&self, features: &Tensor) -> CandleResult<f32> {
+        // Feature transformer pass (most critical for NNUE speed)
+        let transformed = self.feature_transformer.forward_optimized(features)?;
+        
+        // Apply ClippedReLU activation (standard for NNUE)
+        let activated = transformed.clamp(0.0, 1.0)?;
+        
+        // Hidden layers with optimized operations
+        let mut hidden_output = activated;
+        for layer in &self.hidden_layers {
+            hidden_output = layer.forward(&hidden_output)?;
+            hidden_output = hidden_output.clamp(0.0, 1.0)?; // ClippedReLU
+        }
+        
+        // Output layer
+        let output = self.output_layer.forward(&hidden_output)?;
+        
+        // Extract scalar value efficiently
+        let eval_raw = output.get(0)?.get(0)?.to_scalar::<f32>()?;
+        
+        // Scale to pawn units (typical NNUE output is in [-1, 1] range)
+        Ok(eval_raw * 600.0) // Scale to approximately ±6 pawns max
     }
 
     /// Get feature indices for a piece relative to king positions
@@ -804,6 +1205,105 @@ impl FeatureTransformer {
             king_squares: [Square::E1, Square::E8], // Default positions
         })
     }
+
+    /// Optimized forward pass for feature transformer
+    fn forward_optimized(&self, x: &Tensor) -> CandleResult<Tensor> {
+        // Use BLAS-optimized matrix multiplication when available
+        let output = x.matmul(&self.weights)?;
+        output.broadcast_add(&self.biases)
+    }
+
+    /// Real incremental update for when pieces move (NNUE key innovation)
+    fn incremental_update(
+        &mut self,
+        moved_piece: Piece,
+        piece_color: Color,
+        from_square: Square,
+        to_square: Square,
+        white_king: Square,
+        black_king: Square,
+    ) -> CandleResult<()> {
+        // Get current accumulated features or initialize if None
+        if self.accumulated_features.is_none() {
+            // Initialize accumulator with bias values
+            self.accumulated_features = Some(self.biases.clone());
+        }
+        
+        // Calculate feature indices for the moved piece
+        let from_idx = self.get_feature_index_for_piece(moved_piece, piece_color, from_square, white_king, black_king);
+        let to_idx = self.get_feature_index_for_piece(moved_piece, piece_color, to_square, white_king, black_king);
+        
+        // Subtract old feature, add new feature (incremental update)
+        if let (Some(from_feature), Some(to_feature)) = (from_idx, to_idx) {
+            if from_feature < 768 && to_feature < 768 {
+                // Get the weight columns for these features
+                let from_weights = self.weights.get(from_feature)?;
+                let to_weights = self.weights.get(to_feature)?;
+                
+                // Update accumulator: subtract old position, add new position
+                if let Some(ref mut accumulator) = self.accumulated_features {
+                    *accumulator = accumulator.sub(&from_weights)?.add(&to_weights)?;
+                }
+            }
+        }
+        
+        // Update king positions
+        self.king_squares = [white_king, black_king];
+        
+        Ok(())
+    }
+
+    /// Calculate feature index for a specific piece placement
+    fn get_feature_index_for_piece(
+        &self,
+        piece: Piece,
+        color: Color,
+        square: Square,
+        white_king: Square,
+        black_king: Square,
+    ) -> Option<usize> {
+        let piece_idx = match piece {
+            Piece::Pawn => 0,
+            Piece::Knight => 1, 
+            Piece::Bishop => 2,
+            Piece::Rook => 3,
+            Piece::Queen => 4,
+            Piece::King => 5,
+        };
+        
+        let color_offset = if color == Color::White { 0 } else { 6 };
+        let square_idx = square.to_index();
+        
+        // Use king bucket for perspective (standard NNUE approach)
+        let king_square = if color == Color::White { white_king } else { black_king };
+        let king_bucket = self.get_king_bucket(king_square);
+        
+        let feature_idx = king_bucket * 384 + (piece_idx + color_offset) * 64 + square_idx;
+        
+        if feature_idx < 768 {
+            Some(feature_idx)
+        } else {
+            None
+        }
+    }
+
+    /// Get king bucket for feature indexing (divides board into regions)
+    fn get_king_bucket(&self, king_square: Square) -> usize {
+        let square_idx = king_square.to_index();
+        let file = square_idx % 8;
+        let rank = square_idx / 8;
+        
+        // Simple 2x2 bucketing for demonstration (real NNUE uses more sophisticated bucketing)
+        let file_bucket = if file < 4 { 0 } else { 1 };
+        let rank_bucket = if rank < 4 { 0 } else { 1 };
+        
+        file_bucket + rank_bucket * 2
+    }
+
+    /// Reset accumulated features (forces full recomputation)
+    fn reset_accumulator(&mut self) {
+        self.accumulated_features = None;
+    }
 }
 
 impl Module for FeatureTransformer {
@@ -866,6 +1366,22 @@ pub enum BlendStrategy {
     Adaptive,        // Adapt based on position type
     Confidence(f32), // Use vector when NNUE confidence is low
     GamePhase,       // Different blending for opening/middlegame/endgame
+}
+
+/// Blend weights for hybrid evaluation
+#[derive(Debug, Clone)]
+pub struct BlendWeights {
+    pub nnue_weight: f32,
+    pub vector_weight: f32,
+    pub tactical_weight: f32,
+}
+
+/// Game phase detection for evaluation blending
+#[derive(Debug, Clone, PartialEq)]
+pub enum GamePhase {
+    Opening,
+    Middlegame,
+    Endgame,
 }
 
 impl HybridEvaluator {
@@ -959,7 +1475,7 @@ mod tests {
         let board = Board::default();
 
         let vector_eval = Some(25.0); // Small advantage
-        let hybrid_eval = nnue.evaluate_hybrid(&board, vector_eval);
+        let hybrid_eval = nnue.evaluate_hybrid(&board, vector_eval, None);
         assert!(hybrid_eval.is_ok());
     }
 

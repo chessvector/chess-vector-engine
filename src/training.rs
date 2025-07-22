@@ -256,10 +256,10 @@ impl Visitor for GameExtractor {
                     if self.current_game.make_move(chess_move) {
                         self.move_count += 1;
 
-                        // Store position (we'll evaluate it later with Stockfish)
+                        // Store position (we'll evaluate it later with external engine)
                         self.positions.push(TrainingData {
                             board: self.current_game.current_position(),
-                            evaluation: 0.0, // Will be filled by Stockfish
+                            evaluation: 0.0, // Will be filled by external engine
                             depth: 0,
                             game_id: self.game_id,
                         });
@@ -286,17 +286,17 @@ impl Visitor for GameExtractor {
     fn end_game(&mut self) -> Self::Result {}
 }
 
-/// Stockfish engine wrapper for position evaluation
-pub struct StockfishEvaluator {
+/// External engine wrapper for position evaluation
+pub struct ExternalEvaluator {
     depth: u8,
 }
 
-impl StockfishEvaluator {
+impl ExternalEvaluator {
     pub fn new(depth: u8) -> Self {
         Self { depth }
     }
 
-    /// Evaluate a single position using Stockfish
+    /// Evaluate a single position using external engine
     pub fn evaluate_position(&self, board: &Board) -> Result<f32, Box<dyn std::error::Error>> {
         let mut child = Command::new("stockfish")
             .stdin(Stdio::piped())
@@ -307,7 +307,7 @@ impl StockfishEvaluator {
         let stdin = child
             .stdin
             .as_mut()
-            .ok_or("Failed to get stdin handle for Stockfish process")?;
+            .ok_or("Failed to get stdin handle for external engine process")?;
         let fen = board.to_string();
 
         // Send UCI commands
@@ -321,7 +321,7 @@ impl StockfishEvaluator {
         let output = child.wait_with_output()?;
         let stdout = String::from_utf8_lossy(&output.stdout);
 
-        // Parse the evaluation from Stockfish output
+        // Parse the evaluation from external engine output
         for line in stdout.lines() {
             if line.starts_with("info") && line.contains("score cp") {
                 if let Some(cp_pos) = line.find("score cp ") {
@@ -376,7 +376,7 @@ impl StockfishEvaluator {
         Ok(())
     }
 
-    /// Evaluate multiple positions in parallel using concurrent Stockfish instances
+    /// Evaluate multiple positions in parallel using concurrent external engine instances
     pub fn evaluate_batch_parallel(
         &self,
         positions: &mut [TrainingData],
@@ -415,8 +415,8 @@ impl StockfishEvaluator {
     }
 }
 
-/// Persistent Stockfish process for fast UCI communication
-struct StockfishProcess {
+/// Persistent external engine process for fast UCI communication
+struct ExternalEngineProcess {
     child: Child,
     stdin: BufWriter<std::process::ChildStdin>,
     stdout: BufReader<std::process::ChildStdout>,
@@ -424,7 +424,7 @@ struct StockfishProcess {
     depth: u8,
 }
 
-impl StockfishProcess {
+impl ExternalEngineProcess {
     fn new(depth: u8) -> Result<Self, Box<dyn std::error::Error>> {
         let mut child = Command::new("stockfish")
             .stdin(Stdio::piped())
@@ -436,13 +436,13 @@ impl StockfishProcess {
             child
                 .stdin
                 .take()
-                .ok_or("Failed to get stdin handle for Stockfish process")?,
+                .ok_or("Failed to get stdin handle for external engine process")?,
         );
         let stdout = BufReader::new(
             child
                 .stdout
                 .take()
-                .ok_or("Failed to get stdout handle for Stockfish process")?,
+                .ok_or("Failed to get stdout handle for external engine process")?,
         );
 
         let mut process = Self {
@@ -522,28 +522,28 @@ impl StockfishProcess {
     }
 }
 
-impl Drop for StockfishProcess {
+impl Drop for ExternalEngineProcess {
     fn drop(&mut self) {
         let _ = self.send_command("quit");
         let _ = self.child.wait();
     }
 }
 
-/// High-performance Stockfish process pool
-pub struct StockfishPool {
-    pool: Arc<Mutex<Vec<StockfishProcess>>>,
+/// High-performance external engine process pool
+pub struct ExternalEnginePool {
+    pool: Arc<Mutex<Vec<ExternalEngineProcess>>>,
     depth: u8,
     pool_size: usize,
 }
 
-impl StockfishPool {
+impl ExternalEnginePool {
     pub fn new(depth: u8, pool_size: usize) -> Result<Self, Box<dyn std::error::Error>> {
         let mut processes = Vec::with_capacity(pool_size);
 
-        println!("🚀 Initializing Stockfish pool with {pool_size} processes...");
+        println!("🚀 Initializing external engine pool with {pool_size} processes...");
 
         for i in 0..pool_size {
-            match StockfishProcess::new(depth) {
+            match ExternalEngineProcess::new(depth) {
                 Ok(process) => {
                     processes.push(process);
                     if i % 2 == 1 {
@@ -575,7 +575,7 @@ impl StockfishPool {
                 process
             } else {
                 // Pool is empty, create temporary process
-                StockfishProcess::new(self.depth)?
+                ExternalEngineProcess::new(self.depth)?
             }
         };
 
@@ -732,19 +732,22 @@ impl TrainingDataset {
         Ok(())
     }
 
-    /// Evaluate all positions using Stockfish
-    pub fn evaluate_with_stockfish(&mut self, depth: u8) -> Result<(), Box<dyn std::error::Error>> {
-        let evaluator = StockfishEvaluator::new(depth);
+    /// Evaluate all positions using external engine
+    pub fn evaluate_with_external_engine(
+        &mut self,
+        depth: u8,
+    ) -> Result<(), Box<dyn std::error::Error>> {
+        let evaluator = ExternalEvaluator::new(depth);
         evaluator.evaluate_batch(&mut self.data)
     }
 
-    /// Evaluate all positions using Stockfish in parallel
-    pub fn evaluate_with_stockfish_parallel(
+    /// Evaluate all positions using external engine in parallel
+    pub fn evaluate_with_external_engine_parallel(
         &mut self,
         depth: u8,
         num_threads: usize,
     ) -> Result<(), Box<dyn std::error::Error>> {
-        let evaluator = StockfishEvaluator::new(depth);
+        let evaluator = ExternalEvaluator::new(depth);
         evaluator.evaluate_batch_parallel(&mut self.data, num_threads)
     }
 
@@ -1465,15 +1468,15 @@ impl SelfPlayTrainer {
 /// Engine performance evaluator
 pub struct EngineEvaluator {
     #[allow(dead_code)]
-    stockfish_depth: u8,
+    engine_depth: u8,
 }
 
 impl EngineEvaluator {
-    pub fn new(stockfish_depth: u8) -> Self {
-        Self { stockfish_depth }
+    pub fn new(engine_depth: u8) -> Self {
+        Self { engine_depth }
     }
 
-    /// Compare engine evaluations against Stockfish on test set
+    /// Compare engine evaluations against external engine on test set
     pub fn evaluate_accuracy(
         &self,
         engine: &mut ChessVectorEngine,
@@ -2744,7 +2747,7 @@ impl AdvancedSelfLearningSystem {
         }
     }
 
-    /// Get detailed progress report for testing against Stockfish
+    /// Get detailed progress report for testing against external engine
     pub fn get_progress_report(&self) -> String {
         let total_time = if let Some(start) = self.learning_stats.training_start_time {
             match std::time::SystemTime::now().duration_since(start) {
@@ -2775,7 +2778,7 @@ impl AdvancedSelfLearningSystem {
             Latest Estimated ELO: {}\n\
             ELO Progression: {} data points\n\
             \n\
-            💡 Ready for Stockfish testing!",
+            💡 Ready for external engine testing!",
             total_time,
             self.learning_stats.iterations_completed,
             self.learning_stats.total_games_played,
