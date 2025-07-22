@@ -683,7 +683,7 @@
 <a href=#683 id=683 data-nosnippet>683</a>            <span class="comment">// Material count for each piece type and color
 <a href=#684 id=684 data-nosnippet>684</a>            </span><span class="kw">let </span>piece_values = [<span class="number">1.0</span>, <span class="number">3.0</span>, <span class="number">3.0</span>, <span class="number">5.0</span>, <span class="number">9.0</span>, <span class="number">0.0</span>]; <span class="comment">// pawn, knight, bishop, rook, queen, king
 <a href=#685 id=685 data-nosnippet>685</a>            
-<a href=#686 id=686 data-nosnippet>686</a>            </span><span class="kw">for </span>(piece_type, <span class="kw-2">&amp;</span>value) <span class="kw">in </span>[chess::Piece::Pawn, chess::Piece::Knight, chess::Piece::Bishop, 
+<a href=#686 id=686 data-nosnippet>686</a>            </span><span class="kw">for </span>(piece_type, <span class="kw-2">&amp;</span>_value) <span class="kw">in </span>[chess::Piece::Pawn, chess::Piece::Knight, chess::Piece::Bishop, 
 <a href=#687 id=687 data-nosnippet>687</a>                                       chess::Piece::Rook, chess::Piece::Queen, chess::Piece::King].iter().zip(<span class="kw-2">&amp;</span>piece_values) {
 <a href=#688 id=688 data-nosnippet>688</a>                <span class="kw">let </span>white_count = (board.pieces(<span class="kw-2">*</span>piece_type) &amp; board.color_combined(chess::Color::White)).popcnt() <span class="kw">as </span>f32;
 <a href=#689 id=689 data-nosnippet>689</a>                <span class="kw">let </span>black_count = (board.pieces(<span class="kw-2">*</span>piece_type) &amp; board.color_combined(chess::Color::Black)).popcnt() <span class="kw">as </span>f32;

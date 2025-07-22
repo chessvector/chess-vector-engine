@@ -2,7 +2,7 @@
 <a href=#2 id=2 data-nosnippet>2</a><span class="kw">use </span>ndarray::Array1;
 <a href=#3 id=3 data-nosnippet>3</a><span class="kw">use </span>std::collections::HashMap;
 <a href=#4 id=4 data-nosnippet>4</a><span class="kw">use </span>std::path::{Path, PathBuf};
-<a href=#5 id=5 data-nosnippet>5</a><span class="kw">use </span>std::sync::{Arc, Mutex, RwLock};
+<a href=#5 id=5 data-nosnippet>5</a><span class="kw">use </span>std::sync::{Arc, RwLock};
 <a href=#6 id=6 data-nosnippet>6</a><span class="kw">use </span>std::time::Instant;
 <a href=#7 id=7 data-nosnippet>7</a>
 <a href=#8 id=8 data-nosnippet>8</a><span class="doccomment">/// Lazy-loaded value that is computed on first access
@@ -347,7 +347,7 @@
 <a href=#347 id=347 data-nosnippet>347</a>        <span class="kw">let </span>file_loader = LazyFileLoader::new(base_path, max_cache_size);
 <a href=#348 id=348 data-nosnippet>348</a>
 <a href=#349 id=349 data-nosnippet>349</a>        <span class="kw">let </span>position_cache = LazyCollection::with_cache_limit(
-<a href=#350 id=350 data-nosnippet>350</a>            |filename: <span class="kw-2">&amp;</span>String| {
+<a href=#350 id=350 data-nosnippet>350</a>            |_filename: <span class="kw-2">&amp;</span>String| {
 <a href=#351 id=351 data-nosnippet>351</a>                <span class="comment">// This will be properly implemented by calling the method directly
 <a href=#352 id=352 data-nosnippet>352</a>                </span><span class="prelude-val">Err</span>(ChessEngineError::IoError(<span class="string">"Not implemented"</span>.to_string()))
 <a href=#353 id=353 data-nosnippet>353</a>            },

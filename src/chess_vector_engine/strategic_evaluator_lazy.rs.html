@@ -146,7 +146,7 @@
 <a href=#146 id=146 data-nosnippet>146</a>    }
 <a href=#147 id=147 data-nosnippet>147</a>
 <a href=#148 id=148 data-nosnippet>148</a>    <span class="doccomment">/// Find strategic motifs matching specific criteria
-<a href=#149 id=149 data-nosnippet>149</a>    </span><span class="kw">pub fn </span>find_motifs_by_type(<span class="kw-2">&amp;</span><span class="self">self</span>, motif_type: <span class="kw-2">&amp;</span>MotifType) -&gt; <span class="prelude-ty">Result</span>&lt;Vec&lt;MotifMatch&gt;, Box&lt;<span class="kw">dyn </span>std::error::Error&gt;&gt; {
+<a href=#149 id=149 data-nosnippet>149</a>    </span><span class="kw">pub fn </span>find_motifs_by_type(<span class="kw-2">&amp;</span><span class="self">self</span>, _motif_type: <span class="kw-2">&amp;</span>MotifType) -&gt; <span class="prelude-ty">Result</span>&lt;Vec&lt;MotifMatch&gt;, Box&lt;<span class="kw">dyn </span>std::error::Error&gt;&gt; {
 <a href=#150 id=150 data-nosnippet>150</a>        <span class="kw">if </span>!<span class="self">self</span>.use_motifs {
 <a href=#151 id=151 data-nosnippet>151</a>            <span class="kw">return </span><span class="prelude-val">Ok</span>(Vec::new());
 <a href=#152 id=152 data-nosnippet>152</a>        }

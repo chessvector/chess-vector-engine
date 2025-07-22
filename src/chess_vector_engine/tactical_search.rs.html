@@ -2404,7 +2404,7 @@
 <a href=#2404 id=2404 data-nosnippet>2404</a>        }
 <a href=#2405 id=2405 data-nosnippet>2405</a>
 <a href=#2406 id=2406 data-nosnippet>2406</a>        <span class="comment">// 2. Winning captures (MVV-LVA)
-<a href=#2407 id=2407 data-nosnippet>2407</a>        </span><span class="kw">if let </span><span class="prelude-val">Some</span>(captured_piece) = board.piece_on(chess_move.get_dest()) {
+<a href=#2407 id=2407 data-nosnippet>2407</a>        </span><span class="kw">if let </span><span class="prelude-val">Some</span>(_captured_piece) = board.piece_on(chess_move.get_dest()) {
 <a href=#2408 id=2408 data-nosnippet>2408</a>            <span class="kw">let </span>mvv_lva_score = <span class="self">self</span>.mvv_lva_score(chess_move, board);
 <a href=#2409 id=2409 data-nosnippet>2409</a>
 <a href=#2410 id=2410 data-nosnippet>2410</a>            <span class="comment">// PERFORMANCE FIX: Disabled expensive material exchange calculation

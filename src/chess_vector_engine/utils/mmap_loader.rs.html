@@ -378,7 +378,7 @@
 <a href=#378 id=378 data-nosnippet>378</a>    }
 <a href=#379 id=379 data-nosnippet>379</a>
 <a href=#380 id=380 data-nosnippet>380</a>    <span class="doccomment">/// Load from gzip compressed file
-<a href=#381 id=381 data-nosnippet>381</a>    </span><span class="kw">fn </span>load_gzip&lt;P: AsRef&lt;Path&gt;&gt;(path: P) -&gt; <span class="kw">crate</span>::errors::Result&lt;Vec&lt;(Array1&lt;f32&gt;, f32)&gt;&gt; {
+<a href=#381 id=381 data-nosnippet>381</a>    </span><span class="kw">fn </span>load_gzip&lt;P: AsRef&lt;Path&gt;&gt;(_path: P) -&gt; <span class="kw">crate</span>::errors::Result&lt;Vec&lt;(Array1&lt;f32&gt;, f32)&gt;&gt; {
 <a href=#382 id=382 data-nosnippet>382</a>        <span class="comment">// Note: flate2 not available in current dependencies
 <a href=#383 id=383 data-nosnippet>383</a>        // This is a placeholder for future implementation
 <a href=#384 id=384 data-nosnippet>384</a>        </span><span class="prelude-val">Err</span>(ChessEngineError::IoError(

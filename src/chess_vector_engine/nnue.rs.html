@@ -429,9 +429,9 @@
 <a href=#429 id=429 data-nosnippet>429</a>    </span><span class="kw">fn </span>calculate_blend_weights(
 <a href=#430 id=430 data-nosnippet>430</a>        <span class="kw-2">&amp;</span><span class="self">self</span>,
 <a href=#431 id=431 data-nosnippet>431</a>        board: <span class="kw-2">&amp;</span>Board,
-<a href=#432 id=432 data-nosnippet>432</a>        nnue_eval: f32,
-<a href=#433 id=433 data-nosnippet>433</a>        vector_eval: <span class="prelude-ty">Option</span>&lt;f32&gt;,
-<a href=#434 id=434 data-nosnippet>434</a>        tactical_eval: <span class="prelude-ty">Option</span>&lt;f32&gt;,
+<a href=#432 id=432 data-nosnippet>432</a>        _nnue_eval: f32,
+<a href=#433 id=433 data-nosnippet>433</a>        _vector_eval: <span class="prelude-ty">Option</span>&lt;f32&gt;,
+<a href=#434 id=434 data-nosnippet>434</a>        _tactical_eval: <span class="prelude-ty">Option</span>&lt;f32&gt;,
 <a href=#435 id=435 data-nosnippet>435</a>    ) -&gt; CandleResult&lt;BlendWeights&gt; {
 <a href=#436 id=436 data-nosnippet>436</a>        <span class="kw">let </span><span class="kw-2">mut </span>nnue_weight = <span class="number">0.7</span>; <span class="comment">// Base NNUE weight
 <a href=#437 id=437 data-nosnippet>437</a>        </span><span class="kw">let </span><span class="kw-2">mut </span>vector_weight = <span class="number">0.2</span>; <span class="comment">// Base vector weight  
