@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"enum":["ActivationType","BlendStrategy"],"struct":["EvalStats","HybridEvaluator","NNUE","NNUEConfig"]};
+window.SIDEBAR_ITEMS = {"enum":["ActivationType","BlendStrategy","GamePhase"],"struct":["BlendWeights","EvalStats","HybridEvaluator","NNUE","NNUEBenchmarkResult","NNUEConfig"]};

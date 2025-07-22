@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"struct":["CalibratedEvaluator","CalibrationConfig","EvaluationBreakdown","MaterialEvaluator","PieceValues","PositionalEvaluator"],"trait":["EvaluationComponent"]};

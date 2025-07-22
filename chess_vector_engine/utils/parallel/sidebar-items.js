@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"enum":["Task"],"struct":["ParallelDataPipeline","ParallelPerformanceMonitor","ParallelPerformanceStats","ParallelPositionEvaluator","ParallelSimilarityProcessor","ParallelVectorOps","WorkStealingPool"]};

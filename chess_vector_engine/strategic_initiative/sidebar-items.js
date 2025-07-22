@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"enum":["PlanOutcome","StrategicPlanType"],"struct":["ColorInitiativeAnalysis","InitiativeAnalyzer","InitiativeFactors","PositionalPressure","PositionalPressureEvaluator","StrategicInitiativeEvaluator","StrategicInitiativeResult","StrategicInitiativeStats","StrategicPlan","StrategicPlanGenerator","TimePressure","TimePressureAnalyzer"]};

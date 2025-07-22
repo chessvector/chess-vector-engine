@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"fn":["global_resource_manager"],"struct":["Lazy","LazyCollection","LazyCollectionStats","LazyDatasetStats","LazyFileLoader","LazyFileLoaderStats","LazyPositionDataset","LazyResourceManager"]};

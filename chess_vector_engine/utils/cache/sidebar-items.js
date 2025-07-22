@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"struct":["BatchCache","CacheStats","EvaluationCache","PatternCache","PatternCacheStats","SimilarityCache","TimedLruCache"]};

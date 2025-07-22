@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"enum":["EvaluationCategory","StockfishTestError"],"struct":["EvaluationComparison","StockfishEngine","StockfishTestConfig","StockfishTester","TestStatistics","TestSuiteResults"]};

@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"struct":["CacheStats","CoreEvaluationResult","CoreEvaluator","EvaluationBlender","SimilarityEngine","SimilarityInsights","StrategicAnalyzer","StrategicInsights"]};

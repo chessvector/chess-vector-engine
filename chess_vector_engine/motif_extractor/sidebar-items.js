@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"enum":["SimplePatternType"],"struct":["MotifExtractor","StrategicPattern"]};

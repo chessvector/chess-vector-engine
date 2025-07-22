@@ -1,1 +1,0 @@
-window.SIDEBAR_ITEMS = {"fn":["calculate_centipawn_losses","convert_to_san","main","normalize_evaluation","play_game"],"struct":["GameState","MoveAnalysis","StockfishPlayer"]};

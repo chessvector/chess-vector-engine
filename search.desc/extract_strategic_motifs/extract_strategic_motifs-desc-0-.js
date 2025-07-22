@@ -1,0 +1,1 @@
+searchState.loadedDescShard("extract_strategic_motifs", 0, "Strategic Motif Extraction Binary")

@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"fn":["analyze_strategic_initiative","evaluate_purely_tactical","evaluate_with_our_approach","load_strategic_knowledge_base","main"],"struct":["HybridEvaluationResult"]};

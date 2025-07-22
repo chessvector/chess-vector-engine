@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"fn":["clear_vector_pools","create_hashmap_pool","create_move_pool","get_vector","get_vector_pool_stats","get_zeroed_vector","return_vector"],"struct":["ObjectPool","PooledObject","PooledVector","ResettablePool","ThreadLocalPool","ThreadLocalPooledObject","VectorPool","VectorPoolManager"],"trait":["Resettable"],"type":["HashMapPool","MovePool"]};

@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"fn":["load_strategic_knowledge","main"]};

@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"fn":["global_vector_pool"],"struct":["ArenaAllocator","ArenaStats","BatchMemoryProcessor","FixedSizeMemoryPool","MemoryPoolStats","MemoryPooledVector","PooledMemory","VectorMemoryPool"]};

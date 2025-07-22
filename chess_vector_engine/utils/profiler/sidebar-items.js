@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"fn":["global_profiler"],"struct":["Benchmark","BenchmarkResult","ChessEngineProfiler","ChessEngineReport","ChessMetrics","CounterStats","MemorySnapshot","PerformanceReport","Profiler","ScopedTimer","TimerStats"]};

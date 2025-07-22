@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"fn":["determine_game_phase","generate_pattern_hash"]};

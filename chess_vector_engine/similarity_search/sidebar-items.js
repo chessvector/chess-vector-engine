@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"struct":["PositionEntry","SearchResult","SearchResultRef","SimilaritySearch","SimilaritySearchStats"]};
+window.SIDEBAR_ITEMS = {"struct":["ClusterNode","ClusterTreeStats","PositionEntry","SearchResult","SearchResultCache","SearchResultRef","SimilarityCacheStats","SimilaritySearch","SimilaritySearchStats"]};

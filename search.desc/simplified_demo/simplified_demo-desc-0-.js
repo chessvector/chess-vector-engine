@@ -1,0 +1,1 @@
+searchState.loadedDescShard("simplified_demo", 0, "Load strategic positions to demonstrate our pattern …\nSimplified demo that clearly demonstrates our unique value …")
