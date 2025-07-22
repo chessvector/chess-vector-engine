@@ -429,9 +429,9 @@ impl NNUE {
     fn calculate_blend_weights(
         &self,
         board: &Board,
-        nnue_eval: f32,
-        vector_eval: Option<f32>,
-        tactical_eval: Option<f32>,
+        _nnue_eval: f32,
+        _vector_eval: Option<f32>,
+        _tactical_eval: Option<f32>,
     ) -> CandleResult<BlendWeights> {
         let mut nnue_weight = 0.7; // Base NNUE weight
         let mut vector_weight = 0.2; // Base vector weight  

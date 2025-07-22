@@ -378,7 +378,7 @@ impl CompressedLoader {
     }
 
     /// Load from gzip compressed file
-    fn load_gzip<P: AsRef<Path>>(path: P) -> crate::errors::Result<Vec<(Array1<f32>, f32)>> {
+    fn load_gzip<P: AsRef<Path>>(_path: P) -> crate::errors::Result<Vec<(Array1<f32>, f32)>> {
         // Note: flate2 not available in current dependencies
         // This is a placeholder for future implementation
         Err(ChessEngineError::IoError(

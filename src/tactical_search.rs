@@ -2404,7 +2404,7 @@ impl TacticalSearch {
         }
 
         // 2. Winning captures (MVV-LVA)
-        if let Some(captured_piece) = board.piece_on(chess_move.get_dest()) {
+        if let Some(_captured_piece) = board.piece_on(chess_move.get_dest()) {
             let mvv_lva_score = self.mvv_lva_score(chess_move, board);
 
             // PERFORMANCE FIX: Disabled expensive material exchange calculation

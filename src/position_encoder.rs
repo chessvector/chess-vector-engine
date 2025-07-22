@@ -683,7 +683,7 @@ impl PositionEncoder {
             // Material count for each piece type and color
             let piece_values = [1.0, 3.0, 3.0, 5.0, 9.0, 0.0]; // pawn, knight, bishop, rook, queen, king
             
-            for (piece_type, &value) in [chess::Piece::Pawn, chess::Piece::Knight, chess::Piece::Bishop, 
+            for (piece_type, &_value) in [chess::Piece::Pawn, chess::Piece::Knight, chess::Piece::Bishop, 
                                        chess::Piece::Rook, chess::Piece::Queen, chess::Piece::King].iter().zip(&piece_values) {
                 let white_count = (board.pieces(*piece_type) & board.color_combined(chess::Color::White)).popcnt() as f32;
                 let black_count = (board.pieces(*piece_type) & board.color_combined(chess::Color::Black)).popcnt() as f32;

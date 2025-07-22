@@ -146,7 +146,7 @@ impl LazyStrategicEvaluator {
     }
 
     /// Find strategic motifs matching specific criteria
-    pub fn find_motifs_by_type(&self, motif_type: &MotifType) -> Result<Vec<MotifMatch>, Box<dyn std::error::Error>> {
+    pub fn find_motifs_by_type(&self, _motif_type: &MotifType) -> Result<Vec<MotifMatch>, Box<dyn std::error::Error>> {
         if !self.use_motifs {
             return Ok(Vec::new());
         }

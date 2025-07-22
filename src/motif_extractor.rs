@@ -214,7 +214,7 @@ impl MotifExtractor {
         // Analyze for isolated pawns
         for color in [Color::White, Color::Black] {
             let isolated_pawns = self.find_isolated_pawns(board, color);
-            for (file, square) in isolated_pawns {
+            for (file, _square) in isolated_pawns {
                 let pattern_hash = self.hash_isolated_pawn_pattern(file, color);
                 self.record_pattern_occurrence(pattern_hash, board, evaluation, game_phase);
             }
@@ -398,7 +398,7 @@ impl MotifExtractor {
             // Calculate statistical significance
             let avg_evaluation =
                 occurrence.evaluations.iter().sum::<f32>() / occurrence.evaluations.len() as f32;
-            let eval_std_dev = self.calculate_std_dev(&occurrence.evaluations, avg_evaluation);
+            let _eval_std_dev = self.calculate_std_dev(&occurrence.evaluations, avg_evaluation);
 
             // Only include patterns with significant evaluation impact
             if avg_evaluation.abs() < self.min_eval_significance {
@@ -523,7 +523,7 @@ impl MotifExtractor {
         isolated
     }
 
-    fn find_passed_pawns(&self, board: &Board, color: Color) -> Vec<(Square, f32)> {
+    fn find_passed_pawns(&self, _board: &Board, _color: Color) -> Vec<(Square, f32)> {
         // Simplified implementation - needs full passed pawn detection logic
         Vec::new()
     }
@@ -629,7 +629,7 @@ impl MotifExtractor {
     fn determine_context(
         &self,
         game_phases: &[GamePhase],
-        evaluations: &[f32],
+        _evaluations: &[f32],
     ) -> StrategicContext {
         // Determine most common game phase
         let mut phase_counts = HashMap::new();

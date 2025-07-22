@@ -3,7 +3,7 @@
 /// SOLID, clean implementation for testing against Stockfish with controlled conditions.
 /// Tests our calibrated engine against Stockfish at various reduced strengths.
 
-use chess::{Board, ChessMove, Color};
+use chess::{Board, ChessMove};
 use std::process::{Command, Stdio};
 use std::io::{BufRead, BufReader, Write};
 use std::str::FromStr;

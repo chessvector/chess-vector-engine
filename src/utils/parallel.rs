@@ -439,7 +439,7 @@ impl ParallelVectorOps {
         vectors
             .par_iter()
             .enumerate()
-            .map(|(i, vec_a)| {
+            .map(|(_i, vec_a)| {
                 // Inner loop can be sequential or parallel depending on size
                 if vectors.len() > 100 {
                     vectors

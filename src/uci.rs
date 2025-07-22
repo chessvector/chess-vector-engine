@@ -600,13 +600,25 @@ impl UCIEngine {
             let mut move_evaluations: Vec<(ChessMove, f32)> = Vec::new();
             let mut nodes_searched = 0;
 
+            // Create calibrated evaluator once for efficiency
+            use crate::evaluation_calibration::CalibratedEvaluator;
+            let calibrated_evaluator = CalibratedEvaluator::new(
+                crate::evaluation_calibration::CalibrationConfig::default()
+            );
+
             // Evaluate each legal move by making it and evaluating the resulting position
             for chess_move in &legal_moves {
                 let temp_board = board.make_move_new(*chess_move);
                 nodes_searched += 1;
 
-                // Use the engine's hybrid evaluation system (opening book + patterns + tactical)
-                if let Some(position_eval) = engine.evaluate_position(&temp_board) {
+                // Use calibrated evaluation for better move quality
+                let position_eval = if let Some(entry) = engine.get_opening_entry(&temp_board) {
+                    entry.evaluation
+                } else {
+                    // Use calibrated evaluator for better accuracy than basic material
+                    calibrated_evaluator.evaluate_centipawns(&temp_board) as f32 / 100.0
+                };
+                {
                     // Flip evaluation for opponent's perspective
                     let eval_for_us = if board.side_to_move() == chess::Color::White {
                         position_eval
@@ -821,6 +833,41 @@ impl UCIEngine {
 
         String::new()
     }
+}
+
+/// Basic material evaluation for UCI engine (fast, no complex analysis)
+fn calculate_material_eval(board: &Board) -> f32 {
+    let mut white_material = 0.0;
+    let mut black_material = 0.0;
+    
+    // Standard piece values
+    const PAWN_VALUE: f32 = 1.0;
+    const KNIGHT_VALUE: f32 = 3.0;
+    const BISHOP_VALUE: f32 = 3.0;
+    const ROOK_VALUE: f32 = 5.0;
+    const QUEEN_VALUE: f32 = 9.0;
+    
+    for square in chess::ALL_SQUARES {
+        if let Some(piece) = board.piece_on(square) {
+            let value = match piece {
+                chess::Piece::Pawn => PAWN_VALUE,
+                chess::Piece::Knight => KNIGHT_VALUE,
+                chess::Piece::Bishop => BISHOP_VALUE,
+                chess::Piece::Rook => ROOK_VALUE,
+                chess::Piece::Queen => QUEEN_VALUE,
+                chess::Piece::King => 0.0, // King has no material value
+            };
+            
+            if board.color_on(square) == Some(chess::Color::White) {
+                white_material += value;
+            } else {
+                black_material += value;
+            }
+        }
+    }
+    
+    // Return evaluation from white's perspective
+    white_material - black_material
 }
 
 impl Default for UCIEngine {

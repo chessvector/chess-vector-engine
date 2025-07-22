@@ -372,7 +372,7 @@ impl LazyStrategicDatabase {
     }
 
     /// Match a motif against a position
-    fn match_motif_to_position(&self, motif: &StrategicMotif, board: &Board) -> Option<MotifMatch> {
+    fn match_motif_to_position(&self, motif: &StrategicMotif, _board: &Board) -> Option<MotifMatch> {
         // Simplified matching logic - in a real implementation this would be more sophisticated
         let relevance = match &motif.motif_type {
             MotifType::PawnStructure(_) => 0.7,

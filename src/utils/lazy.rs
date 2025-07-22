@@ -2,7 +2,7 @@ use crate::errors::{ChessEngineError, Result};
 use ndarray::Array1;
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
-use std::sync::{Arc, Mutex, RwLock};
+use std::sync::{Arc, RwLock};
 use std::time::Instant;
 
 /// Lazy-loaded value that is computed on first access
@@ -347,7 +347,7 @@ impl LazyPositionDataset {
         let file_loader = LazyFileLoader::new(base_path, max_cache_size);
 
         let position_cache = LazyCollection::with_cache_limit(
-            |filename: &String| {
+            |_filename: &String| {
                 // This will be properly implemented by calling the method directly
                 Err(ChessEngineError::IoError("Not implemented".to_string()))
             },

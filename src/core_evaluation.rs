@@ -419,7 +419,7 @@ impl StrategicAnalyzer {
         control
     }
 
-    fn calculate_piece_activity(&self, board: &Board) -> f32 {
+    fn calculate_piece_activity(&self, _board: &Board) -> f32 {
         // Simplified piece activity calculation
         // In reality, this would analyze piece mobility and coordination
         0.0 // Placeholder

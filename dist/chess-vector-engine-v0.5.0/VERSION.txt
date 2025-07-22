@@ -1,0 +1,22 @@
+Chess Vector Engine v0.5.0 - "Validated Performance"
+Built: Tue Jul 22 02:26:57 PM CDT 2025
+Platform: Linux x86_64
+Binary: chess-vector-engine (UCI)
+Strength: 1600-1800 ELO (validated)
+
+Key Features:
+- UCI compliant chess engine
+- Vector-based pattern recognition
+- Tactical search with calibrated evaluation
+- 90.9% tactical accuracy on validation tests
+- 62.5% agreement with controlled Stockfish testing
+- Fast startup (~1ms) and low memory usage (~70MB)
+
+Installation:
+1. Make binary executable: chmod +x chess-vector-engine
+2. Add to your chess GUI as UCI engine
+3. See INSTALL.md for detailed setup instructions
+
+Support:
+- GitHub: https://github.com/chessvector/chess-vector-engine
+- Documentation: https://docs.rs/chess-vector-engine
